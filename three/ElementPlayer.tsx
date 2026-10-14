@@ -9,7 +9,7 @@ import { Stage } from "./Stage";
 import { SkaterModel, type SkaterHandle } from "./SkaterModel";
 import { markerAt, poseAt, TWO_PI, type IceArrow, type Timeline } from "./animation/timeline";
 import { createPlayerStore, type CameraMode, type PlayerStore } from "./animation/store";
-import { useSkaterStore, type SkaterVariant } from "./skaterStore";
+import { COSTUME_PRESETS, useSkaterStore, type SkaterVariant } from "./skaterStore";
 
 const EDGE_COLOR: Record<string, string> = { outside: "#1f6fd6", inside: "#e0532f", flat: "#888", toe: "#222" };
 
@@ -311,6 +311,8 @@ function Controls({ store }: { store: PlayerStore }) {
   const loop = useStore(store, (s) => s.loop);
   const variant = useSkaterStore((s) => s.variant);
   const setVariant = useSkaterStore((s) => s.setVariant);
+  const costume = useSkaterStore((s) => s.costume[variant]);
+  const setCostume = useSkaterStore((s) => s.setCostume);
   const api = store.getState();
   return (
     <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-center gap-2 bg-surface/90 px-3 py-2 text-xs backdrop-blur">
@@ -361,6 +363,16 @@ function Controls({ store }: { store: PlayerStore }) {
         <select value={variant} onChange={(e) => setVariant(e.target.value as SkaterVariant)} className="rounded border border-border bg-surface px-1 py-0.5">
           <option value="female">Woman</option>
           <option value="male">Man</option>
+        </select>
+      </label>
+      <label className="flex items-center gap-1">
+        Costume
+        <select value={costume} onChange={(e) => setCostume(variant, e.target.value)} className="rounded border border-border bg-surface px-1 py-0.5">
+          {COSTUME_PRESETS[variant].map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label}
+            </option>
+          ))}
         </select>
       </label>
     </div>
