@@ -11,6 +11,7 @@ const CAMS: Record<string, [number, number, number]> = {
   side: [4.2, 1.1, 0],
   back: [0, 1.1, -4.2],
   top: [0.01, 5, 0.01],
+  head: [0.9, 1.6, 1.1],
 };
 
 export function PoseStage({ pose, cam }: { pose: string; cam: string }) {
@@ -19,7 +20,7 @@ export function PoseStage({ pose, cam }: { pose: string; cam: string }) {
     document.body.dataset.skaterReady = "1";
   }, [pose]);
   return (
-    <Stage camera={{ position: CAMS[cam] ?? CAMS.iso, target: [0, 0.85, 0] }}>
+    <Stage camera={{ position: CAMS[cam] ?? CAMS.iso, target: cam === "head" ? [0, 1.5, 0] : [0, 0.85, 0] }}>
       <SkaterModel pose={POSES[pose] ?? POSES.rest} onReady={onReady} />
     </Stage>
   );

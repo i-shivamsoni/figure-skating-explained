@@ -170,14 +170,30 @@ for side in ("L", "R"):
         extras.append(part)
 
 # ---------------------------------------------------------------- hair
-head_c = Vector((0, -0.004, z(0.947)))
-hair = make_ellipsoid("hair", head_c, (0.09, 0.12, 0.108) if FEMALE else (0.088, 0.116, 0.102), mat_hair)
-# keep the crown and the back; open the face below the hairline and everything below the ears
-delete_faces(hair, lambda c: (c.y < -0.035 and c.z < z(0.963)) or (c.z < z(0.92) and c.y < 0.035) or c.z < z(0.895))
+# the cranium sits between y = -0.12 (forehead) and y = +0.05 (back of the head) on the female body
+k = H / 1.639
+head_c = Vector((0, -0.036 * k, z(0.949)))
+hair = make_ellipsoid("hair", head_c, (0.087 * k, 0.107 * k, 0.099 * k) if FEMALE else (0.086 * k, 0.105 * k, 0.094 * k), mat_hair, segments=64, rings=40)
+
+
+# hairline: high on the forehead, dipping behind the ears, lowest at the nape
+def hairline(y):
+    y = y / k
+    pts = [(-0.14, z(0.968)), (-0.09, z(0.956)), (-0.04, z(0.922)), (0.0, z(0.905)), (0.06, z(0.888))]
+    if y <= pts[0][0]:
+        return pts[0][1]
+    for (y0, z0), (y1, z1) in zip(pts, pts[1:]):
+        if y <= y1:
+            t = (y - y0) / (y1 - y0)
+            return z0 + (z1 - z0) * t
+    return pts[-1][1]
+
+
+delete_faces(hair, lambda c: c.z < hairline(c.y) or c.y < -0.113 * k)
 tag(hair, "head")
 extras.append(hair)
 if FEMALE:
-    bun = make_ellipsoid("bun", (0, 0.085, z(0.95)), (0.038, 0.034, 0.036), mat_hair, 16, 12)
+    bun = make_ellipsoid("bun", (0, 0.064 * k, z(0.948)), (0.038, 0.034, 0.036), mat_hair, 16, 12)
     tag(bun, "head")
     extras.append(bun)
 
