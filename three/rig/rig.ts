@@ -24,6 +24,8 @@ export class SkaterRig {
   private rest = new Map<BoneName, RestInfo>();
   private worldQ = new Map<BoneName, Quaternion>();
   readonly hipsRest = new Vector3();
+  /** Turns a skater-space hips offset into the hips bone's local frame. */
+  private readonly hipsOffsetQ = new Quaternion();
   readonly height: number;
 
   constructor(root: Object3D) {
@@ -48,6 +50,10 @@ export class SkaterRig {
       this.worldQ.set(name, info.worldQ.clone());
     }
     this.hipsRest.copy(this.rest.get("hips")!.localPos);
+    // the hips translate in their parent's frame, which the exported root bone rotates (Blender Z-up); pose offsets are given in skater space
+    const hipsParent = this.bones.get("hips")!.parent;
+    const parentRest = hipsParent && (hipsParent as Bone).isBone ? this.rest.get(hipsParent.name as BoneName) : undefined;
+    if (parentRest) this.hipsOffsetQ.copy(parentRest.worldQ).invert();
     this.height = this.rest.get("head_tip")!.worldPos.y - this.rest.get("foot_L_tip")!.worldPos.y + 0.04;
   }
 
@@ -84,7 +90,8 @@ export class SkaterRig {
   applyPose(pose: Pose) {
     const hips = this.bones.get("hips")!;
     const off = pose.hips ?? [0, 0, 0];
-    hips.position.set(this.hipsRest.x + off[0], this.hipsRest.y + off[1], this.hipsRest.z + off[2]);
+    _v.set(off[0], off[1], off[2]).applyQuaternion(this.hipsOffsetQ);
+    hips.position.set(this.hipsRest.x + _v.x, this.hipsRest.y + _v.y, this.hipsRest.z + _v.z);
     for (const name of this.hierarchyOrder()) {
       const b = this.bones.get(name)!;
       const r = this.rest.get(name)!;

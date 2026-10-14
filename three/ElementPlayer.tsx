@@ -109,14 +109,16 @@ function Actor({ timeline, store, partner = false }: { timeline: Timeline; store
 
 function Trace({ timeline }: { timeline: Timeline }) {
   const segments = useMemo(() => {
-    const out: { color: string; points: [number, number, number][]; dashed?: boolean }[] = [];
+    const out: { color: string; points: [number, number, number][]; dashed?: boolean; partner?: boolean }[] = [];
     let cur: (typeof out)[number] | null = null;
     let lastT = -1;
     for (const s of timeline.trace) {
       const color = EDGE_COLOR[s.edge] ?? "#555";
-      const gap = lastT >= 0 && s.t - lastT > 0.1;
-      if (!cur || cur.color !== color || gap) {
-        cur = { color, points: [] };
+      const partner = s.actor === "partner";
+      // a new line at every change of edge colour, time gap, or skater (the partner's samples follow the primary's)
+      const gap = lastT >= 0 && Math.abs(s.t - lastT) > 0.1;
+      if (!cur || cur.color !== color || gap || cur.partner !== partner) {
+        cur = { color, points: [], partner };
         out.push(cur);
       }
       cur.points.push([s.x, 0.006, s.z]);
@@ -137,7 +139,7 @@ function Trace({ timeline }: { timeline: Timeline }) {
   return (
     <group>
       {segments.map((s, i) => (
-        <Line key={i} points={s.points} color={s.color} lineWidth={s.dashed ? 1.2 : 2.5} dashed={s.dashed} dashSize={0.15} gapSize={0.1} />
+        <Line key={i} points={s.points} color={s.color} lineWidth={s.dashed ? 1.2 : s.partner ? 1.6 : 2.5} dashed={s.dashed} dashSize={0.15} gapSize={0.1} />
       ))}
       {toe && (
         <mesh position={[toe.x, 0.01, toe.z]}>

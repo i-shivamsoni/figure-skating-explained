@@ -860,3 +860,486 @@ POSES.landDeep = {
   },
   hips: [0, -0.26, 0],
 };
+
+/* ---------- pair skating (Technical Panel Handbook Pairs) ---------- */
+
+/**
+ * Lift positions put the Woman's hips at the root (`hips: [0, -0.91, 0]`) so a timeline can
+ * place the root on the Man's hands; the hold point of each position is listed in
+ * three/animation/pairs.ts. The Man's lifting poses keep the root between his blades.
+ */
+
+/** Upright position (upper body vertical) in a Group 3 hip lift: legs in a split, arms in a V. */
+POSES.liftUpright = {
+  bones: {
+    thigh_L: { dir: limb(92, 6) },
+    shin_L: { dir: limb(95, 6) },
+    foot_L: { dir: vec(0, -0.3, 0.95) },
+    thigh_R: { dir: limb(-85, -6) },
+    shin_R: { dir: limb(-90, -6) },
+    foot_R: { dir: vec(0, 0.3, -0.95) },
+    spine: { dir: vec(0, 1, -0.08) },
+    chest: { dir: vec(0, 0.97, -0.22) },
+    neck: { dir: vec(0, 0.95, -0.3) },
+    head: { dir: vec(0, 0.9, -0.42) },
+    upper_arm_L: { dir: vec(0.75, 0.65, 0) },
+    forearm_L: { dir: vec(0.7, 0.7, 0) },
+    hand_L: { dir: vec(0.65, 0.75, 0) },
+    upper_arm_R: { dir: vec(-0.75, 0.65, 0) },
+    forearm_R: { dir: vec(-0.7, 0.7, 0) },
+    hand_R: { dir: vec(-0.65, 0.75, 0) },
+  },
+  hips: [0, -0.91, 0],
+};
+
+/** Press lift (Group 4, hand to hand): the Woman upright over the Man, arms straight down into his hands, legs in a straddle. */
+POSES.liftPress = {
+  bones: {
+    thigh_L: { dir: limb(0, 88) },
+    shin_L: { dir: limb(0, 90) },
+    foot_L: { dir: vec(0.95, -0.3, 0) },
+    thigh_R: { dir: limb(0, -88) },
+    shin_R: { dir: limb(0, -90) },
+    foot_R: { dir: vec(-0.95, -0.3, 0) },
+    spine: { dir: vec(0, 1, 0.05) },
+    chest: { dir: vec(0, 1, 0.02) },
+    head: { dir: vec(0, 0.98, 0.2) },
+    upper_arm_L: { dir: vec(0.05, -0.95, 0.3) },
+    forearm_L: { dir: vec(0.02, -0.95, 0.3) },
+    hand_L: { dir: vec(0, -0.95, 0.3) },
+    upper_arm_R: { dir: vec(-0.05, -0.95, 0.3) },
+    forearm_R: { dir: vec(-0.02, -0.95, 0.3) },
+    hand_R: { dir: vec(0, -0.95, 0.3) },
+  },
+  hips: [0, -0.91, 0],
+};
+
+/** Star position (Group 5 lasso): sideways with the upper body parallel to the ice, one hand straight down to the Man's hand, legs spread. */
+POSES.liftStar = {
+  bones: {
+    hips: { dir: vec(-1, 0.05, 0) },
+    spine: { dir: vec(-1, 0, 0) },
+    chest: { dir: vec(-1, 0.05, 0) },
+    neck: { dir: vec(-1, 0.1, 0) },
+    head: { dir: vec(-1, 0.15, 0) },
+    upper_arm_R: { dir: vec(0, -1, 0) },
+    forearm_R: { dir: vec(0, -1, 0) },
+    hand_R: { dir: vec(0, -1, 0) },
+    upper_arm_L: { dir: vec(0.05, 1, 0) },
+    forearm_L: { dir: vec(0.05, 1, 0) },
+    hand_L: { dir: vec(0.05, 1, 0) },
+    thigh_L: { dir: vec(0.85, 0.1, 0.5) },
+    shin_L: { dir: vec(0.85, 0.1, 0.5) },
+    foot_L: { dir: vec(0.9, -0.1, 0.4) },
+    thigh_R: { dir: vec(0.85, -0.05, -0.5) },
+    shin_R: { dir: vec(0.85, -0.05, -0.5) },
+    foot_R: { dir: vec(0.9, -0.2, -0.4) },
+  },
+  hips: [0, -0.91, 0],
+};
+
+/** Platter position: flat, facing down, upper body parallel to the ice; one hand down to the Man, the other arm out. */
+POSES.liftPlatter = {
+  bones: {
+    hips: { dir: vec(0, 0, 1) },
+    spine: { dir: vec(0, 0, 1) },
+    chest: { dir: vec(0, 0.02, 1) },
+    neck: { dir: vec(0, 0.1, 1) },
+    head: { dir: vec(0, 0.25, 1) },
+    upper_arm_R: { dir: vec(0, -1, 0) },
+    forearm_R: { dir: vec(0, -1, 0) },
+    hand_R: { dir: vec(0, -1, 0) },
+    upper_arm_L: { dir: vec(0.95, -0.15, 0.25) },
+    forearm_L: { dir: vec(1, 0, 0.1) },
+    hand_L: { dir: vec(1, 0, 0) },
+    thigh_L: { dir: vec(0.08, 0, -1) },
+    shin_L: { dir: vec(0.08, 0.02, -1) },
+    foot_L: { dir: vec(0.05, -0.2, -1) },
+    thigh_R: { dir: vec(-0.08, 0, -1) },
+    shin_R: { dir: vec(-0.08, 0.02, -1) },
+    foot_R: { dir: vec(-0.05, -0.2, -1) },
+  },
+  hips: [0, -0.91, 0],
+};
+
+/** Twist lift: split position before rotating (each leg at least 45° from the body axis, legs straight), arms overhead. */
+POSES.twistSplit = {
+  bones: {
+    thigh_L: { dir: limb(95, 5) },
+    shin_L: { dir: limb(98, 5) },
+    foot_L: { dir: vec(0, 0.3, 0.95) },
+    thigh_R: { dir: limb(-88, -5) },
+    shin_R: { dir: limb(-92, -5) },
+    foot_R: { dir: vec(0, 0.3, -0.95) },
+    spine: { dir: vec(0, 1, 0.08) },
+    chest: { dir: vec(0, 1, 0.05) },
+    upper_arm_L: { dir: vec(0.35, 0.93, 0.05) },
+    upper_arm_R: { dir: vec(-0.35, 0.93, 0.05) },
+    forearm_L: { dir: vec(0.2, 0.98, 0.05) },
+    forearm_R: { dir: vec(-0.2, 0.98, 0.05) },
+    hand_L: { dir: vec(0.1, 1, 0) },
+    hand_R: { dir: vec(-0.1, 1, 0) },
+  },
+};
+
+/** Twist lift rotation: legs together, arms above the head for the revolutions. */
+POSES.twistAir = {
+  bones: {
+    thigh_L: { dir: limb(4, -4) },
+    thigh_R: { dir: limb(2, 3) },
+    shin_L: { dir: limb(-2, -8) },
+    shin_R: { dir: limb(-2, 3) },
+    foot_L: { dir: vec(0, -0.8, 0.6) },
+    foot_R: { dir: vec(0, -0.8, 0.6) },
+    spine: { dir: vec(0, 1, 0.02) },
+    neck: { dir: vec(0, 1, 0.05) },
+    upper_arm_L: { dir: vec(0.1, 0.99, 0.03) },
+    upper_arm_R: { dir: vec(-0.1, 0.99, 0.03) },
+    forearm_L: { dir: vec(-0.08, 1, 0) },
+    forearm_R: { dir: vec(0.08, 1, 0) },
+    hand_L: { dir: vec(-0.1, 1, 0) },
+    hand_R: { dir: vec(0.1, 1, 0) },
+  },
+};
+
+/** Forward inside death spiral (right forward inside edge, circling counter-clockwise): leaning sideways to the ice, head below the skating knee, left arm to the Man. */
+POSES.deathSpiralFi = {
+  bones: {
+    hips: { dir: vec(0.6, 0.8, 0) },
+    spine: { dir: vec(0.9, -0.4, 0.1) },
+    chest: { dir: vec(0.92, -0.35, 0.1) },
+    neck: { dir: vec(0.95, -0.25, 0.1) },
+    head: { dir: vec(0.97, -0.15, 0.1) },
+    thigh_R: { dir: vec(-0.909, -0.101, 0.404) },
+    shin_R: { dir: vec(0.3, -0.949, -0.1) },
+    foot_R: { dir: vec(0, -0.4, 0.92) },
+    thigh_L: { dir: vec(-0.1, 0.15, -0.98) },
+    shin_L: { dir: vec(-0.1, 0.1, -0.99) },
+    foot_L: { dir: vec(-0.1, -0.3, -0.95) },
+    upper_arm_L: { dir: vec(0.7, 0.68, 0.2) },
+    forearm_L: { dir: vec(0.7, 0.68, 0.2) },
+    hand_L: { dir: vec(0.7, 0.68, 0.2) },
+    upper_arm_R: { dir: vec(0.85, 0.2, -0.3) },
+    forearm_R: { dir: vec(0.9, 0.15, -0.3) },
+    hand_R: { dir: vec(0.9, 0.1, -0.3) },
+  },
+  hips: [0.33, -0.41, -0.12],
+};
+
+/**
+ * Backward outside death spiral (right back outside edge, counter-clockwise): the root faces away
+ * from the pivot, the body arched backward toward it with the chest to the ceiling and the head
+ * close to the ice; the right arm reaches overhead to the Man. The blade points to the skater's right.
+ */
+POSES.deathSpiralBo = {
+  bones: {
+    hips: { dir: vec(0, 0.8, -0.6) },
+    spine: { dir: vec(0, -0.1, -1) },
+    chest: { dir: vec(0, -0.2, -1) },
+    neck: { dir: vec(0, -0.45, -0.9) },
+    head: { dir: vec(0, -0.65, -0.75) },
+    thigh_R: { dir: vec(-0.1, -0.2, 0.98) },
+    shin_R: { dir: vec(-0.1, -0.98, 0.05) },
+    foot_R: { dir: vec(-0.95, -0.3, 0) },
+    thigh_L: { dir: vec(0.75, -0.1, 0.65) },
+    shin_L: { dir: vec(0.75, -0.15, 0.65) },
+    foot_L: { dir: vec(0.7, -0.4, 0.6) },
+    upper_arm_R: { dir: vec(-0.1, 0.4, -0.9) },
+    forearm_R: { dir: vec(-0.1, 0.4, -0.9) },
+    hand_R: { dir: vec(-0.1, 0.4, -0.9) },
+    upper_arm_L: { dir: vec(0.9, 0.3, -0.3) },
+    forearm_L: { dir: vec(0.9, 0.3, -0.3) },
+    hand_L: { dir: vec(0.9, 0.3, -0.3) },
+  },
+  hips: [0, -0.31, -0.22],
+};
+
+/** Pair camel: the inner (left) arm bent toward the partner's hand on the common axis, the outer arm out. */
+POSES.pairCamel = {
+  bones: {
+    ...POSES.camel.bones,
+    upper_arm_L: { dir: vec(0.7, 0.55, 0.45) },
+    forearm_L: { dir: vec(0.85, -0.4, 0.3) },
+    hand_L: { dir: vec(0.9, -0.3, 0.3) },
+    upper_arm_R: { dir: vec(-0.95, 0.1, 0.3) },
+    forearm_R: { dir: vec(-0.95, 0.1, 0.3) },
+  },
+  hips: [0, -0.04, 0],
+};
+
+/** Pair sit: the inner (left) arm to the partner on the axis, the free leg forward. */
+POSES.pairSit = {
+  bones: {
+    ...POSES.sit.bones,
+    upper_arm_L: { dir: vec(0.8, 0.2, 0.55) },
+    forearm_L: { dir: vec(0.9, -0.2, 0.4) },
+    hand_L: { dir: vec(0.9, -0.2, 0.4) },
+    upper_arm_R: { dir: vec(-0.3, -0.2, 0.93) },
+    forearm_R: { dir: vec(-0.2, 0.2, 0.96) },
+  },
+  hips: [0, -0.46, 0.05],
+};
+
+/** Pair sit with the free leg behind (the handbook's pair sit: one partner's free leg behind, the other's in front). */
+POSES.pairSitBehind = {
+  bones: {
+    ...POSES.sitBehind.bones,
+    upper_arm_L: { dir: vec(0.8, 0.2, 0.55) },
+    forearm_L: { dir: vec(0.9, -0.2, 0.4) },
+    hand_L: { dir: vec(0.9, -0.2, 0.4) },
+    upper_arm_R: { dir: vec(-0.3, -0.2, 0.93) },
+    forearm_R: { dir: vec(-0.2, 0.2, 0.96) },
+  },
+  hips: [0, -0.46, 0.02],
+};
+
+/** Pair upright: inner arm to the partner, outer arm overhead. */
+POSES.pairUpright = {
+  bones: {
+    thigh_L: { dir: limb(1, 0) },
+    shin_L: { dir: limb(-1, 0) },
+    thigh_R: { dir: limb(6, 14) },
+    shin_R: { dir: limb(-4, 18) },
+    foot_R: { dir: vec(0.5, -0.55, 0.65) },
+    spine: { dir: vec(0, 1, 0.02) },
+    upper_arm_L: { dir: vec(0.9, -0.1, 0.4) },
+    forearm_L: { dir: vec(0.95, -0.1, 0.3) },
+    hand_L: { dir: vec(0.95, -0.1, 0.3) },
+    upper_arm_R: { dir: vec(-0.2, 0.97, 0.1) },
+    forearm_R: { dir: vec(0.1, 0.99, 0.05) },
+    hand_R: { dir: vec(0.2, 0.97, 0.05) },
+  },
+};
+
+/* --- the Man --- */
+
+/** Full extension of both lifting arms overhead, gliding on two feet. */
+POSES.liftHold = {
+  bones: {
+    thigh_L: { dir: limb(8, 6) },
+    shin_L: { dir: limb(-8, 6) },
+    thigh_R: { dir: limb(-10, -6) },
+    shin_R: { dir: limb(-15, -6) },
+    spine: { dir: vec(0, 1, 0.03) },
+    chest: { dir: vec(0, 1, 0.0) },
+    neck: { dir: vec(0, 0.95, -0.3) },
+    head: { dir: vec(0, 0.85, -0.5) },
+    upper_arm_L: { dir: vec(-0.08, 0.98, 0.17) },
+    forearm_L: { dir: vec(-0.05, 0.98, 0.17) },
+    hand_L: { dir: vec(0, 0.98, 0.2) },
+    upper_arm_R: { dir: vec(0.08, 0.98, 0.17) },
+    forearm_R: { dir: vec(0.05, 0.98, 0.17) },
+    hand_R: { dir: vec(0, 0.98, 0.2) },
+  },
+  hips: [0, -0.03, 0],
+};
+
+/** One-hand hold: the right arm fully extended overhead, the left arm out to the side. */
+POSES.liftHoldOne = {
+  bones: {
+    ...POSES.liftHold.bones,
+    upper_arm_R: { dir: vec(0.1, 0.98, 0.15) },
+    forearm_R: { dir: vec(0.08, 0.98, 0.15) },
+    hand_R: { dir: vec(0.05, 0.98, 0.18) },
+    upper_arm_L: { dir: limb(10, 85) },
+    forearm_L: { dir: limb(10, 85) },
+    hand_L: { dir: limb(10, 85) },
+  },
+  hips: [0, -0.03, 0],
+};
+
+/** Knee bend before the lift, hands at the Woman's waist or hands in front. */
+POSES.liftLoad = {
+  bones: {
+    thigh_L: { dir: limb(50, 8) },
+    shin_L: { dir: limb(-45, 8) },
+    thigh_R: { dir: limb(50, -8) },
+    shin_R: { dir: limb(-45, -8) },
+    spine: { dir: vec(0, 0.95, 0.3) },
+    chest: { dir: vec(0, 0.95, 0.3) },
+    upper_arm_L: { dir: vec(0.1, -0.45, 0.9) },
+    forearm_L: { dir: vec(0.05, -0.1, 1) },
+    hand_L: { dir: vec(0, -0.1, 1) },
+    upper_arm_R: { dir: vec(-0.1, -0.45, 0.9) },
+    forearm_R: { dir: vec(-0.05, -0.1, 1) },
+    hand_R: { dir: vec(0, -0.1, 1) },
+  },
+  hips: [0, -0.22, 0],
+};
+
+/** Lowering the Woman: arms forward at shoulder level, knees soft. */
+POSES.liftLower = {
+  bones: {
+    thigh_L: { dir: limb(25, 6) },
+    shin_L: { dir: limb(-20, 6) },
+    thigh_R: { dir: limb(25, -6) },
+    shin_R: { dir: limb(-20, -6) },
+    spine: { dir: vec(0, 0.98, 0.15) },
+    upper_arm_L: { dir: vec(0.15, 0.35, 0.92) },
+    forearm_L: { dir: vec(0.1, 0.3, 0.95) },
+    hand_L: { dir: vec(0, 0.2, 1) },
+    upper_arm_R: { dir: vec(-0.15, 0.35, 0.92) },
+    forearm_R: { dir: vec(-0.1, 0.3, 0.95) },
+    hand_R: { dir: vec(0, 0.2, 1) },
+  },
+  hips: [0, -0.1, 0],
+};
+
+/** Twist lift: arms sideways, straight, at shoulder level after the release. */
+POSES.twistSideways = {
+  bones: {
+    thigh_L: { dir: limb(8, 6) },
+    shin_L: { dir: limb(-8, 6) },
+    thigh_R: { dir: limb(-10, -6) },
+    shin_R: { dir: limb(-15, -6) },
+    spine: { dir: vec(0, 1, 0.03) },
+    head: { dir: vec(0, 0.85, -0.5) },
+    upper_arm_L: { dir: limb(5, 90) },
+    forearm_L: { dir: limb(5, 90) },
+    hand_L: { dir: limb(5, 90) },
+    upper_arm_R: { dir: limb(5, -90) },
+    forearm_R: { dir: limb(5, -90) },
+    hand_R: { dir: limb(5, -90) },
+  },
+  hips: [0, -0.03, 0],
+};
+
+/** Twist lift: hands apart overhead, ready to catch the Woman at the sides of the waist. */
+POSES.twistCatch = {
+  bones: {
+    thigh_L: { dir: limb(20, 6) },
+    shin_L: { dir: limb(-18, 6) },
+    thigh_R: { dir: limb(-5, -6) },
+    shin_R: { dir: limb(-15, -6) },
+    spine: { dir: vec(0, 1, 0.05) },
+    head: { dir: vec(0, 0.85, -0.5) },
+    upper_arm_L: { dir: vec(0.3, 0.85, 0.4) },
+    forearm_L: { dir: vec(0.2, 0.9, 0.35) },
+    hand_L: { dir: vec(0.15, 0.95, 0.3) },
+    upper_arm_R: { dir: vec(-0.3, 0.85, 0.4) },
+    forearm_R: { dir: vec(-0.2, 0.9, 0.35) },
+    hand_R: { dir: vec(-0.15, 0.95, 0.3) },
+  },
+  hips: [0, -0.08, 0],
+};
+
+/** Throw jump: beside the Woman with both hands at her waist on his right, knees bent. */
+POSES.throwAssist = {
+  bones: {
+    thigh_L: { dir: limb(40, 10) },
+    shin_L: { dir: limb(-35, 10) },
+    thigh_R: { dir: limb(35, -12) },
+    shin_R: { dir: limb(-35, -12) },
+    spine: { dir: vec(-0.25, 0.9, 0.3), twist: -0.5 },
+    chest: { dir: vec(-0.3, 0.9, 0.3), twist: -0.6 },
+    head: { dir: vec(-0.3, 0.95, 0.1) },
+    upper_arm_R: { dir: vec(-0.85, -0.45, 0.25) },
+    forearm_R: { dir: vec(-0.9, -0.2, 0.4) },
+    hand_R: { dir: vec(-0.9, -0.1, 0.4) },
+    upper_arm_L: { dir: vec(-0.55, -0.7, 0.45) },
+    forearm_L: { dir: vec(-0.9, -0.2, 0.4) },
+    hand_L: { dir: vec(-0.9, -0.1, 0.4) },
+  },
+  hips: [0, -0.18, 0],
+};
+
+/** Throw jump: the arms follow through up and to the right as the Woman leaves. */
+POSES.throwRelease = {
+  bones: {
+    thigh_L: { dir: limb(15, 8) },
+    shin_L: { dir: limb(-12, 8) },
+    thigh_R: { dir: limb(-20, -10) },
+    shin_R: { dir: limb(-30, -10) },
+    spine: { dir: vec(-0.15, 0.97, 0.15), twist: -0.3 },
+    chest: { dir: vec(-0.2, 0.95, 0.2), twist: -0.4 },
+    head: { dir: vec(-0.3, 0.9, 0.2) },
+    upper_arm_R: { dir: vec(-0.7, 0.6, 0.35) },
+    forearm_R: { dir: vec(-0.7, 0.65, 0.3) },
+    hand_R: { dir: vec(-0.7, 0.65, 0.3) },
+    upper_arm_L: { dir: vec(-0.4, 0.75, 0.5) },
+    forearm_L: { dir: vec(-0.6, 0.65, 0.45) },
+    hand_L: { dir: vec(-0.6, 0.65, 0.45) },
+  },
+  hips: [0, -0.05, 0],
+};
+
+/**
+ * Death spiral pivot: the right toe pick anchored behind, both knees clearly bent with the buttocks
+ * not higher than the knee, the left arm fully extended to the Woman on his left, leaning away.
+ */
+POSES.pivot = {
+  bones: {
+    thigh_L: { dir: limb(85, 15) },
+    shin_L: { dir: limb(-5, 15) },
+    foot_L: { dir: vec(0.1, -0.3, 0.95) },
+    thigh_R: { dir: limb(-20, -25) },
+    shin_R: { dir: limb(-110, -25) },
+    foot_R: { dir: vec(0, -0.9, -0.4) },
+    spine: { dir: vec(-0.25, 0.95, 0.1) },
+    chest: { dir: vec(-0.2, 0.97, 0.1) },
+    neck: { dir: vec(0.1, 0.98, 0.15) },
+    head: { dir: vec(0.3, 0.9, 0.2) },
+    upper_arm_L: { dir: vec(0.9, -0.4, 0.15) },
+    forearm_L: { dir: vec(0.92, -0.35, 0.15) },
+    hand_L: { dir: vec(0.92, -0.3, 0.15) },
+    upper_arm_R: { dir: vec(-0.9, 0.2, -0.3) },
+    forearm_R: { dir: vec(-0.9, 0.2, -0.3) },
+    hand_R: { dir: vec(-0.9, 0.2, -0.3) },
+  },
+  hips: [0.05, -0.45, -0.05],
+};
+
+/** Death spiral entry and exit: upright on the edge, the left arm extended to the partner. */
+POSES.pivotEntry = {
+  bones: {
+    thigh_L: { dir: limb(20, 6) },
+    shin_L: { dir: limb(-20, 6) },
+    thigh_R: { dir: limb(-25, -12) },
+    shin_R: { dir: limb(-45, -12) },
+    spine: { dir: vec(-0.1, 0.99, 0.08) },
+    head: { dir: vec(0.2, 0.95, 0.15) },
+    upper_arm_L: { dir: vec(0.97, -0.1, 0.2) },
+    forearm_L: { dir: vec(0.97, -0.1, 0.2) },
+    hand_L: { dir: vec(0.97, -0.1, 0.2) },
+    upper_arm_R: { dir: vec(-0.9, -0.1, 0.3) },
+    forearm_R: { dir: vec(-0.9, -0.1, 0.3) },
+  },
+  hips: [0, -0.08, 0],
+};
+
+/** The Woman's death spiral entry: gliding on the right foot with the left arm extended to the Man, free leg back. */
+POSES.spiralHold = {
+  bones: {
+    thigh_R: { dir: limb(8, -2) },
+    shin_R: { dir: limb(-10, -2) },
+    thigh_L: { dir: limb(-45, 10) },
+    shin_L: { dir: limb(-50, 10) },
+    foot_L: { dir: vec(0.05, -0.4, -0.9) },
+    spine: { dir: vec(0.15, 0.98, 0.1) },
+    upper_arm_L: { dir: vec(0.97, -0.1, 0.2) },
+    forearm_L: { dir: vec(0.97, -0.1, 0.2) },
+    hand_L: { dir: vec(0.97, -0.1, 0.2) },
+    upper_arm_R: { dir: vec(-0.9, -0.1, 0.3) },
+    forearm_R: { dir: vec(-0.9, -0.1, 0.3) },
+  },
+  hips: [0, -0.04, 0],
+};
+
+/** The Woman's back outside death spiral entry: gliding backward on the right foot, the right arm reaching behind to the Man. */
+POSES.spiralHoldBack = {
+  bones: {
+    thigh_R: { dir: limb(8, -2) },
+    shin_R: { dir: limb(-10, -2) },
+    thigh_L: { dir: limb(25, 15) },
+    shin_L: { dir: limb(20, 15) },
+    spine: { dir: vec(0, 0.95, -0.3) },
+    chest: { dir: vec(0, 0.9, -0.42) },
+    head: { dir: vec(0, 0.7, -0.7) },
+    upper_arm_R: { dir: vec(-0.2, 0.3, -0.93) },
+    forearm_R: { dir: vec(-0.2, 0.3, -0.93) },
+    hand_R: { dir: vec(-0.2, 0.3, -0.93) },
+    upper_arm_L: { dir: vec(0.95, 0.1, 0.3) },
+    forearm_L: { dir: vec(0.95, 0.1, 0.3) },
+  },
+  hips: [0, -0.04, 0],
+};

@@ -3,6 +3,7 @@ import { jumpTimeline, type RotationCall } from "./jumps";
 import { spinPreset, SPIN_PRESETS } from "./spins";
 import { choreoTimeline, CHOREO, turnTimeline, TURN_SPECS, type ChoreoId, type TurnId } from "./steps";
 import { specialTimeline, SPECIALS, type SpecialId } from "./special";
+import { pairTimeline, PAIR_PRESETS, type PairId } from "./pairs";
 import type { Timeline } from "./timeline";
 import { ROTATION_NAMES } from "@/data/jumps";
 import { SPIN_FAMILIES } from "@/data/spins";
@@ -14,7 +15,8 @@ export type ViewerSpec =
   | { kind: "spin"; code: string }
   | { kind: "turn"; id: TurnId }
   | { kind: "choreo"; id: ChoreoId }
-  | { kind: "special"; id: SpecialId };
+  | { kind: "special"; id: SpecialId }
+  | { kind: "pair"; id: PairId };
 
 export function buildTimeline(spec: ViewerSpec): Timeline {
   switch (spec.kind) {
@@ -31,6 +33,8 @@ export function buildTimeline(spec: ViewerSpec): Timeline {
       return choreoTimeline(spec.id in CHOREO ? spec.id : "spiral");
     case "special":
       return specialTimeline(spec.id in SPECIALS ? spec.id : "walley");
+    case "pair":
+      return pairTimeline(spec.id in PAIR_PRESETS ? spec.id : "3Tw");
   }
 }
 
@@ -63,5 +67,10 @@ export function captionFor(spec: ViewerSpec): { caption: string; value?: number 
       return { caption: CHOREO[spec.id]?.label ?? spec.id };
     case "special":
       return { caption: `${SPECIALS[spec.id]?.label ?? spec.id} · no value` };
+    case "pair": {
+      const preset = PAIR_PRESETS[spec.id] ?? PAIR_PRESETS["3Tw"];
+      const value = preset.codes.every(hasCode) ? preset.codes.reduce((sum, code) => sum + baseValueOf(code), 0) : undefined;
+      return { caption: preset.title, value };
+    }
   }
 }

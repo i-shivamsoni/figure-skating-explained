@@ -41,6 +41,8 @@ export interface TraceSample {
   z: number;
   foot: "L" | "R" | "both";
   edge: EdgeKind;
+  /** Set on the pair partner's samples; absent for the primary skater. */
+  actor?: "partner";
 }
 
 export interface RotationInfo {
