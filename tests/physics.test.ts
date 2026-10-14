@@ -17,8 +17,11 @@ const rateAt = (tl: { root: (t: number) => RootState }, t: number, side: -1 | 1)
 const CASES: { id: JumpId; n: number }[] = [...[1, 2, 3, 4, 5].map((n) => ({ id: "T" as const, n })), { id: "A", n: 2 }, { id: "A", n: 4 }];
 /** Yaw of the landing edge's own curve after `tl` seconds on it (exit speed 4.2 × 0.92 m/s on a 7 m lobe). */
 const exitCurve = (tl: number) => (tl * 4.2 * 0.92) / 7;
-/** The leg a pose stands on: the shin pointing closest to straight down (the free leg's shin trails behind). */
-const standingLeg = (pose: Pose): "L" | "R" => ((pose.bones.shin_L?.dir[1] ?? 0) < (pose.bones.shin_R?.dir[1] ?? 0) ? "L" : "R");
+/** The leg a pose stands on: the one whose ankle hangs lowest (thigh 0.45 m, shin 0.43 m; the free foot is always off the ice, even crossed in front on a Loop). */
+const standingLeg = (pose: Pose): "L" | "R" => {
+  const ankleY = (side: "L" | "R") => 0.45 * (pose.bones[`thigh_${side}`]?.dir[1] ?? -1) + 0.43 * (pose.bones[`shin_${side}`]?.dir[1] ?? -1);
+  return ankleY("L") < ankleY("R") ? "L" : "R";
+};
 
 describe("ballistics", () => {
   it("flies for the calibrated air time within 2% and lands at ice level", () => {
