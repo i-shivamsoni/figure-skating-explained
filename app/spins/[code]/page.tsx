@@ -3,11 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, PageHeader, Section } from "@/components/Page";
 import { SourceNote } from "@/components/SourceNote";
-import { ElementViewer } from "@/components/ElementViewer";
 import { ValueTable } from "@/components/ValueTable";
 import { SPIN_FAMILIES } from "@/data/spins";
-import { spinPresetFor } from "@/three/animation/catalog";
 import { hasCode } from "@/lib/scoring/sov";
+import { SpinExplorer } from "../SpinExplorer";
 
 export function generateStaticParams() {
   return SPIN_FAMILIES.map((f) => ({ code: f.code }));
@@ -25,13 +24,12 @@ export default async function SpinFamilyPage({ params }: { params: Promise<{ cod
   if (!fam) notFound();
   const levels = ["B", 1, 2, 3, 4].map((l) => `${fam.code}${l}`);
   const vRows = levels.map((c) => `${c}V`).filter(hasCode);
-  const preset = spinPresetFor(fam.code);
   return (
     <>
       <PageHeader eyebrow={`Spin · ${fam.code}`} title={fam.name} intro={<p>{fam.description}</p>} />
       <Section>
-        <ElementViewer spec={{ kind: "spin", code: preset }} height={460} camera="side" />
-        {preset !== fam.code && <p className="mt-2 text-sm text-muted">Shown with the closest animated preset ({preset}); the code adds {fam.flying ? "a flying entry" : ""}{fam.flying && fam.changeOfFoot ? " and " : ""}{fam.changeOfFoot ? "a change of foot" : ""}.</p>}
+        <SpinExplorer family={fam.code} />
+        <p className="mt-2 text-sm text-muted">Pick the level and toggle the features to see what they look like: the code and base value follow, and the panel on the right lists what would count toward the level.</p>
       </Section>
       <Section>
         <div className="grid gap-4 md:grid-cols-3">

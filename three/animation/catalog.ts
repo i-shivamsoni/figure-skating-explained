@@ -1,6 +1,6 @@
 import { JUMP_BY_SLUG } from "@/data/jumps";
 import { jumpTimeline, type EdgeCallParam, type RotationCall } from "./jumps";
-import { spinPreset, SPIN_PRESETS } from "./spins";
+import { spinPreset, SPIN_PRESETS, spinCode, spinFromSpec, spinTimeline, type SpinFeatures } from "./spins";
 import { choreoTimeline, CHOREO, turnTimeline, TURN_SPECS, type ChoreoId, type TurnId } from "./steps";
 import { specialTimeline, SPECIALS, type SpecialId } from "./special";
 import { pairTimeline, PAIR_PRESETS, type PairId } from "./pairs";
@@ -12,7 +12,8 @@ import { hasCode, baseValueOf } from "@/lib/scoring/sov";
 /** Serialisable description of what to animate, safe to pass from server components. */
 export type ViewerSpec =
   | { kind: "jump"; slug: string; rotations: number; call?: RotationCall; edge?: EdgeCallParam }
-  | { kind: "spin"; code: string }
+  /** A preset by code, or any Scale of Values family built with the chosen level features (the spin explorer). */
+  | { kind: "spin"; code: string; features?: SpinFeatures }
   | { kind: "turn"; id: TurnId }
   | { kind: "choreo"; id: ChoreoId }
   | { kind: "special"; id: SpecialId }
@@ -26,6 +27,7 @@ export function buildTimeline(spec: ViewerSpec): Timeline {
       return jumpTimeline({ jump, rotations, call: spec.call, edgeCall: spec.edge });
     }
     case "spin":
+      if (spec.features) return spinTimeline(spinFromSpec(spec.code, spec.features));
       return spinPreset(spec.code in SPIN_PRESETS ? spec.code : "CSp");
     case "turn":
       return turnTimeline(spec.id in TURN_SPECS ? spec.id : "three-turn");
@@ -59,8 +61,10 @@ export function captionFor(spec: ViewerSpec): { caption: string; value?: number 
     }
     case "spin": {
       const fam = SPIN_FAMILIES.find((f) => f.code === spec.code);
-      const code = `${spec.code}4`;
-      return { caption: fam ? `${fam.name} (Level 4)` : SPIN_PRESETS[spec.code]?.title ?? spec.code, value: fam && hasCode(code) ? baseValueOf(code) : undefined };
+      const code = spec.features ? spinCode(spec.code, spec.features) : `${spec.code}4`;
+      const level = spec.features?.level ?? 4;
+      const caption = fam ? `${fam.name} (Level ${level}${spec.features?.v ? ", reduced value" : ""})` : SPIN_PRESETS[spec.code]?.title ?? spec.code;
+      return { caption, value: fam && hasCode(code) ? baseValueOf(code) : undefined };
     }
     case "turn":
       return { caption: TURN_SPECS[spec.id]?.label ?? spec.id };
