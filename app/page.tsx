@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card, Section } from "@/components/Page";
+import { ElementViewer } from "@/components/ElementViewer";
 import { CHANGES_2026_27 } from "@/data/sources";
 
 const SECTIONS = [
@@ -14,18 +15,24 @@ const SECTIONS = [
 export default function Home() {
   return (
     <>
-      <section className="mx-auto max-w-6xl px-4 pt-14 pb-8">
-        <p className="text-xs font-semibold uppercase tracking-widest text-accent">ISU rules, season 2026-27</p>
-        <h1 className="mt-2 max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">
-          What a quad Lutz is, why a flip gets an “e”, and how a program becomes a score.
-        </h1>
-        <p className="mt-4 max-w-2xl text-lg text-muted">
-          An interactive guide to the components of figure skating, built from the International Skating Union
-          handbooks, rules and Scale of Values for the 2026-27 season.
-        </p>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Link href="/jumps/lutz" className="rounded-lg bg-accent px-4 py-2 font-medium text-white hover:bg-accent-strong">Watch a quad Lutz</Link>
-          <Link href="/decoder" className="rounded-lg border border-border bg-surface px-4 py-2 font-medium hover:bg-surface-2">Decode a protocol code</Link>
+      <section className="mx-auto grid max-w-6xl gap-8 px-4 pt-12 pb-8 lg:grid-cols-[1.1fr_1fr] lg:items-center">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-accent">ISU rules, season 2026-27</p>
+          <h1 className="mt-2 max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">
+            What a quad Lutz is, why a flip gets an “e”, and how a program becomes a score.
+          </h1>
+          <p className="mt-4 max-w-2xl text-lg text-muted">
+            An interactive guide to the components of figure skating, built from the International Skating Union
+            handbooks, rules and Scale of Values for the 2026-27 season.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link href="/jumps/lutz" className="rounded-lg bg-accent px-4 py-2 font-medium text-white hover:bg-accent-strong">Explore the Lutz</Link>
+            <Link href="/decoder" className="rounded-lg border border-border bg-surface px-4 py-2 font-medium hover:bg-surface-2">Decode a protocol code</Link>
+          </div>
+        </div>
+        <div>
+          <ElementViewer spec={{ kind: "jump", slug: "lutz", rotations: 4 }} height={400} camera="follow" showControls={false} />
+          <p className="mt-2 text-xs text-muted">A quad Lutz: left back outside edge, right toe pick, four revolutions, base value 11.50.</p>
         </div>
       </section>
       <Section>

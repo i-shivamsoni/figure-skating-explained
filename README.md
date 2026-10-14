@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Figure Skating Explained
 
-## Getting Started
+An interactive 3D guide to the components of figure skating (jumps, spins, step sequences,
+choreographic elements and the ISU Judging System), built from the International Skating
+Union documents for the 2026-27 season. Single Skating in this version; Pair Skating is
+planned.
 
-First, run the development server:
+## Stack
+
+Next.js 16 (App Router, static output), React 19, Tailwind 4, three.js with React Three
+Fiber and drei, zustand, Vitest, Playwright. Deployed on Vercel.
+
+## Develop
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm dev            # http://localhost:3000
+pnpm test           # scoring engine, decoder, rig and timeline tests
+pnpm typecheck && pnpm lint
+pnpm build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Dev-only pages for visual checks: `/dev/pose?pose=camel`, `/dev/jump?type=lutz&rot=4&t=2.1&cam=side&play=0`,
+`/dev/spin?code=CCoSp`, `/dev/step?id=bracket`. Screenshot any page with
+`node --experimental-strip-types scripts/shot.mts <url> <out.png>`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Data
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `docs/isu/` holds the ISU PDFs and their text extraction; `links.md` lists the URLs.
+- `data/sov-2026-27.json` is generated from ISU Communication 2786 by `pnpm data:sov`
+  (`scripts/parse-sov.mts`). Regenerate when the ISU publishes a new Scale of Values.
+- `data/*.ts` are hand-written, paraphrased content modules with source references.
+- `lib/scoring/` is the pure scoring engine (base value, GOE, second-half bonus, +REP,
+  trimmed mean, program components, deductions, Short Program and well-balanced program
+  validation); `lib/decoder/` parses protocol codes.
 
-## Learn More
+## 3D skater
 
-To learn more about Next.js, take a look at the following resources:
+`tools/blender/build_skater.py` builds `public/models/skater.glb` headlessly:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+tools/blender/fetch-assets.sh        # downloads the CC0 Blender Studio Human Base Meshes bundle
+<blender> -b --python tools/blender/build_skater.py -- --body female --preview /tmp/preview
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+It appends the base mesh, builds a 25-bone FK armature, adds boots and blades, assigns skin
+and costume materials by dominant bone and exports glTF. Animation is not baked into the
+file: `three/rig/poses.ts` holds named poses (bone directions in skater space) and
+`three/animation/*` composes them into timelines with root motion, so every jump can be
+produced at any rotation count and with any technical-panel call.
 
-## Deploy on Vercel
+## Sources and licence
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Rule text is paraphrased from the ISU documents listed on `/sources`; numbers are copied
+exactly. The character mesh is CC0 (Blender Studio Human Base Meshes). This site is not
+affiliated with the ISU.
