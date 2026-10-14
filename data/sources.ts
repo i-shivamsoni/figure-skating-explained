@@ -1,0 +1,106 @@
+import type { SourceDoc } from "./types";
+
+export const SOURCES: SourceDoc[] = [
+  {
+    id: "rules2026",
+    title: "Special Regulations & Technical Rules, Single & Pair Skating 2026",
+    publisher: "International Skating Union",
+    date: "May 2026 (accepted by the 2026 ISU Congress)",
+    url: "https://isu-d8g8b4b7ece7aphs.a03.azurefd.net/isudamcontainer/CMS/Corporate-Site/Governance/Isu-Regulations/2026-FS---Pair-Sports-Rules-FINAL-20260513-1778685370-9916.pdf",
+    localFile: "docs/isu/text/ISU-Special-Regulations-Technical-Rules-Single-Pair-2026.txt",
+    usedFor: "Element definitions (Rule 610), Short Program and Free Skating requirements (Rules 611-612, 619-621), judging system and deductions (Rules 352-353, 500-504).",
+  },
+  {
+    id: "tpSingles",
+    title: "Technical Panel Handbook, Single Skating 2026-27",
+    publisher: "International Skating Union",
+    date: "15 July 2026",
+    url: "https://isu-d8g8b4b7ece7aphs.a03.azurefd.net/isudamcontainer/CMS/Corporate-Site/Sports-Rules/Figure-Skating-Rules/Handbooks-Single-&-Pair-Skating/TP-HandbookSingles-26-27-15-July-2026-1784641784-3364.pdf",
+    localFile: "docs/isu/text/TP-Handbook-Singles-2026-27.txt",
+    usedFor: "Spin positions, variation categories and level features; step sequence features; jump signs and repetition examples.",
+  },
+  {
+    id: "tpPairs",
+    title: "Technical Panel Handbook, Pair Skating 2026-27",
+    publisher: "International Skating Union",
+    date: "15 July 2026",
+    url: "https://isu-d8g8b4b7ece7aphs.a03.azurefd.net/isudamcontainer/CMS/Corporate-Site/Sports-Rules/Figure-Skating-Rules/Handbooks-Single-&-Pair-Skating/TP-HandbookPair-Skating-26-27-15-July-2026-1784641785-2875.pdf",
+    localFile: "docs/isu/text/TP-Handbook-Pairs-2026-27.txt",
+    usedFor: "Pair elements (phase 2): lifts, twists, throws, death spirals, pair spins.",
+  },
+  {
+    id: "refJudges",
+    title: "Handbook for Referees and Judges, Single & Pair Skating 2026-27",
+    publisher: "International Skating Union",
+    date: "19 May 2026",
+    url: "https://isu-d8g8b4b7ece7aphs.a03.azurefd.net/isudamcontainer/CMS/Corporate-Site/Sports-Rules/Figure-Skating-Rules/Handbooks-Single-&-Pair-Skating/Handbook-for-Referees-and-Judges-2026-27-1779278300-9402.pdf",
+    localFile: "docs/isu/text/Handbook-Referees-Judges-Single-Pair-2026-27.txt",
+    usedFor: "Worked GOE questions and answers; program component clarifications.",
+  },
+  {
+    id: "sov2786",
+    title: "ISU Communication 2786: Single & Pair Skating Scale of Values 2026-27",
+    publisher: "International Skating Union",
+    date: "Updated 2 June 2026",
+    url: "https://isu-d8g8b4b7ece7aphs.a03.azurefd.net/isudamcontainer/CMS/Corporate-Site/Governance/Transparency/ISU-Communications/2786-SinglesPairs-SOV-Update-260602-1780481099-6311.pdf",
+    localFile: "docs/isu/text/ISU-Comm-2786-Scale-of-Values-2026-27.txt",
+    usedFor: "Every base value and GOE value on this site, and the program component factors.",
+  },
+  {
+    id: "comm2788",
+    title: "ISU Communication 2788: Levels of Difficulty and Guidelines for marking GOE and Program Components 2026-27",
+    publisher: "International Skating Union (copy with U.S. Figure Skating notes)",
+    date: "5 May 2026, updated 19 May 2026",
+    url: "https://s3.us-east-2.amazonaws.com/sidearm.nextgen.sites/usafs.sidearmsports.com/documents/2026/5/26/ISU_2788-SP-Levels-and-GOE-2026-Updated-MAY-19_with_notes.pdf",
+    localFile: "docs/isu/text/ISU-Comm-2788-Levels-and-GOE-2026-27.txt",
+    usedFor: "Positive GOE bullets, reduction tables, the list of errors that cap the starting GOE at +2, and the 2026-27 clarifications.",
+  },
+  {
+    id: "pcsChart",
+    title: "Program Components chart (updated July 2024)",
+    publisher: "International Skating Union",
+    date: "July 2024",
+    url: "https://isu-d8g8b4b7ece7aphs.a03.azurefd.net/isudamcontainer/CMS/sportrulesdisciplinecategory/pdf/Componentschartupdated2024July086344800_17327068456450.pdf",
+    localFile: "docs/isu/text/Program-Components-Chart-2024-07.txt",
+    usedFor: "Component definitions, criteria and the serious-error mark caps.",
+  },
+  {
+    id: "pcsCriteria",
+    title: "Single & Pair Component Charts 2024",
+    publisher: "International Skating Union",
+    date: "July 2024",
+    url: "https://isu-d8g8b4b7ece7aphs.a03.azurefd.net/isudamcontainer/CMS/sportrulesdisciplinecategory/pdf/SPComponentCharts2024064619000_17327068477733.pdf",
+    localFile: "docs/isu/text/Single-Pair-Component-Charts-2024.txt",
+    usedFor: "Explanations of each component criterion.",
+  },
+  {
+    id: "thinkingWords",
+    title: "Rubric-style thinking words for the Program Component scale",
+    publisher: "International Skating Union",
+    date: "Updated 30 July 2024",
+    url: "https://isu-d8g8b4b7ece7aphs.a03.azurefd.net/isudamcontainer/CMS/Corporate-Site/Sports-Rules/Figure-Skating-Rules/Handbooks-Single-&-Pair-Skating/SP-Thinking-words-for-Program-Components-scale-1749110475-6223.pdf",
+    localFile: "docs/isu/text/Thinking-Words-Program-Components-Scale.txt",
+    usedFor: "Descriptive words for each mark band.",
+  },
+  {
+    id: "deductionsChart",
+    title: "Who is responsible for deductions, Singles and Pairs 2024-25",
+    publisher: "International Skating Union",
+    date: "15 June 2024",
+    url: "https://isu-d8g8b4b7ece7aphs.a03.azurefd.net/isudamcontainer/CMS/sportrulesdisciplinecategory/pdf/SPWhoisresponsibleforDeductions202425V3010384600_17327068488063.pdf",
+    localFile: "docs/isu/text/Who-Is-Responsible-For-Deductions-2024-25.txt",
+    usedFor: "Which official applies each deduction.",
+  },
+];
+
+export const SOURCE_BY_ID = Object.fromEntries(SOURCES.map((s) => [s.id, s])) as Record<SourceDoc["id"], SourceDoc>;
+
+/** Changes for the 2026-27 season that the documents flag (Communication 2788 section IV, Technical Panel Handbook, Rule 612). */
+export const CHANGES_2026_27 = [
+  "Quintuple jumps have base values (14.00) but may only be done as solo jumps in the Free Skating, never in a combination or sequence and never in the Short Program.",
+  "A list of errors now caps the starting GOE at +2: falls, two-footed or stepped-out landings, wrong edge, downgrade, poor take-off, two three turns between jumps, poor change of foot or poor fly in spins, and sequences not to the music.",
+  "The step sequence no longer has a 'small pattern' GOE reduction; skaters choose any pattern as long as the ice is fully used.",
+  "The 'unbalanced revolutions' spin reduction was deleted; the Short Program still requires its revolutions on each foot.",
+  "Difficult entry and difficult exit in a death spiral are now two separate pair level features.",
+  "Junior Short Program prescribed elements for 2026-27: double or triple Lutz, flying camel spin, sit spin with change of foot (Men), layback or sit spin (Women).",
+];
