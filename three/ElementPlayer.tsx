@@ -58,6 +58,7 @@ export function ElementPlayer({ timeline, autoplay = true, initialTime = 0, came
     <div ref={containerRef} tabIndex={0} onKeyDown={onKey} className={`relative overflow-hidden rounded-xl border border-border bg-[#eaf3fa] outline-none focus-visible:ring-2 focus-visible:ring-accent ${className}`} style={{ height }}>
       <Stage controls={false} camera={{ position: [timeline.focus.x + 3, 1.6, timeline.focus.z + 5], target: [timeline.focus.x, 0.9, timeline.focus.z] }}>
         <Actor timeline={timeline} store={store} />
+        {timeline.partner && <Actor timeline={timeline} store={store} partner />}
         <Trace timeline={timeline} />
         <CameraRig timeline={timeline} store={store} />
       </Stage>
@@ -68,16 +69,18 @@ export function ElementPlayer({ timeline, autoplay = true, initialTime = 0, came
   );
 }
 
-function Actor({ timeline, store }: { timeline: Timeline; store: PlayerStore }) {
+function Actor({ timeline, store, partner = false }: { timeline: Timeline; store: PlayerStore; partner?: boolean }) {
   const handleRef = useRef<SkaterHandle | null>(null);
   const groupRef = useRef<Group>(null);
+  const track = partner ? timeline.partner : undefined;
   const onReady = useCallback(
     (h: SkaterHandle) => {
       handleRef.current = h;
+      if (partner) return;
       store.getState().setReady(true);
       if (typeof document !== "undefined") document.body.dataset.skaterReady = "1";
     },
-    [store],
+    [store, partner],
   );
   useFrame((_, delta) => {
     const s = store.getState();
@@ -90,14 +93,16 @@ function Actor({ timeline, store }: { timeline: Timeline; store: PlayerStore }) 
     const h = handleRef.current;
     const g = groupRef.current;
     if (!h || !g) return;
-    const root = timeline.root(t);
+    if (partner && !track) return;
+    const root = partner ? track!.root(t) : timeline.root(t);
     g.position.set(root.x, root.y, root.z);
     g.rotation.set(root.pitch ?? 0, root.yaw, root.roll ?? 0, "YXZ");
-    h.rig.applyPose(poseAt(timeline, t, (b) => h.rig.restDir(b)));
+    const keys = partner ? { ...timeline, keys: track!.keys } : timeline;
+    h.rig.applyPose(poseAt(keys, t, (b) => h.rig.restDir(b)));
   });
   return (
     <group ref={groupRef}>
-      <SkaterModel onReady={onReady} />
+      <SkaterModel onReady={onReady} variant={partner ? track?.variant : undefined} />
     </group>
   );
 }

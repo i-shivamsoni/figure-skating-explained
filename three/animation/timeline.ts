@@ -52,12 +52,22 @@ export interface RotationInfo {
   nominal: number;
 }
 
+/** A second skater sharing the clock: pose keys and root motion of the pair partner. */
+export interface PartnerTrack {
+  keys: PoseKey[];
+  root: (t: number) => RootState;
+  /** Which model the partner uses; the primary skater uses the site-wide choice. */
+  variant: "female" | "male";
+}
+
 export interface Timeline {
   id: string;
   title: string;
   duration: number;
   keys: PoseKey[];
   root: (t: number) => RootState;
+  /** Present for pair elements. */
+  partner?: PartnerTrack;
   markers: Marker[];
   trace: TraceSample[];
   rotation?: RotationInfo;
