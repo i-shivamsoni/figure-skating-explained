@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
 import { Group, Vector3 } from "three";
 import { useStore } from "zustand";
@@ -140,13 +140,13 @@ const _target = new Vector3();
 const _pos = new Vector3();
 
 function CameraRig({ timeline, store }: { timeline: Timeline; store: PlayerStore }) {
-  const camera = useThree((s) => s.camera);
-  const controls = useThree((s) => s.controls) as { enabled: boolean; update: () => void } | null;
   const offset = useRef(new Vector3(2.8, 1.5, 4.5));
-  useFrame(() => {
+  useFrame((state) => {
     const s = store.getState();
     const root = timeline.root(s.time);
     const mode: CameraMode = s.camera;
+    const controls = state.controls as { enabled: boolean; update: () => void } | null;
+    const camera = state.camera;
     _target.set(root.x, 0.9 + root.y * 0.5, root.z);
     if (mode === "orbit") {
       if (controls) {

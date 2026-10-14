@@ -54,8 +54,6 @@ export function jumpTimeline(p: JumpParams): Timeline {
   // entry arc: centre on the -Z side for natural edges, +Z for the counter-rotated Lutz
   const entrySign = counterRotated ? 1 : -1;
   const entryCentreZ = entrySign * RADIUS;
-  const arcLen = SPEED * tTakeoff;
-  const entryAngle = arcLen / RADIUS;
   const exitCentreZ = -RADIUS; // landing on the right back outside edge curves naturally
   const yawBack = headingOf(-1, 0);
   const yawFwd = headingOf(1, 0);

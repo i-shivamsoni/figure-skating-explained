@@ -28,7 +28,7 @@ function rinkOutline(): [number, number, number][] {
 
 /** A regulation-sized ice surface (60 × 30 m) with markings and low boards, centred on the origin. */
 export function Rink({ markings = true }: { markings?: boolean }) {
-  const outline = useMemo(rinkOutline, []);
+  const outline = useMemo(() => rinkOutline(), []);
   const circle = useMemo(() => {
     const pts: [number, number, number][] = [];
     for (let i = 0; i <= 64; i++) pts.push([4.5 * Math.cos((i / 64) * Math.PI * 2), 0.002, 4.5 * Math.sin((i / 64) * Math.PI * 2)]);

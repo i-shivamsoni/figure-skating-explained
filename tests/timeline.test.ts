@@ -48,3 +48,80 @@ describe("jump timeline", () => {
     expect(tl.duration).toBeGreaterThan(3.5);
   });
 });
+
+describe("spin timeline", async () => {
+  const { spinPreset, SPIN_PRESETS } = await import("@/three/animation/spins");
+  it("rotates counter-clockwise for the held revolutions", () => {
+    const tl = spinPreset("CSp");
+    const r = tl.rotation!;
+    const turns = (tl.root(r.end).yaw - tl.root(r.start).yaw) / TWO_PI;
+    expect(turns).toBeGreaterThan(6);
+    expect(turns).toBeCloseTo(r.turns, 1);
+    expect(tl.root(r.start + 1).y).toBe(0);
+  });
+  it("lifts off the ice on a flying entry", () => {
+    const tl = spinPreset("FCSp");
+    let maxY = 0;
+    for (let t = 0; t < tl.rotation!.start; t += 0.02) maxY = Math.max(maxY, tl.root(t).y);
+    expect(maxY).toBeGreaterThan(0.4);
+    expect(tl.markers.some((m) => m.label === "Fly")).toBe(true);
+  });
+  it("builds every preset with poses throughout", () => {
+    const rest = () => [0, -1, 0] as [number, number, number];
+    for (const code of Object.keys(SPIN_PRESETS)) {
+      const tl = spinPreset(code);
+      for (let t = 0; t <= tl.duration; t += 0.5) expect(Object.keys(poseAt(tl, t, rest).bones).length, code).toBeGreaterThan(0);
+      expect(tl.trace.length).toBeGreaterThan(50);
+    }
+  });
+});
+
+describe("turn and choreo timelines", async () => {
+  const { turnTimeline, choreoTimeline, TURN_SPECS } = await import("@/three/animation/steps");
+  const rest = () => [0, -1, 0] as [number, number, number];
+  /** +1 when the skater faces the direction of travel, -1 when skating backward. */
+  const facing = (tl: { root: (t: number) => { x: number; z: number; yaw: number } }, t: number) => {
+    const a = tl.root(t);
+    const b = tl.root(t + 0.02);
+    const vx = b.x - a.x;
+    const vz = b.z - a.z;
+    const l = Math.hypot(vx, vz) || 1;
+    return (Math.sin(a.yaw) * vx + Math.cos(a.yaw) * vz) / l;
+  };
+  it("flips the facing by a half turn and changes edge on a three turn", () => {
+    const tl = turnTimeline("three-turn");
+    expect(facing(tl, 0.5)).toBeGreaterThan(0.95);
+    expect(facing(tl, tl.duration - 0.5)).toBeLessThan(-0.95);
+    const edges = new Set(tl.trace.map((s) => s.edge));
+    expect(edges).toEqual(new Set(["outside", "inside"]));
+    expect(tl.trace.every((s) => s.foot === "L")).toBe(true);
+  });
+  it("keeps the edge and changes lobe on a rocker", () => {
+    const tl = turnTimeline("rocker");
+    expect(new Set(tl.trace.map((s) => s.edge))).toEqual(new Set(["outside"]));
+    expect(tl.root(0.3).z).toBeLessThan(0);
+    expect(tl.root(tl.duration - 0.3).z).toBeGreaterThan(0);
+  });
+  it("turns twice on a twizzle and ends facing forward", () => {
+    const tl = turnTimeline("twizzle");
+    expect(tl.rotation!.turns).toBe(2);
+    expect(facing(tl, 0.5)).toBeGreaterThan(0.95);
+    expect(facing(tl, tl.duration - 0.5)).toBeGreaterThan(0.95);
+    expect(facing(turnTimeline("rocker"), tl.duration - 0.5)).toBeLessThan(-0.95);
+  });
+  it("changes foot on a mohawk and choctaw", () => {
+    expect(new Set(turnTimeline("mohawk").trace.map((s) => s.foot))).toEqual(new Set(["L", "R"]));
+    expect(new Set(turnTimeline("choctaw").trace.map((s) => s.edge))).toEqual(new Set(["outside", "inside"]));
+  });
+  it("builds every turn and choreo movement with poses throughout", () => {
+    for (const id of Object.keys(TURN_SPECS) as (keyof typeof TURN_SPECS)[]) {
+      const tl = turnTimeline(id);
+      for (let t = 0; t <= tl.duration; t += 0.4) expect(Object.keys(poseAt(tl, t, rest).bones).length, id).toBeGreaterThan(0);
+    }
+    for (const id of ["spiral", "spread-eagle", "ina-bauer", "hydroblade"] as const) {
+      const tl = choreoTimeline(id);
+      expect(tl.duration).toBeGreaterThan(3);
+      expect(tl.markers.map((m) => m.label)).toContain(tl.title);
+    }
+  });
+});

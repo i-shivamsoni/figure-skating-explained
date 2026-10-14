@@ -290,3 +290,301 @@ POSES.open = {
     ...armsOut(70, 10),
   },
 };
+
+/* ---------- spin variations (Technical Panel Handbook: 10 categories) ---------- */
+
+/** Camel sideways (CS): shoulder line twisted to vertical, one arm up one down. */
+POSES.camelSideways = {
+  bones: {
+    ...POSES.camel.bones,
+    spine: { dir: vec(0, 0.35, 0.94), twist: 0.9 },
+    chest: { dir: vec(0, 0.15, 0.99), twist: 1.4 },
+    upper_arm_L: { dir: vec(0.1, 0.98, 0.15) },
+    forearm_L: { dir: vec(0.1, 0.98, 0.1) },
+    upper_arm_R: { dir: vec(-0.1, -0.98, 0.15) },
+    forearm_R: { dir: vec(-0.1, -0.98, 0.1) },
+  },
+  hips: [0, -0.04, 0],
+};
+
+/** Camel upward (CU): shoulder line twisted past vertical, chest opening to the ceiling. */
+POSES.camelUpward = {
+  bones: {
+    ...POSES.camel.bones,
+    spine: { dir: vec(0, 0.4, 0.92), twist: 1.6 },
+    chest: { dir: vec(0, 0.3, 0.95), twist: 2.6 },
+    head: { dir: vec(0, 0.9, 0.4) },
+    upper_arm_L: { dir: vec(0.2, 0.95, -0.2) },
+    forearm_L: { dir: vec(0.2, 0.95, -0.2) },
+    upper_arm_R: { dir: vec(-0.6, -0.6, 0.5) },
+    forearm_R: { dir: vec(-0.6, -0.6, 0.5) },
+  },
+  hips: [0, -0.04, 0],
+};
+
+/** Sit sideways (SS): free leg out to the side, arms grasping under the knee. */
+POSES.sitSideways = {
+  bones: {
+    ...POSES.sit.bones,
+    thigh_R: { dir: limb(40, -75) },
+    shin_R: { dir: limb(40, -75) },
+    foot_R: { dir: vec(-0.9, 0.3, 0.3) },
+    spine: { dir: vec(0, 0.8, 0.6) },
+    chest: { dir: vec(0, 0.75, 0.65) },
+    head: { dir: vec(0, 0.6, 0.8) },
+    upper_arm_L: { dir: vec(0.1, -0.8, 0.6) },
+    forearm_L: { dir: vec(0.2, -0.3, 0.95) },
+    upper_arm_R: { dir: vec(-0.3, -0.85, 0.45) },
+    forearm_R: { dir: vec(-0.4, -0.2, 0.9) },
+  },
+  hips: [0, -0.46, 0.05],
+};
+
+/** Sit behind (SB): free leg bent behind the skating leg ("broken leg" is the opposite; this is the tuck-behind). */
+POSES.sitBehind = {
+  bones: {
+    ...POSES.sit.bones,
+    thigh_R: { dir: limb(-25, -15) },
+    shin_R: { dir: limb(-110, -15) },
+    foot_R: { dir: vec(0, 0.3, -0.95) },
+    spine: { dir: vec(0, 0.9, 0.45) },
+    chest: { dir: vec(0, 0.9, 0.4) },
+    upper_arm_L: { dir: vec(0.5, -0.4, 0.75) },
+    upper_arm_R: { dir: vec(-0.5, -0.4, 0.75) },
+    forearm_L: { dir: vec(0.1, 0.3, 0.95) },
+    forearm_R: { dir: vec(-0.1, 0.3, 0.95) },
+  },
+  hips: [0, -0.46, 0.02],
+};
+
+/** Upright forward (UF): torso folded forward toward the skating knee. */
+POSES.uprightForward = {
+  bones: {
+    thigh_L: { dir: limb(2, 0) },
+    shin_L: { dir: limb(-2, 0) },
+    thigh_R: { dir: limb(5, 12) },
+    shin_R: { dir: limb(-5, 14) },
+    spine: { dir: vec(0, 0.3, 0.95) },
+    chest: { dir: vec(0, 0.1, 1) },
+    neck: { dir: vec(0, -0.2, 0.98) },
+    head: { dir: vec(0, -0.3, 0.95) },
+    upper_arm_L: { dir: vec(0.1, -0.9, 0.4) },
+    upper_arm_R: { dir: vec(-0.1, -0.9, 0.4) },
+    forearm_L: { dir: vec(0.1, -0.95, 0.3) },
+    forearm_R: { dir: vec(-0.1, -0.95, 0.3) },
+  },
+  hips: [0, -0.02, -0.05],
+};
+
+/** Sideways leaning spin: upper body arched to the side. */
+POSES.sidewaysLean = {
+  bones: {
+    thigh_L: { dir: limb(2, 0) },
+    shin_L: { dir: limb(-2, 0) },
+    thigh_R: { dir: limb(-20, -20) },
+    shin_R: { dir: limb(-90, -25) },
+    spine: { dir: vec(-0.45, 0.89, 0) },
+    chest: { dir: vec(-0.7, 0.7, 0) },
+    neck: { dir: vec(-0.85, 0.5, 0) },
+    head: { dir: vec(-0.9, 0.4, 0) },
+    upper_arm_L: { dir: vec(0.2, 0.95, 0.1) },
+    forearm_L: { dir: vec(-0.4, 0.9, 0.1) },
+    upper_arm_R: { dir: vec(-0.95, 0.2, 0.1) },
+    forearm_R: { dir: vec(-0.95, -0.2, 0.1) },
+  },
+  hips: [0.05, -0.03, 0],
+};
+
+/** Crossfoot spin: both feet on the ice, toes together, heels apart. */
+POSES.crossfoot = {
+  bones: {
+    thigh_L: { dir: limb(2, -8) },
+    thigh_R: { dir: limb(2, 8) },
+    shin_L: { dir: limb(-2, -10) },
+    shin_R: { dir: limb(-2, 10) },
+    foot_L: { dir: vec(-0.4, -0.2, 0.9) },
+    foot_R: { dir: vec(0.4, -0.2, 0.9) },
+    upper_arm_L: { dir: vec(0.05, 0.99, 0.05) },
+    upper_arm_R: { dir: vec(-0.05, 0.99, 0.05) },
+    forearm_L: { dir: vec(-0.1, 0.99, 0.05) },
+    forearm_R: { dir: vec(0.1, 0.99, 0.05) },
+  },
+};
+
+/** Butterfly take-off into a flying camel: body horizontal, legs scissoring high behind. */
+POSES.flyCamel = {
+  bones: {
+    thigh_L: { dir: limb(-120, 10) },
+    shin_L: { dir: limb(-130, 10) },
+    thigh_R: { dir: limb(-70, -15) },
+    shin_R: { dir: limb(-80, -15) },
+    spine: { dir: vec(0, -0.1, 1) },
+    chest: { dir: vec(0, -0.2, 0.98) },
+    head: { dir: vec(0, 0.3, 0.95) },
+    ...armsOut(85, 20),
+  },
+  hips: [0, 0.35, 0],
+};
+
+/** Flying sit: full sit position in the air. */
+POSES.flySit = {
+  bones: {
+    thigh_L: { dir: limb(95, 5) },
+    shin_L: { dir: limb(-5, 5) },
+    thigh_R: { dir: limb(95, -12) },
+    shin_R: { dir: limb(90, -12) },
+    spine: { dir: vec(0, 0.85, 0.5) },
+    upper_arm_L: { dir: vec(0.2, -0.3, 0.93) },
+    upper_arm_R: { dir: vec(-0.2, -0.3, 0.93) },
+    forearm_L: { dir: vec(0.1, 0.1, 0.99) },
+    forearm_R: { dir: vec(-0.1, 0.1, 0.99) },
+  },
+  hips: [0, 0.15, 0],
+};
+
+/** Windmill: free leg swept near horizontal while the torso dips, one of three in a row. */
+POSES.windmillUp = {
+  bones: {
+    thigh_L: { dir: limb(15, 0) },
+    shin_L: { dir: limb(-15, 0) },
+    thigh_R: { dir: limb(-130, -20) },
+    shin_R: { dir: limb(-135, -20) },
+    spine: { dir: vec(0, 0.2, 0.98) },
+    chest: { dir: vec(0, 0.0, 1) },
+    head: { dir: vec(0, -0.2, 0.98) },
+    upper_arm_L: { dir: vec(0.2, -0.9, 0.4) },
+    upper_arm_R: { dir: vec(-0.2, -0.9, 0.4) },
+    forearm_L: { dir: vec(0.1, -0.95, 0.3) },
+    forearm_R: { dir: vec(-0.1, -0.95, 0.3) },
+  },
+  hips: [0, -0.12, 0],
+};
+POSES.windmillDown = {
+  bones: {
+    thigh_L: { dir: limb(30, 0) },
+    shin_L: { dir: limb(-30, 0) },
+    thigh_R: { dir: limb(10, -30) },
+    shin_R: { dir: limb(10, -30) },
+    spine: { dir: vec(0, 0.6, 0.8) },
+    chest: { dir: vec(0, 0.5, 0.86) },
+    upper_arm_L: { dir: vec(0.3, 0.3, 0.9) },
+    upper_arm_R: { dir: vec(-0.3, 0.3, 0.9) },
+    forearm_L: { dir: vec(0.2, 0.5, 0.85) },
+    forearm_R: { dir: vec(-0.2, 0.5, 0.85) },
+  },
+  hips: [0, -0.2, 0],
+};
+
+/** Preparation step into a spin: forward outside edge with the free leg wide behind. */
+POSES.spinEntry = {
+  bones: {
+    thigh_L: { dir: limb(25, 2) },
+    shin_L: { dir: limb(-20, 2) },
+    thigh_R: { dir: limb(-50, -20) },
+    shin_R: { dir: limb(-55, -20) },
+    spine: { dir: vec(0, 0.95, 0.3) },
+    ...armsOut(85, -30),
+  },
+  hips: [0, -0.1, 0],
+};
+
+/** Wind-up at the end of a spin: upright, arms overhead, free foot crossed. */
+POSES.windUp = POSES.upright;
+
+/** Exit of a spin: pushing out onto a back outside edge. */
+POSES.spinExit = POSES.glideBO;
+
+/** Step-over change of foot during a spin. */
+POSES.changeFoot = {
+  bones: {
+    thigh_L: { dir: limb(20, 10) },
+    shin_L: { dir: limb(-10, 10) },
+    thigh_R: { dir: limb(20, -10) },
+    shin_R: { dir: limb(-10, -10) },
+    spine: { dir: vec(0, 0.95, 0.3) },
+    ...armsOut(60, 10),
+  },
+  hips: [0, -0.12, 0],
+};
+
+/* ---------- steps and choreographic movements ---------- */
+
+/** Gliding on one foot through a turn: free foot held close, arms quiet. */
+POSES.turnReady = {
+  bones: {
+    thigh_L: { dir: limb(5, 0) },
+    shin_L: { dir: limb(-8, 0) },
+    thigh_R: { dir: limb(-15, -6) },
+    shin_R: { dir: limb(-40, -6) },
+    spine: { dir: vec(0, 0.99, 0.1) },
+    ...armsOut(60, 10),
+  },
+  hips: [0, -0.06, 0],
+};
+
+/** Twizzle: tight axis, arms in, free foot crossed at the ankle. */
+POSES.twizzle = {
+  bones: {
+    thigh_L: { dir: limb(2, 0) },
+    shin_L: { dir: limb(-2, 0) },
+    thigh_R: { dir: limb(8, 8) },
+    shin_R: { dir: limb(-20, 10) },
+    spine: { dir: vec(0, 1, 0.02) },
+    ...armsCrossed,
+  },
+};
+
+/** Ina Bauer: one leg bent forward, the other straight behind on the same line, back arched. */
+POSES.inaBauer = {
+  bones: {
+    thigh_L: { dir: limb(40, 40) },
+    shin_L: { dir: limb(-30, 40) },
+    foot_L: { dir: vec(0.9, -0.2, 0.3) },
+    thigh_R: { dir: limb(-15, -60) },
+    shin_R: { dir: limb(-15, -60) },
+    foot_R: { dir: vec(-0.95, -0.2, 0.1) },
+    spine: { dir: vec(0, 0.85, -0.5) },
+    chest: { dir: vec(0, 0.6, -0.8) },
+    neck: { dir: vec(0, 0.3, -0.95) },
+    head: { dir: vec(0, 0.2, -1) },
+    upper_arm_L: { dir: vec(0.4, 0.7, -0.6) },
+    upper_arm_R: { dir: vec(-0.4, 0.7, -0.6) },
+    forearm_L: { dir: vec(0.3, 0.6, -0.75) },
+    forearm_R: { dir: vec(-0.3, 0.6, -0.75) },
+  },
+  hips: [0, -0.2, 0.05],
+};
+
+/** Hydroblade: deep lean on a back inside edge, torso almost on the ice, hand trailing. */
+POSES.hydroblade = {
+  bones: {
+    thigh_L: { dir: limb(70, 30) },
+    shin_L: { dir: limb(-20, 30) },
+    thigh_R: { dir: limb(10, -70) },
+    shin_R: { dir: limb(10, -75) },
+    foot_R: { dir: vec(-0.9, -0.1, 0.4) },
+    spine: { dir: vec(-0.8, 0.45, 0.35) },
+    chest: { dir: vec(-0.85, 0.3, 0.4) },
+    head: { dir: vec(-0.7, 0.5, 0.5) },
+    upper_arm_L: { dir: vec(-0.6, 0.7, 0.3) },
+    forearm_L: { dir: vec(-0.8, 0.5, 0.3) },
+    upper_arm_R: { dir: vec(-0.5, -0.85, 0.1) },
+    forearm_R: { dir: vec(-0.4, -0.9, 0.1) },
+  },
+  hips: [0.1, -0.55, 0],
+};
+
+/** Arabesque spiral at full extension (free leg well above hip height). */
+POSES.arabesque = {
+  bones: {
+    ...POSES.spiral.bones,
+    thigh_R: { dir: limb(-120, -4) },
+    shin_R: { dir: limb(-122, -4) },
+    spine: { dir: vec(0, 0.5, 0.86) },
+    chest: { dir: vec(0, 0.4, 0.92) },
+    upper_arm_L: { dir: vec(0.3, 0.4, 0.86) },
+    upper_arm_R: { dir: vec(-0.3, 0.4, 0.86) },
+    forearm_L: { dir: vec(0.2, 0.4, 0.9) },
+    forearm_R: { dir: vec(-0.2, 0.4, 0.9) },
+  },
+};
