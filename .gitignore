@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# large CC0 source assets (downloaded by tools/blender/fetch-assets.sh)
+tools/blender/assets/
