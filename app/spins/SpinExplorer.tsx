@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ElementViewer } from "@/components/ElementViewer";
 import { SPIN_FAMILIES } from "@/data/spins";
@@ -106,6 +107,9 @@ export function SpinExplorer({ family: initialFamily, defaultLevel = 4 }: { fami
           <p className="font-mono text-3xl font-semibold" data-testid="spin-code">
             {code}
           </p>
+          <Link href={`/rink?perform=${encodeURIComponent(code)}`} className="mt-1 inline-block text-sm font-medium text-accent hover:underline">
+            Perform it on the rink →
+          </Link>
           <p className="mt-1 text-sm text-muted">
             {fam.name}, Level {level}
             {v && ", reduced value"}

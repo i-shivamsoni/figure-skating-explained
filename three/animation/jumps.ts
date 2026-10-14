@@ -2,7 +2,7 @@ import type { JumpType } from "@/data/types";
 import { POSES, mirrorPose } from "../rig/poses";
 import { JUMP_POSES } from "../rig/poses-jumps";
 import { lerpPose, mergePoses, type Pose } from "../rig/pose";
-import { airTimeFor, edgeLean, flight, inertiaSchedule, landingDip, landingSkid, preRotationAngle, rollToward, rotationProfile, SKID_CAP, SKID_TAU, VAULT_TIME, verticalVelocityForAirTime, type Flight, type RotationProfile } from "../physics/jump";
+import { airTimeFor, edgeLean, flight, inertiaSchedule, landingSkid, preRotationAngle, rollToward, rotationProfile, SKID_CAP, SKID_TAU, VAULT_TIME, verticalVelocityForAirTime, type Flight, type RotationProfile } from "../physics/jump";
 import { clamp01, easeInOut, easeOut, headingOf, linear, TWO_PI, type EdgeKind, type IceArrow, type Marker, type RootState, type Timeline, type TraceSample } from "./timeline";
 
 export type RotationCall = "" | "q" | "<" | "<<";
@@ -387,7 +387,8 @@ export function jumpTimeline(p: JumpParams): Timeline {
     // the blade brakes the spin and finishes the last part of the rotation on the ice, then follows the curve
     const yaw = yawLanding + landingSkid(tl, skid, spin.omegaLanding) + phi;
     const onEdge = easeInOut(clamp01((tl - 0.1) / LEAN_RAMP)) * (1 - easeInOut(clamp01((t - (duration - LEAN_RAMP)) / LEAN_RAMP)));
-    return { x, y: landingDip(tl, f.vy), z, yaw, roll: rollToward(yaw, D - x, exitCentreZ - z, edgeLean(SPEED, RADIUS)) * onEdge };
+    // the absorption is the landing knee in the poses; the root (the blade) stays on the ice
+    return { x, y: 0, z, yaw, roll: rollToward(yaw, D - x, exitCentreZ - z, edgeLean(SPEED, RADIUS)) * onEdge };
   };
 
   const poses = entryPosesFor(jump, tTurn, edgeCall);

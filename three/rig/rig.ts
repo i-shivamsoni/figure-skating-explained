@@ -17,6 +17,10 @@ const _qTwist = new Quaternion();
 const _v = new Vector3();
 const _v2 = new Vector3();
 
+/** Hips raised this far above rest (lifts, the twist catch) are not on the ice: the ground clamp fades out between these offsets. */
+const LIFT_FADE_FROM = 0.06;
+const LIFT_FADE_TO = 0.15;
+
 /**
  * Wraps the loaded skeleton. Captures the bind pose on construction (bones must still be
  * at rest) and applies direction-based poses in skater space (see pose.ts).
@@ -32,6 +36,12 @@ export class SkaterRig {
   private readonly socketMid = new Vector3();
   readonly restDirFn = (b: BoneName): Vec3 => this.restDir(b);
   readonly height: number;
+  private readonly order: BoneName[];
+  private readonly posedPos = new Map<BoneName, Vector3>();
+  /** Blade-bottom points (heel and toe of each skate) in their foot bone's rest frame, for the ground clamp. */
+  private readonly bladePoints: { bone: BoneName; local: Vector3 }[] = [];
+  /** How far the last applied pose was lifted so the lowest blade sits on the ice (metres, skater space). */
+  groundShift = 0;
 
   constructor(root: Object3D) {
     root.traverse((o) => {
@@ -61,6 +71,34 @@ export class SkaterRig {
     if (parentRest) this.hipsOffsetQ.copy(parentRest.worldQ).invert();
     this.socketMid.copy(this.rest.get("thigh_L")!.worldPos).add(this.rest.get("thigh_R")!.worldPos).multiplyScalar(0.5).sub(this.rest.get("hips")!.worldPos);
     this.height = this.rest.get("head_tip")!.worldPos.y - this.rest.get("foot_L_tip")!.worldPos.y + 0.04;
+    this.order = order;
+    for (const name of order) this.posedPos.set(name, new Vector3());
+    // the blades touch y = 0 at bind; sample their bottoms just behind the ankle and just past the toe
+    for (const side of ["L", "R"] as const) {
+      const foot = this.rest.get(`foot_${side}`)!;
+      const tip = this.rest.get(`foot_${side}_tip`)!;
+      const inv = foot.worldQ.clone().invert();
+      for (const p of [new Vector3(foot.worldPos.x, 0, foot.worldPos.z - 0.07), new Vector3(tip.worldPos.x, 0, tip.worldPos.z + 0.03)]) {
+        this.bladePoints.push({ bone: `foot_${side}`, local: p.sub(foot.worldPos).applyQuaternion(inv) });
+      }
+    }
+  }
+
+  /** Lowest blade point of the pose just applied, in skater space (0 = the ice). */
+  lowestBladeY(): number {
+    for (const name of this.order) {
+      const b = this.bones.get(name)!;
+      const p = this.posedPos.get(name)!;
+      const parentName = b.parent && (b.parent as Bone).isBone ? (b.parent.name as BoneName) : undefined;
+      if (parentName) p.copy(b.position).applyQuaternion(this.worldQ.get(parentName)!).add(this.posedPos.get(parentName)!);
+      else p.copy(b.position);
+    }
+    let low = Infinity;
+    for (const bp of this.bladePoints) {
+      _v.copy(bp.local).applyQuaternion(this.worldQ.get(bp.bone)!).add(this.posedPos.get(bp.bone)!);
+      if (_v.y < low) low = _v.y;
+    }
+    return low;
   }
 
   private hierarchyOrder(): BoneName[] {
@@ -97,9 +135,11 @@ export class SkaterRig {
    * Applies a pose after resolving it (three/rig/limits.ts): derived twists, hinge projection
    * and pelvic tilt, so the rig renders exactly what `validatePose` measures. A pelvic tilt the
    * pose did not author pivots about the hip sockets, not the hips bone's head, so the standing
-   * foot stays on the ice.
+   * foot stays on the ice. `ground` (0–1) then pins the lowest blade point exactly to the ice by
+   * shifting the whole body: 1 on the ice, fading to 0 in flight (the caller passes the height)
+   * and for poses whose hips are lifted off the ice (pair lifts).
    */
-  applyPose(pose: Pose) {
+  applyPose(pose: Pose, ground = 1) {
     const resolved = resolvePose(pose, this.restDirFn);
     const hips = this.bones.get("hips")!;
     const off = resolved.hips;
@@ -114,7 +154,7 @@ export class SkaterRig {
     }
     _v.applyQuaternion(this.hipsOffsetQ);
     hips.position.set(this.hipsRest.x + _v.x, this.hipsRest.y + _v.y, this.hipsRest.z + _v.z);
-    for (const name of this.hierarchyOrder()) {
+    for (const name of this.order) {
       const b = this.bones.get(name)!;
       const r = this.rest.get(name)!;
       const parentName = b.parent && (b.parent as Bone).isBone ? (b.parent.name as BoneName) : undefined;
@@ -135,6 +175,17 @@ export class SkaterRig {
         b.quaternion.copy(r.localQ);
         if (parentQ) wq.copy(parentQ).multiply(r.localQ);
         else wq.copy(r.localQ);
+      }
+    }
+    const lift = off[1];
+    const w = ground * (lift <= LIFT_FADE_FROM ? 1 : lift >= LIFT_FADE_TO ? 0 : (LIFT_FADE_TO - lift) / (LIFT_FADE_TO - LIFT_FADE_FROM));
+    this.groundShift = 0;
+    if (w > 0) {
+      const low = this.lowestBladeY();
+      if (Number.isFinite(low) && Math.abs(low) > 1e-5) {
+        this.groundShift = -low * w;
+        _v.set(0, this.groundShift, 0).applyQuaternion(this.hipsOffsetQ);
+        hips.position.add(_v);
       }
     }
   }

@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const LINKS = [
   { href: "/sources", label: "Sources" },
@@ -8,6 +11,8 @@ const LINKS = [
 ];
 
 export function SiteFooter() {
+  const pathname = usePathname();
+  if (pathname === "/rink") return null;
   return (
     <footer className="mt-16 border-t border-border bg-surface">
       <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-muted">

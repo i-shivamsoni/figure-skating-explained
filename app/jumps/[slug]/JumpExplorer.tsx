@@ -74,6 +74,9 @@ export function JumpExplorer({ slug, defaultRotation }: { slug: string; defaultR
         <div className="rounded-xl border border-border bg-surface p-4">
           <p className="text-xs uppercase tracking-wide text-muted">Protocol code</p>
           <p className="font-mono text-3xl font-semibold">{jump.id === "Eu" ? "1Eu" : code}</p>
+          <Link href={`/rink?perform=${encodeURIComponent(jump.id === "Eu" ? "1Eu" : code)}`} className="mt-1 inline-block text-sm font-medium text-accent hover:underline">
+            Perform it on the rink →
+          </Link>
           <p className="mt-1 text-sm text-muted">
             {ROTATION_NAMES[rotations]} {jump.name}
             {jump.id === "A" && `, ${rotations + 0.5} revolutions`}

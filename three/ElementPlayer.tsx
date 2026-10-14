@@ -139,7 +139,8 @@ export function Actor({ timeline, store, partner = false, onEnd }: { timeline: T
     g.position.set(root.x, root.y, root.z);
     g.rotation.set(root.pitch ?? 0, root.yaw, root.roll ?? 0, "YXZ");
     const keys = partner ? { ...timeline, keys: track!.keys } : timeline;
-    h.rig.applyPose(poseAt(keys, t, (b) => h.rig.restDir(b)));
+    // on the ice the lowest blade is pinned to the surface; the clamp fades out over the first 25 cm of flight
+    h.rig.applyPose(poseAt(keys, t, (b) => h.rig.restDir(b)), Math.max(0, Math.min(1, 1 - root.y / 0.25)));
   });
   return (
     <group ref={groupRef}>
@@ -371,7 +372,7 @@ const SPEEDS = [0.25, 0.5, 1];
 const SPEED_LABEL: Record<number, string> = { 0.25: "¼×", 0.5: "½×", 1: "1×" };
 
 /** Play, scrub, speed, camera menu, loop, full screen and the appearance drawer, in one row. */
-export function PlayerControls({ store, fullscreen, onFullscreen }: { store: PlayerStore; fullscreen?: boolean; onFullscreen?: () => void }) {
+export function PlayerControls({ store, fullscreen, onFullscreen, showLoop = true }: { store: PlayerStore; fullscreen?: boolean; onFullscreen?: () => void; showLoop?: boolean }) {
   const time = useStore(store, (s) => s.time);
   const duration = useStore(store, (s) => s.duration);
   const playing = useStore(store, (s) => s.playing);
@@ -442,9 +443,11 @@ export function PlayerControls({ store, fullscreen, onFullscreen }: { store: Pla
             </div>
           )}
         </div>
-        <IconButton size="sm" label={loop ? "Loop on" : "Loop off"} active={loop} onClick={() => api.setLoop(!loop)}>
-          <Repeat className="h-4 w-4" />
-        </IconButton>
+        {showLoop && (
+          <IconButton size="sm" label={loop ? "Loop on" : "Loop off"} active={loop} onClick={() => api.setLoop(!loop)}>
+            <Repeat className="h-4 w-4" />
+          </IconButton>
+        )}
         {onFullscreen && (
           <IconButton size="sm" label={fullscreen ? "Exit full screen" : "Full screen"} onClick={onFullscreen}>
             {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}

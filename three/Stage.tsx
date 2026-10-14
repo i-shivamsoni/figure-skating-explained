@@ -4,6 +4,7 @@ import { Suspense, type ReactNode } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Environment, Lightformer, OrbitControls } from "@react-three/drei";
 import { Rink } from "./Rink";
+import { Arena } from "./Arena";
 
 export interface OrbitOptions {
   /** Fired when the viewer starts dragging or zooming. */
@@ -19,12 +20,15 @@ export interface StageProps {
   camera?: { position: [number, number, number]; target?: [number, number, number]; fov?: number };
   controls?: boolean;
   orbit?: OrbitOptions;
+  /** The full arena (boards, glass, stands) instead of the bare ice, with shadows across the whole rink. */
+  arena?: boolean;
   className?: string;
   frameloop?: "always" | "demand";
 }
 
 /** Shared canvas: ice, lights, shadows and orbit controls (drag rotates, wheel or pinch zooms, no panning). */
-export function Stage({ children, camera, controls = true, orbit, className = "", frameloop = "always" }: StageProps) {
+export function Stage({ children, camera, controls = true, orbit, arena = false, className = "", frameloop = "always" }: StageProps) {
+  const shadow = arena ? 34 : 6;
   const pos = camera?.position ?? [3.2, 1.7, 4.2];
   const target = camera?.target ?? [0, 0.9, 0];
   return (
@@ -51,15 +55,15 @@ export function Stage({ children, camera, controls = true, orbit, className = ""
         intensity={1.4}
         castShadow
         shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-6}
-        shadow-camera-right={6}
-        shadow-camera-top={6}
-        shadow-camera-bottom={-6}
+        shadow-camera-left={-shadow}
+        shadow-camera-right={shadow}
+        shadow-camera-top={shadow}
+        shadow-camera-bottom={-shadow}
         shadow-bias={-0.0004}
       />
       <directionalLight position={[-5, 4, -6]} intensity={0.5} />
       <Suspense fallback={null}>
-        <Rink />
+        {arena ? <Arena /> : <Rink />}
         {children}
       </Suspense>
       {controls && (

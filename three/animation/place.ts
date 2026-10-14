@@ -110,6 +110,8 @@ export interface LinkOptions {
   endBackward?: boolean;
   /** The next element's first pose, blended into over the last half second. */
   endPose?: Pose;
+  /** Metres per second; STROKE_SPEED by default. */
+  speed?: number;
 }
 
 /**
@@ -117,13 +119,13 @@ export interface LinkOptions {
  * and ends facing the way the next element needs. Used between elements on the rink and for the
  * idle loop.
  */
-export function linkTimeline(from: IcePoint, { turn = 0, seconds = 2, endBackward = false, endPose }: LinkOptions = {}): Timeline {
-  const T = Math.max(0.8, seconds);
-  const v = STROKE_SPEED;
+export function linkTimeline(from: IcePoint, { turn = 0, seconds = 2, endBackward = false, endPose, speed = STROKE_SPEED }: LinkOptions = {}): Timeline {
+  const T = Math.max(0.6, seconds);
+  const v = speed;
   const w = turn / T;
   const h0 = from.heading;
-  const turnStart = T - 0.6;
-  const turnEnd = T - 0.2;
+  const turnStart = Math.max(0.1, T - 0.6);
+  const turnEnd = Math.max(turnStart + 0.1, T - 0.2);
   const root = (time: number): RootState => {
     const t = Math.max(0, Math.min(T, time));
     let x: number;
@@ -152,7 +154,7 @@ export function linkTimeline(from: IcePoint, { turn = 0, seconds = 2, endBackwar
       ]
     : [
         { t: 0, pose: glideF },
-        { t: T - 0.5, pose: glideF },
+        { t: Math.max(0.05, T - 0.5), pose: glideF },
         { t: T, pose: last, ease: easeInOut },
       ];
   const trace: TraceSample[] = [];
@@ -167,21 +169,64 @@ export function linkTimeline(from: IcePoint, { turn = 0, seconds = 2, endBackwar
     duration: T,
     keys,
     root,
-    markers: [{ t: 0, label: "Stroking", detail: turn ? "turning to stay on the ice" : "between elements" }],
+    markers: [{ t: 0, label: "Stroking", detail: "arrow keys steer: left and right turn, up strokes harder, down coasts" }],
     trace,
     focus: { x: from.x, z: from.z },
     heading: h0,
   };
 }
 
+/** Metres of ice ahead of a point along `heading` before the surface ends (`margin` inside the boards). */
+export function roomAhead(p: { x: number; z: number }, heading: number, margin = 3, max = 70): number {
+  const sx = Math.sin(heading);
+  const cz = Math.cos(heading);
+  for (let d = 0; d <= max; d += 0.5) if (!insideRink(p.x + d * sx, p.z + d * cz, margin)) return d;
+  return max;
+}
+
 /**
- * Turns a heading back toward centre ice when the next `ahead` metres would leave the surface
- * (`margin` metres inside the boards). `turn` is 0 when nothing needs to change.
+ * Keeps the skater on the ice: when fewer than `ahead` metres are free along the heading, turns
+ * to the heading with the most ice ahead (toward centre ice or along the long axis), nearer
+ * headings winning ties. `turn` is 0 when nothing needs to change.
  */
 export function keepInRink(p: IcePoint, ahead: number, margin = 3): { heading: number; turn: number } {
-  const px = p.x + ahead * Math.sin(p.heading);
-  const pz = p.z + ahead * Math.cos(p.heading);
-  if (insideRink(px, pz, margin)) return { heading: p.heading, turn: 0 };
-  const turn = wrapAngle(headingOf(-p.x, -p.z) - p.heading);
-  return { heading: p.heading + turn, turn };
+  if (!insideRink(p.x, p.z, margin)) {
+    // already in the band by the boards: head straight back toward centre ice
+    const turn = wrapAngle(headingOf(-p.x, -p.z) - p.heading);
+    return { heading: p.heading + turn, turn };
+  }
+  if (roomAhead(p, p.heading, margin) >= ahead) return { heading: p.heading, turn: 0 };
+  let best = { heading: p.heading, turn: 0, room: -1 };
+  const candidates = [headingOf(-p.x, -p.z), ...Array.from({ length: 24 }, (_, i) => (i * TWO_PI) / 24)];
+  for (const h of candidates) {
+    const room = roomAhead(p, h, margin);
+    const turn = wrapAngle(h - p.heading);
+    if (room > best.room + 1e-9 || (Math.abs(room - best.room) < 1e-9 && Math.abs(turn) < Math.abs(best.turn))) best = { heading: p.heading + turn, turn, room };
+  }
+  if (Math.abs(best.turn) > Math.PI - 0.02) {
+    // a U-turn: swing toward the side with more ice (positive turns go to the skater's left)
+    const left = roomAhead(p, p.heading + Math.PI / 2, 0);
+    const right = roomAhead(p, p.heading - Math.PI / 2, 0);
+    best.turn = (left >= right ? 1 : -1) * Math.abs(best.turn);
+    best.heading = p.heading + best.turn;
+  }
+  return { heading: best.heading, turn: best.turn };
+}
+
+/** Where the skater is at time t and which way she is travelling. */
+export function pointAt(tl: Timeline, t: number): IcePoint {
+  const r = tl.root(t);
+  const t0 = Math.max(0, Math.min(tl.duration - DT, t));
+  return { x: r.x, z: r.z, heading: travel(tl, t0, Math.min(tl.duration, t0 + DT)) };
+}
+
+/** How far the element reaches from its start, in metres (the longest leg of its root path). */
+export function extentOf(tl: Timeline): number {
+  const a = tl.root(0);
+  let max = 0;
+  for (let i = 1; i <= 40; i++) {
+    const r = tl.root((tl.duration * i) / 40);
+    max = Math.max(max, Math.hypot(r.x - a.x, r.z - a.z));
+  }
+  return max;
 }

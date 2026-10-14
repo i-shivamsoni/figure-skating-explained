@@ -1,6 +1,8 @@
-import { JUMP_BY_SLUG } from "@/data/jumps";
+import { JUMP_BY_ID, JUMP_BY_SLUG } from "@/data/jumps";
+import type { JumpId } from "@/data/types";
+import type { ElementSpec } from "@/lib/scoring/elements";
 import { jumpTimeline, type EdgeCallParam, type RotationCall } from "./jumps";
-import { spinPreset, SPIN_PRESETS, spinCode, spinFromSpec, spinTimeline, type SpinFeatures } from "./spins";
+import { spinPreset, SPIN_PRESETS, spinCode, spinFromSpec, spinTimeline, type SpinFeatures, type SpinLevel } from "./spins";
 import { choreoTimeline, CHOREO, turnTimeline, TURN_SPECS, type ChoreoId, type TurnId } from "./steps";
 import { specialTimeline, SPECIALS, type SpecialId } from "./special";
 import { pairTimeline, PAIR_PRESETS, type PairId } from "./pairs";
@@ -78,4 +80,48 @@ export function captionFor(spec: ViewerSpec): { caption: string; value?: number 
       return { caption: preset.title, value };
     }
   }
+}
+
+/** The scored element(s) a viewer spec stands for; turns, field moves and non-listed jumps have none. */
+export function toElementSpecs(spec: ViewerSpec): ElementSpec[] {
+  switch (spec.kind) {
+    case "jump": {
+      const jump = JUMP_BY_SLUG[spec.slug];
+      if (!jump) return [];
+      const edgeJump = jump.id === "F" || jump.id === "Lz";
+      return [{ kind: "jump", jumps: [{ jump: jump.id, rotations: jump.id === "Eu" ? 1 : spec.rotations, rotationCall: spec.call ?? "", edgeCall: edgeJump ? (spec.edge ?? "") : "" }] }];
+    }
+    case "spin":
+      if (!SPIN_FAMILIES.some((f) => f.code === spec.code)) return [];
+      return [{ kind: "spin", family: spec.code, level: spec.features?.level ?? 4, v: spec.features?.v }];
+    case "pair":
+      return (PAIR_PRESETS[spec.id]?.codes ?? []).map((code) => ({ kind: "code", code }));
+    default:
+      return [];
+  }
+}
+
+const JUMP_CODE = /^([1-5])(T|S|Lo|F|Lz|A|Eu)(!|e)?(q|<<|<)?$/;
+const SPIN_CODE = /^(F?C?(?:U|L|C|S|Co)Sp)(B|[1-4])?(V)?$/;
+
+/** A viewer spec from a protocol-style code or an element id, for deep links such as /rink?perform=4Lz,CCoSp4,twizzle. */
+export function specFromCode(raw: string): ViewerSpec | undefined {
+  const code = raw.trim();
+  const j = JUMP_CODE.exec(code);
+  if (j) {
+    const jump = JUMP_BY_ID[j[2] as JumpId];
+    const edgeJump = jump.id === "F" || jump.id === "Lz";
+    return { kind: "jump", slug: jump.slug, rotations: Number(j[1]), call: (j[4] ?? "") as RotationCall, edge: edgeJump ? ((j[3] ?? "") as EdgeCallParam) : undefined };
+  }
+  const s = SPIN_CODE.exec(code);
+  if (s && SPIN_FAMILIES.some((f) => f.code === s[1])) {
+    const level: SpinLevel = s[2] ? (s[2] === "B" ? "B" : (Number(s[2]) as SpinLevel)) : 4;
+    return { kind: "spin", code: s[1], features: { level, v: s[3] === "V" } };
+  }
+  if (code in SPIN_PRESETS) return { kind: "spin", code };
+  if (code in TURN_SPECS) return { kind: "turn", id: code as TurnId };
+  if (code in CHOREO) return { kind: "choreo", id: code as ChoreoId };
+  if (code in SPECIALS) return { kind: "special", id: code as SpecialId };
+  if (code in PAIR_PRESETS) return { kind: "pair", id: code as PairId };
+  return undefined;
 }

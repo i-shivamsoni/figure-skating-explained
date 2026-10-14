@@ -5,7 +5,7 @@ import type { JumpId } from "@/data/types";
 import { jumpModel, jumpTimeline, MISSING_TURNS } from "@/three/animation/jumps";
 import { specialTimeline } from "@/three/animation/special";
 import { TWO_PI, type RootState } from "@/three/animation/timeline";
-import { ABSORB_TIME, AIR_TIME, DIP_PER_SPEED, airTimeFor, edgeLean, flight, G, I_OPEN, inertiaAt, inertiaSchedule, landingDip, landingSkid, preRotationAngle, rollToward, rotationProfile, SKID_CAP, SKID_MAX, SKID_TAU, TUCK_RATIO, VAULT_TIME, verticalVelocityForAirTime, verticalVelocityForHeight } from "@/three/physics/jump";
+import { ABSORB_TIME, AIR_TIME, airTimeFor, edgeLean, flight, G, I_OPEN, inertiaAt, inertiaSchedule, landingDip, landingSkid, preRotationAngle, rollToward, rotationProfile, SKID_CAP, SKID_MAX, SKID_TAU, TUCK_RATIO, VAULT_TIME, verticalVelocityForAirTime, verticalVelocityForHeight } from "@/three/physics/jump";
 import { poseAt } from "@/three/animation/timeline";
 import type { Pose } from "@/three/rig/pose";
 
@@ -250,13 +250,12 @@ describe("landing", () => {
       }
     }
     expect(deepestAt).toBeLessThan(ABSORB_TIME / 2);
+    // the absorption is a knee bend in the poses: the root (the blade) never goes below the ice
     const tl = jumpTimeline({ jump: JUMP_BY_ID.S, rotations: 4 });
     const tLand = tl.rotation!.end;
-    expect(tl.root(tLand + 0.07).y).toBeLessThan(-DIP_PER_SPEED * 3 * 0.5);
-    expect(tl.root(tLand + ABSORB_TIME).y).toBe(0);
+    for (const dt of [0.07, ABSORB_TIME / 2, ABSORB_TIME, 0.6]) expect(tl.root(tLand + dt).y, `${dt}`).toBe(0);
     expect(tl.root(tl.duration).y).toBe(0);
-    const single = jumpTimeline({ jump: JUMP_BY_ID.S, rotations: 1 });
-    expect(single.root(single.rotation!.end + 0.07).y).toBeGreaterThan(tl.root(tLand + 0.07).y);
+    expect(landingDip(0.07, 3)).toBeLessThan(landingDip(0.07, 1.5));
   });
   it("brakes the rotation on the blade in finite time, starting at the landing rate", () => {
     expect(landingSkid(0, Math.PI / 2, 10)).toBe(0);

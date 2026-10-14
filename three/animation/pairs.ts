@@ -1,7 +1,7 @@
 import { JUMP_BY_ID } from "@/data/jumps";
 import type { Pose, Vec3 } from "../rig/pose";
 import { mirrorPose, POSES } from "../rig/poses";
-import { edgeLean, flight, inertiaSchedule, landingDip, landingSkid, preRotationAngle, rollToward, rotationProfile, SKID_CAP, SKID_TAU, VAULT_TIME, verticalVelocityForAirTime, type RotationProfile } from "../physics/jump";
+import { edgeLean, flight, inertiaSchedule, landingSkid, preRotationAngle, rollToward, rotationProfile, SKID_CAP, SKID_TAU, VAULT_TIME, verticalVelocityForAirTime, type RotationProfile } from "../physics/jump";
 import { jumpTimeline } from "./jumps";
 import { spinRateFactor } from "./spins";
 import { clamp01, easeInOut, easeOut, headingOf, linear, TWO_PI, type Ease, type Marker, type PoseKey, type RootState, type Timeline, type TraceSample } from "./timeline";
@@ -476,7 +476,7 @@ function throwTimeline(): Timeline {
     const z = exitCentreZ + R * Math.cos(phi);
     const yaw = yawLanding + landingSkid(tl, skid, spin.omegaLanding) + phi;
     const onEdge = easeInOut(clamp01((tl - 0.1) / LEAN_RAMP)) * (1 - easeInOut(clamp01((t - (duration - LEAN_RAMP)) / LEAN_RAMP)));
-    return { x, y: landingDip(tl, f.vy), z, yaw, roll: rollToward(yaw, D - x, exitCentreZ - z, lean) * onEdge };
+    return { x, y: 0, z, yaw, roll: rollToward(yaw, D - x, exitCentreZ - z, lean) * onEdge };
   };
   // the Man rides the same curve just inside her with his hands at her waist, keeps curving briefly after the throw, then glides straight
   const tStraight = tOff + 0.3;

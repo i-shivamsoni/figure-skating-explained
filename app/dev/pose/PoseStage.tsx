@@ -19,6 +19,8 @@ const CAMS: Record<string, [number, number, number]> = {
 export function PoseStage({ pose, cam }: { pose: string; cam: string }) {
   const onReady = useCallback((h: SkaterHandle) => {
     h.rig.applyPose(POSES[pose] ?? POSES.rest);
+    document.body.dataset.groundShift = h.rig.groundShift.toFixed(3);
+    document.body.dataset.bladeLow = h.rig.lowestBladeY().toFixed(4);
     document.body.dataset.skaterReady = "1";
   }, [pose]);
   return (
