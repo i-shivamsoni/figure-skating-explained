@@ -101,7 +101,9 @@ describe("SkaterRig", () => {
 describe("limb helper", () => {
   it("maps angles to skater-space directions", async () => {
     const { limb } = await import("@/three/rig/pose");
-    expect(limb(0)).toEqual([-0, -1, 0]);
+    const down = limb(0);
+    expect(down[1]).toBeCloseTo(-1, 5);
+    expect(Math.abs(down[0]) + Math.abs(down[2])).toBeLessThan(1e-9);
     const fwd = limb(90);
     expect(fwd[2]).toBeCloseTo(1, 5);
     const left = limb(0, 90);

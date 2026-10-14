@@ -113,21 +113,36 @@ for side in ("L", "R"):
     foot_len = 0.15 * H
     cx = ankle.x
     cy = (ankle.y + toe.y) / 2 + 0.01 * H
-    # boot: covers the foot and rises above the ankle
-    boot = make_box(f"boot_{side}", (cx, cy, GROUND + 0.055 * H), (0.064 * H, foot_len, 0.11 * H), mat_boot)
+    # boot: a low foot part plus an ankle cuff, both bevelled
+    foot_part = make_box(f"boot_{side}", (cx, cy, GROUND + 0.028 * H), (0.064 * H, foot_len, 0.056 * H), mat_boot)
     bpy.ops.object.modifier_add(type="BEVEL")
-    boot.modifiers[-1].width = 0.012
-    boot.modifiers[-1].segments = 3
-    bpy.ops.object.modifier_apply(modifier=boot.modifiers[-1].name)
+    foot_part.modifiers[-1].width = 0.018
+    foot_part.modifiers[-1].segments = 4
+    bpy.ops.object.modifier_apply(modifier=foot_part.modifiers[-1].name)
+    cuff = make_box(f"cuff_{side}", (cx, ankle.y + 0.004 * H, GROUND + 0.056 * H + 0.048 * H), (0.06 * H, 0.085 * H, 0.096 * H), mat_boot)
+    bpy.ops.object.modifier_add(type="BEVEL")
+    cuff.modifiers[-1].width = 0.016
+    cuff.modifiers[-1].segments = 4
+    bpy.ops.object.modifier_apply(modifier=cuff.modifiers[-1].name)
     # sole + blade holder
     sole = make_box(f"sole_{side}", (cx, cy, BLADE_H + SOLE_H / 2), (0.062 * H, foot_len, SOLE_H), mat_boot)
     # blade: thin, full length, plus a toe pick at the front (-Y)
     blade = make_box(f"blade_{side}", (cx, cy, BLADE_H / 2), (0.0045, foot_len * 1.02, BLADE_H), mat_blade)
     pick = make_box(f"pick_{side}", (cx, cy - foot_len * 0.52, BLADE_H * 0.75), (0.0045, 0.014, BLADE_H * 0.5), mat_blade)
-    for part in (boot, sole, blade, pick):
+    for part in (foot_part, cuff, sole, blade, pick):
         vg = part.vertex_groups.new(name=f"skate_{side}")
         vg.add([v.index for v in part.data.vertices], 1.0, "REPLACE")
-    extras += [boot, sole, blade, pick]
+    extras += [foot_part, cuff, sole, blade, pick]
+
+# remove the bare feet: faces entirely below the boot cuff are hidden anyway
+import bmesh
+bm = bmesh.new()
+bm.from_mesh(body.data)
+cut = GROUND + 0.075 * H
+doomed = [f for f in bm.faces if all(v.co.z < cut for v in f.verts)]
+bmesh.ops.delete(bm, geom=doomed, context="FACES")
+bm.to_mesh(body.data)
+bm.free()
 
 # body materials: slot 0 skin, slot 1 costume (assigned after weighting)
 body.data.materials.append(mat_skin)
