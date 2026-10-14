@@ -21,6 +21,11 @@ export function PoseStage({ pose, cam }: { pose: string; cam: string }) {
     h.rig.applyPose(POSES[pose] ?? POSES.rest);
     document.body.dataset.groundShift = h.rig.groundShift.toFixed(3);
     document.body.dataset.bladeLow = h.rig.lowestBladeY().toFixed(4);
+    const shown: string[] = [];
+    h.group.traverse((o) => {
+      if (/^(hair|skirt)/.test(o.name)) shown.push(`${o.name}${o.visible ? "" : "(hidden)"}:${o.type}`);
+    });
+    document.body.dataset.variants = shown.join(" ");
     document.body.dataset.skaterReady = "1";
   }, [pose]);
   return (

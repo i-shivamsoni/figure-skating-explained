@@ -78,11 +78,16 @@ test("the skater drawer changes the look and the choice survives a reload", asyn
   await page.getByRole("button", { name: "Your skater" }).first().click();
   await page.locator("button", { hasText: "Ruby" }).first().click();
   await expect.poll(() => page.evaluate(() => document.body.dataset.appearance)).not.toBe(before);
+  await page.getByRole("group", { name: "Hair style" }).getByRole("button", { name: "Ponytail" }).click();
+  await page.getByRole("group", { name: "Hair length" }).getByRole("button", { name: "Long" }).click();
+  await page.getByRole("group", { name: "Skirt" }).getByRole("button", { name: "None" }).click();
+  await expect.poll(() => page.evaluate(() => document.body.dataset.appearance)).toContain("hair.ponytail.long none");
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "Your skater" })).toHaveCount(0);
   await page.reload();
   await page.waitForSelector('body[data-skater-ready="1"]', { timeout: 30_000 });
   await expect.poll(() => page.evaluate(() => document.body.dataset.appearance)).toContain("#8f1230");
+  expect(await page.evaluate(() => document.body.dataset.appearance)).toContain("hair.ponytail.long none");
 });
 
 test("the grouped nav opens its menus on desktop and its sheet on a phone", async ({ page }) => {

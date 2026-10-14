@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useImperativeHandle, useMemo, type Ref } from "react";
+import { useEffect, useImperativeHandle, useLayoutEffect, useMemo, type Ref } from "react";
 import { Group, Material, Mesh, MeshStandardMaterial, type Object3D } from "three";
 import { useGLTF } from "@react-three/drei";
 import { SkeletonUtils } from "three/examples/jsm/Addons.js";
@@ -72,7 +72,8 @@ export function SkaterModel({ pose, variant, ref, onReady }: SkaterModelProps) {
     });
     return { group: clone, rig: new SkaterRig(clone), wardrobe: buildWardrobe(clone) };
   }, [gltf.scene]);
-  useEffect(() => {
+  // before the first paint: the GLB carries every hair style and both skirts, and only the chosen ones may show
+  useLayoutEffect(() => {
     applyAppearance(wardrobe, appearance, chosen);
     if (!variant && typeof document !== "undefined") document.body.dataset.appearance = appearanceSignature(appearance);
   }, [wardrobe, chosen, appearance, variant]);

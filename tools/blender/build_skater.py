@@ -99,6 +99,11 @@ SKIRT = args.skirt or ("short" if FEMALE else "none")
 NECK = args.neckline
 PALETTE = dict(PALETTES[args.palette or ("black" if FEMALE else "charcoal")])
 PALETTE.setdefault("skirt", PALETTE["top"])
+SKIN_RGB = (0.78, 0.56, 0.45)
+# sleeves are painted regions with their own materials so the viewer can dress them at runtime
+# (top colour or skin); the GLB carries the default look of this body
+PALETTE.setdefault("sleeve_upper", PALETTE["top"] if SLEEVES in ("short", "long") else SKIN_RGB)
+PALETTE.setdefault("sleeve_lower", PALETTE["top"] if SLEEVES == "long" else SKIN_RGB)
 # the woman's bodice is a real fabric shell over the skin; the man's shirt is painted on the body
 SHELL = FEMALE
 
@@ -337,7 +342,9 @@ def smooth(ob):
     bpy.ops.object.shade_smooth()
 
 
-mat_skin = make_material("skin", (0.78, 0.56, 0.45), roughness=0.55)
+mat_skin = make_material("skin", SKIN_RGB, roughness=0.55)
+mat_sleeve_upper = make_material("sleeve_upper", PALETTE["sleeve_upper"], roughness=0.55)
+mat_sleeve_lower = make_material("sleeve_lower", PALETTE["sleeve_lower"], roughness=0.55)
 mat_top = make_material("top", PALETTE["top"], roughness=0.36 if FEMALE else 0.55, double_sided=SHELL)
 mat_legs = make_material("legs", PALETTE["legs"], roughness=0.55)
 mat_glove = make_material("glove", PALETTE["glove"], roughness=0.5)
@@ -613,10 +620,39 @@ for side in ("L", "R"):
         extras.append(part)
 
 # ---------------------------------------------------------------- hair
-# the cranium sits between y = -0.12 (forehead) and y = +0.05 (back of the head) on the female body
+# Every style is its own skinned object named per the viewer's contract (three/skaterStore.ts:
+# hair.<style>, hair.ponytail.<length>, hair.loose.<length>); the viewer shows one and hides the
+# rest, so the GLB carries them all. Variant objects are not joined into the body.
 k = H / 1.639
 head_c = Vector((0, -0.036 * k, z(0.949)))
-hair = make_ellipsoid("hair", head_c, (0.087 * k, 0.107 * k, 0.099 * k) if FEMALE else (0.089 * k, 0.112 * k, 0.104 * k), mat_hair, segments=64, rings=40)
+HAIR_SEG = (48, 30)
+variants = []
+
+
+def finish_variant(ob, name, bone="head"):
+    """A separate skinned object: its part_* groups become bone groups, an armature modifier binds it."""
+    ob.name = name
+    ob.data.name = name
+    for vg in list(ob.vertex_groups):
+        if vg.name.startswith("part_"):
+            vg.name = vg.name[len("part_") :]
+    if not ob.vertex_groups:
+        tag(ob, bone)
+        ob.vertex_groups["part_" + bone].name = bone
+    smooth(ob)
+    variants.append(ob)
+    return ob
+
+
+def join_parts(parts, name):
+    bpy.ops.object.select_all(action="DESELECT")
+    for ob in parts:
+        ob.select_set(True)
+    bpy.context.view_layer.objects.active = parts[0]
+    bpy.ops.object.join()
+    ob = bpy.context.active_object
+    ob.name = name
+    return ob
 
 
 # hairline: high on the forehead, dipping behind the ears, lowest at the nape
@@ -636,33 +672,76 @@ def hairline(y):
     return pts[-1][1]
 
 
-cut_along(hair, lambda c: c.z >= hairline(c.y) and c.y >= (-0.113 if FEMALE else -0.126) * k)
-tag(hair, "head")
-extras.append(hair)
-if FEMALE:
+def hair_cap(lift=0.0):
+    cap = make_ellipsoid("cap", head_c, (0.087 * k, 0.107 * k, 0.099 * k) if FEMALE else (0.089 * k, 0.112 * k, 0.104 * k), mat_hair, *HAIR_SEG)
+    cut_along(cap, lambda c: c.z >= hairline(c.y) + lift and c.y >= (-0.113 if FEMALE else -0.126) * k)
+    return cap
+
+
+def hair_fringe():
     fc = (0.028 * k, -0.075 * k, z(0.962))
     fringe = make_ellipsoid("fringe", fc, (0.052 * k, 0.05 * k, 0.03 * k), mat_hair, 32, 20)
     rotate_about(fringe, fc, (0, math.radians(-14), math.radians(-18)))
     cut_along(fringe, lambda c: c.y >= -0.112 * k and c.z >= z(0.94))
-else:
-    qc = (0, -0.062 * k, z(0.985))
+    return fringe
+
+
+def hair_quiff(back=False, side=0.0):
+    qc = (side, (-0.062 if not back else -0.045) * k, z(0.985))
     quiff = make_ellipsoid("quiff", qc, (0.072 * k, 0.07 * k, 0.034 * k), mat_hair, 32, 20)
-    rotate_about(quiff, qc, (math.radians(-16), 0, 0))
+    rotate_about(quiff, qc, (math.radians(16 if back else -16), 0, math.radians(-25) if side else 0))
     cut_along(quiff, lambda c: c.y >= -0.128 * k and c.z >= z(0.95))
-    fringe = quiff
-tag(fringe, "head")
-extras.append(fringe)
-if not FEMALE:
+    return quiff
+
+
+def hair_bun(center):
+    return make_ellipsoid("bun", center, (0.042, 0.036, 0.038), mat_hair, 20, 14)
+
+
+def hair_tail(length):
+    """A ponytail from the nape: a tapered tube hanging down the back."""
+    n = 7
+    nodes = []
+    edges = []
+    for i in range(n + 1):
+        u = i / n
+        pos = (0.0, 0.075 * k + 0.045 * math.sin(u * math.pi) + 0.015 * u, z(0.905) - length * u)
+        r = 0.027 * (1 - u) + 0.011 * u
+        nodes.append((pos, (r, r)))
+        if i:
+            edges.append((i - 1, i))
+    return skin_chain("tail", nodes, edges, mat_hair)
+
+
+def hair_mane(length):
+    """Loose hair: a shell around the back and sides of the head reaching `length` below the crown."""
+    top = head_c.z + 0.04
+    bottom = head_c.z - length
+    rz = (top - bottom) / 2
+    mane = make_ellipsoid("mane", (0, 0.02 * k, (top + bottom) / 2), (0.098 * k, 0.118 * k, rz), mat_hair, 40, 28)
+    cut_along(mane, lambda c: c.z <= top - 0.004 and c.y >= -0.052 * k)
+    return mane
+
+
+if FEMALE:
+    finish_variant(join_parts([hair_cap(), hair_fringe(), hair_bun((0, 0.062 * k, z(0.912)))], "hair.lowBun"), "hair.lowBun")
+    finish_variant(join_parts([hair_cap(), hair_fringe(), hair_bun((0, 0.012 * k, z(0.992)))], "hair.highBun"), "hair.highBun")
+    for name, length in (("short", 0.12), ("medium", 0.22), ("long", 0.32)):
+        finish_variant(join_parts([hair_cap(), hair_fringe(), hair_tail(length)], f"hair.ponytail.{name}"), f"hair.ponytail.{name}")
+    for name, length in (("short", 0.17), ("medium", 0.27), ("long", 0.38)):
+        finish_variant(join_parts([hair_cap(), hair_fringe(), hair_mane(length)], f"hair.loose.{name}"), f"hair.loose.{name}")
+    finish_variant(join_parts([hair_cap(), hair_fringe(), hair_mane(0.13)], "hair.bob"), "hair.bob")
+else:
+    finish_variant(join_parts([hair_cap(), hair_quiff()], "hair.quiff"), "hair.quiff")
+    finish_variant(hair_cap(lift=0.008), "hair.crop")
+    finish_variant(join_parts([hair_cap(), hair_quiff(side=0.03 * k)], "hair.sidePart"), "hair.sidePart")
+    finish_variant(join_parts([hair_cap(), hair_quiff(back=True)], "hair.sweptBack"), "hair.sweptBack")
     # a flat strap following the waist's outline
     belt_z = z(0.535)
     belt_cy, belt_r = torso_profile(belt_z, 56, half=0.014)
     belt = fitted_torus("belt", Vector((0, belt_cy, belt_z)), Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1)), [r + 0.0035 for r in belt_r], (0.0035, 0.013), make_material("belt", (0.03, 0.03, 0.035), roughness=0.35), 8)
     tag(belt, "hips")
     extras.append(belt)
-if FEMALE:
-    bun = make_ellipsoid("bun", (0, 0.062 * k, z(0.912)), (0.042, 0.036, 0.038), mat_hair, 20, 14)
-    tag(bun, "head")
-    extras.append(bun)
 
 # ---------------------------------------------------------------- outfit regions (by geometry)
 # Regions are decided from where a point sits on the body (along each arm's axis, the height, the
@@ -729,10 +808,12 @@ def region(c):
     if on_arm and u > 0.77:
         return "glove"  # a few centimetres up the forearm, so the wrist and the thumb root are covered
     if on_arm:
-        if SLEEVES == "none" and u > 0.10:
-            return "skin"
-        if SLEEVES == "short" and u > 0.50:
-            return "skin"
+        # the shoulder cap belongs to the top; upper arm and forearm are sleeve regions the viewer
+        # paints with the top colour or the skin
+        if u > 0.50:
+            return "sleeve_lower"
+        if u > 0.10:
+            return "sleeve_upper"
         return "top"
     if neck_open(c):
         return "skin"
@@ -744,7 +825,7 @@ def region(c):
 
 
 # what the body itself wears in each region (the shell carries the dress; the man's shirt is painted)
-BODY_PAINT = {"skin": "skin", "glove": "glove", "legs": "legs", "briefs": "top", "top": "skin" if SHELL else "top"}
+BODY_PAINT = {"skin": "skin", "glove": "glove", "legs": "legs", "briefs": "top", "top": "skin" if SHELL else "top", "sleeve_upper": "sleeve_upper", "sleeve_lower": "sleeve_lower"}
 
 # ---------------------------------------------------------------- remove bare feet, relax the hands
 bpy.context.view_layer.objects.active = body
@@ -851,6 +932,8 @@ body.data.materials.append(mat_skin)
 body.data.materials.append(mat_top)
 body.data.materials.append(mat_legs)
 body.data.materials.append(mat_glove)
+body.data.materials.append(mat_sleeve_upper)
+body.data.materials.append(mat_sleeve_lower)
 body_slot = {m.name: i for i, m in enumerate(body.data.materials)}
 for p in body.data.polygons:
     centre = sum((body.data.vertices[vi].co for vi in p.vertices), Vector()) / len(p.vertices)
@@ -934,15 +1017,18 @@ if SHELL:
         p.material_index = body_slot["top"]
     extras.append(dress)
 
-# ---------------------------------------------------------------- skirt (female)
-if SKIRT != "none":
+# ---------------------------------------------------------------- skirts (female): both lengths, the viewer shows one
+
+
+def build_skirt(kind):
+    """A skirt hanging from the hip: the waistband tucked inside the dress shell, flaring to a wavy hem."""
     # the skirt hangs from the hip: its waistband is tucked just inside the dress shell so the two
     # read as one garment, then it clears the pelvis and flares to a wavy hem
     top_z = z(0.515)
-    hem_z = z(0.405) if SKIRT == "short" else z(0.30)
-    hem_r = 0.235 if SKIRT == "short" else 0.31
+    hem_z = z(0.405) if kind == "short" else z(0.30)
+    hem_r = 0.235 if kind == "short" else 0.31
     N = 56
-    RINGS = 9 if SKIRT == "short" else 13
+    RINGS = 9 if kind == "short" else 13
     yc0, prof0 = torso_profile(top_z, N)
     rx0, ry0, _ = body_extent(top_z)
     bm = bmesh.new()
@@ -997,11 +1083,16 @@ if SKIRT != "none":
         wr = leg * (0.5 - 0.5 * side)
         shares.append({"hips": 1.0 - wl - wr, "thigh_L": wl, "thigh_R": wr})
     tag_weights(skirt, shares)
-    extras.append(skirt)
+    return skirt
+
+
+if FEMALE:
+    for kind in ("short", "long"):
+        finish_variant(build_skirt(kind), f"skirt.{kind}", bone="hips")
 
 # ---------------------------------------------------------------- rolled sleeve cuffs (short sleeves)
-if SLEEVES == "short":
-    # a rolled cuff: a band following the forearm's outline just below the elbow
+if not FEMALE:
+    # a rolled cuff: a band following the forearm's outline just below the elbow (painted like the upper sleeve)
     for side in ("L", "R"):
         sh, axis, a, e1, e2 = FRAME[side]
         u_cuff = 0.515
@@ -1012,7 +1103,7 @@ if SLEEVES == "short":
             if abs(u - u_cuff) < 0.012 and d.length < 0.075 * H:
                 ring_pts.append(v.co.copy())
         cc = sum(ring_pts, Vector()) / len(ring_pts)  # the arm's own centre (it hangs forward of the bone axis)
-        cuff = fitted_torus(f"sleeve_{side}", cc, e1, e2, a, [r + 0.0015 for r in outline(ring_pts, cc, e1, e2, 36)], (0.006, 0.009), mat_top, 8)
+        cuff = fitted_torus(f"cuff_{side}", cc, e1, e2, a, [r + 0.0015 for r in outline(ring_pts, cc, e1, e2, 36)], (0.006, 0.009), mat_sleeve_upper, 8)
         tag(cuff, f"forearm_{side}")
         extras.append(cuff)
 
@@ -1061,9 +1152,17 @@ if unweighted:
 
 # ---------------------------------------------------------------- export
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
+# the variant objects (hair styles, skirts) bind to the same armature as separate skinned meshes
+for ob in variants:
+    mod = ob.modifiers.new("Armature", "ARMATURE")
+    mod.object = rig
+    ob.parent = rig
 bpy.ops.object.select_all(action="DESELECT")
 body.select_set(True)
 rig.select_set(True)
+for ob in variants:
+    ob.select_set(True)
+print(f"VARIANTS {[ob.name for ob in variants]}")
 bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", use_selection=True, export_apply=True, export_animations=False, export_skins=True, export_yup=True, export_materials="EXPORT", export_image_format="NONE")
 print(f"EXPORTED {OUT} {os.path.getsize(OUT)} bytes")
 

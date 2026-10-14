@@ -35,13 +35,16 @@ export function visibleNodes(a: Appearance): Set<string> {
   return shown;
 }
 
+/** three's glTF loader strips dots, colons, slashes and brackets from node names ("hair.lowBun" arrives as "hairlowBun"). */
+export const nodeKey = (name: string): string => name.replace(/[\s[\].:/]/g, "");
+
 /** Recolours and shows/hides by name; nodes or materials the model lacks are skipped. */
 export function applyAppearance(wardrobe: Wardrobe, a: Appearance, variant: SkaterVariant): void {
   const colours = materialColours(a);
   for (const name of GLB_MATERIALS) for (const m of wardrobe.materials.get(name) ?? []) m.set(colours[name]);
   const shown = visibleNodes(a);
   for (const name of variantNodes(variant)) {
-    const node = wardrobe.nodes.get(name);
+    const node = wardrobe.nodes.get(name) ?? wardrobe.nodes.get(nodeKey(name));
     if (node) node.visible = shown.has(name);
   }
 }

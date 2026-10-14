@@ -250,6 +250,8 @@ export const useSkaterStore = create<SkaterState>()(
       name: "fse-skater",
       version: 2,
       migrate: (state, version) => migrateSkaterState(state, version),
+      // a partial or hand-written stored state must never lose fields: fill from the defaults every load
+      merge: (persisted, current) => ({ ...current, ...migrateSkaterState(persisted, 2) }),
       partialize: (s) => ({ variant: s.variant, appearance: s.appearance }),
     },
   ),
