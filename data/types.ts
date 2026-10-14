@@ -158,3 +158,140 @@ export interface SourceDoc {
   localFile: string;
   usedFor: string;
 }
+
+/* ---------------- Pair Skating (data/pairs.ts) ---------------- */
+
+export type PairCategory = "seniorPairs" | "juniorPairs";
+
+export type PairElementId =
+  | "lift"
+  | "twist"
+  | "throw"
+  | "deathSpiral"
+  | "pairSpinCombination"
+  | "pairSpin"
+  | "soloSpinCombination"
+  | "soloJump"
+  | "stepSequence"
+  | "choreoPairLift"
+  | "choreoPairSpin"
+  | "choreoSequence"
+  | "pivotFigure";
+
+/** An element code as printed in a protocol, how to read it, and its base value in the 2026-27 Scale of Values. */
+export interface CodeExample {
+  code: string;
+  reading: string;
+  baseValue: number;
+}
+
+/** Base values of one code family by level (B = Basic). */
+export type LevelValues = { B: number; 1: number; 2: number; 3: number; 4: number };
+
+export interface PairElementFamily {
+  id: PairElementId;
+  name: string;
+  /** The code family as the Scale of Values prints it. */
+  codeFamily: string;
+  howToRead: string;
+  examples: CodeExample[];
+  definition: string;
+  /** Where the ISU defines the element. */
+  definedIn: SourceRef;
+  usage: { shortProgram: string; freeSkating: string };
+  sources: SourceRef[];
+}
+
+export interface LiftType {
+  code: "5T" | "5S" | "5A" | "5B" | "5R";
+  sovPrefix: "5TLi" | "5SLi" | "5ALi" | "5BLi" | "5RLi";
+  name: string;
+  /** How the technical panel identifies the type from the woman's take-off. */
+  takeOff: string;
+  baseValues: LevelValues;
+}
+
+export interface LiftGroup {
+  group: 1 | 2 | 3 | 4 | 5;
+  sovPrefix: string;
+  name: string;
+  hold: string;
+  identification: string;
+  /** Groups 1-4; Group 5 carries its values per type. */
+  baseValues?: LevelValues;
+  types?: LiftType[];
+  sources: SourceRef[];
+}
+
+export interface LiftPosition {
+  id: "upright" | "star" | "platter";
+  name: string;
+  definition: string;
+}
+
+export interface PairLevelFeature {
+  number: number;
+  name: string;
+  detail: string;
+  senior?: string;
+  junior?: string;
+  countsOncePerProgram?: boolean;
+  freeSkatingOnly?: boolean;
+}
+
+export interface RuleNote {
+  title: string;
+  rule: string;
+  sources: SourceRef[];
+}
+
+export interface DeathSpiralType {
+  code: "BoDs" | "FiDs" | "BiDs" | "FoDs";
+  name: string;
+  manEdge: string;
+  womanEdge: string;
+  womanLean: string;
+  baseValues: LevelValues;
+  /** Season in which Rule 620 prescribes it for the Short Program, if any. */
+  prescribedShortProgram?: string;
+}
+
+export interface PairProgramSpec {
+  segment: Segment;
+  category: PairCategory;
+  season: string;
+  durationSeconds: number;
+  elements: ElementRequirement[];
+  notes: string[];
+  sources: SourceRef[];
+}
+
+export type PairGoeElementType =
+  | "lift"
+  | "twist"
+  | "jump"
+  | "throw"
+  | "soloSpin"
+  | "pairSpin"
+  | "deathSpiral"
+  | "step"
+  | "choreoSequence"
+  | "choreoPairLift"
+  | "choreoPairSpin";
+
+export interface PairGoeGuideline {
+  elementType: PairGoeElementType;
+  name: string;
+  positive: GoeBullet[];
+  reductions: GoeReduction[];
+  notes?: string[];
+  sources: SourceRef[];
+}
+
+/** One row of the "elements with no value or maximum Level" table at the end of the pairs handbook. */
+export interface PairMaxLevelRow {
+  section: string;
+  problem: string;
+  maxLevelShortProgram: string;
+  maxLevelFreeSkating: string;
+}
