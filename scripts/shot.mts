@@ -1,6 +1,7 @@
 /**
  * Screenshot a page with headless Chromium (software WebGL).
  *   node --experimental-strip-types scripts/shot.mts <url> <out.png> [waitSelectorOrMs] [width] [height]
+ * Env: SKATER=male picks the man; CLIP=<css selector> screenshots only that element.
  */
 import { chromium } from "@playwright/test";
 
@@ -18,7 +19,8 @@ await page.goto(url, { waitUntil: "networkidle", timeout: 60000 });
 if (/^\d+$/.test(wait)) await page.waitForTimeout(Number(wait));
 else await page.waitForSelector(wait, { timeout: 30000 }).catch(() => logs.push(`wait for ${wait} timed out`));
 await page.waitForTimeout(800);
-await page.screenshot({ path: out });
+if (process.env.CLIP) await page.locator(process.env.CLIP).first().screenshot({ path: out });
+else await page.screenshot({ path: out });
 await browser.close();
 console.log(logs.filter((l) => !l.startsWith("log:")).join("\n") || "no console errors");
 console.log("saved", out);

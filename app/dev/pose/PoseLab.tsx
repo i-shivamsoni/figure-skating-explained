@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { POSE_NAMES } from "@/three/rig/poses";
+import { POSE_NAMES, POSES } from "@/three/rig/poses";
 
 const PoseStage = dynamic(() => import("./PoseStage").then((m) => m.PoseStage), { ssr: false });
 
@@ -13,6 +13,14 @@ export function PoseLab() {
   const initial = params.get("pose") ?? "stand";
   const cam = params.get("cam") ?? "iso";
   const [pose, setPose] = useState(POSE_NAMES.includes(initial) ? initial : "stand");
+  // ?bare=1 renders only the stage, above the site chrome (used to capture the pose thumbnails in public/poses)
+  if (params.get("bare") === "1") {
+    return (
+      <div id="bare-stage" className="fixed left-0 top-0 z-[200] h-[440px] w-[360px] overflow-hidden bg-[#eaf3fa]">
+        <PoseStage pose={initial in POSES ? initial : "stand"} cam={cam} />
+      </div>
+    );
+  }
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
       <div className="mb-3 flex items-center gap-3 text-sm">

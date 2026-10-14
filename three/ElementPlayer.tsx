@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
-import { Group, Vector3 } from "three";
+import { Euler, Group, Vector3 } from "three";
 import { useStore } from "zustand";
 import { Stage } from "./Stage";
 import { SkaterModel, type SkaterHandle } from "./SkaterModel";
-import { markerAt, poseAt, TWO_PI, type Timeline } from "./animation/timeline";
+import { markerAt, poseAt, TWO_PI, type IceArrow, type Timeline } from "./animation/timeline";
 import { createPlayerStore, type CameraMode, type PlayerStore } from "./animation/store";
 import { useSkaterStore, type SkaterVariant } from "./skaterStore";
 
@@ -60,6 +60,7 @@ export function ElementPlayer({ timeline, autoplay = true, initialTime = 0, came
         <Actor timeline={timeline} store={store} />
         {timeline.partner && <Actor timeline={timeline} store={store} partner />}
         <Trace timeline={timeline} />
+        {timeline.arrows && <IceArrows arrows={timeline.arrows} store={store} />}
         <CameraRig timeline={timeline} store={store} />
       </Stage>
       <Hud timeline={timeline} store={store} extra={hud} caption={caption} value={value} />
@@ -103,6 +104,54 @@ function Actor({ timeline, store, partner = false }: { timeline: Timeline; store
   return (
     <group ref={groupRef}>
       <SkaterModel onReady={onReady} variant={partner ? track?.variant : undefined} />
+    </group>
+  );
+}
+
+/** Curved arrows on the ice (the sense of an edge's curve, of a rotation), shown while their time window is active. */
+function IceArrows({ arrows, store }: { arrows: IceArrow[]; store: PlayerStore }) {
+  const groups = useRef<(Group | null)[]>([]);
+  useFrame(() => {
+    const t = store.getState().time;
+    arrows.forEach((a, i) => {
+      const g = groups.current[i];
+      if (g) g.visible = t >= a.from && t <= a.to;
+    });
+  });
+  const shapes = useMemo(
+    () =>
+      arrows.map((a) => {
+        const n = 40;
+        const points: [number, number, number][] = [];
+        for (let i = 0; i <= n; i++) {
+          const ang = a.startAngle + (a.sweep * i) / n;
+          points.push([a.x + a.radius * Math.sin(ang), 0.012, a.z + a.radius * Math.cos(ang)]);
+        }
+        const end = a.startAngle + a.sweep;
+        const dir = Math.sign(a.sweep);
+        // tangent at the end of the arc, pointing the way the arrow travels
+        const yaw = Math.atan2(dir * Math.cos(end), -dir * Math.sin(end));
+        const tip: [number, number, number] = [a.x + a.radius * Math.sin(end) + 0.1 * Math.sin(yaw), 0.012, a.z + a.radius * Math.cos(end) + 0.1 * Math.cos(yaw)];
+        return { points, tip, rotation: new Euler(Math.PI / 2, yaw, 0, "YXZ") };
+      }),
+    [arrows],
+  );
+  return (
+    <group>
+      {arrows.map((a, i) => (
+        <group
+          key={i}
+          ref={(el) => {
+            groups.current[i] = el;
+          }}
+        >
+          <Line points={shapes[i].points} color={a.color} lineWidth={2} transparent opacity={0.85} />
+          <mesh position={shapes[i].tip} rotation={shapes[i].rotation}>
+            <coneGeometry args={[0.1, 0.26, 12]} />
+            <meshStandardMaterial color={a.color} />
+          </mesh>
+        </group>
+      ))}
     </group>
   );
 }
@@ -202,15 +251,28 @@ function Hud({ timeline, store, extra, caption, value }: { timeline: Timeline; s
       counter = rot.turns < rot.nominal ? `${rot.turns.toFixed(2)} of ${rot.nominal} rev in the air` : `${rot.nominal} rev`;
     }
   }
+  const activeArrows = (timeline.arrows ?? []).filter((a) => time >= a.from && time <= a.to);
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3 text-sm">
-      <div className="max-w-xs rounded-lg bg-surface/85 px-3 py-2 shadow backdrop-blur">
-        {!ready && <p className="text-muted">Loading skater…</p>}
-        {ready && marker && (
-          <>
-            <p className="font-semibold">{marker.label}</p>
-            {marker.detail && <p className="text-xs text-muted">{marker.detail}</p>}
-          </>
+      <div className="flex max-w-xs flex-col items-start gap-2">
+        <div className="rounded-lg bg-surface/85 px-3 py-2 shadow backdrop-blur">
+          {!ready && <p className="text-muted">Loading skater…</p>}
+          {ready && marker && (
+            <>
+              <p className="font-semibold">{marker.label}</p>
+              {marker.detail && <p className="text-xs text-muted">{marker.detail}</p>}
+            </>
+          )}
+        </div>
+        {ready && activeArrows.length > 0 && (
+          <ul className="rounded-lg bg-surface/85 px-3 py-1.5 text-xs shadow backdrop-blur">
+            {activeArrows.map((a) => (
+              <li key={a.label} className="flex items-center gap-2">
+                <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: a.color }} />
+                {a.label}
+              </li>
+            ))}
+          </ul>
         )}
       </div>
       <div className="flex flex-col items-end gap-2">

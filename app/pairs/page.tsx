@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, PageHeader, Section, Sig } from "@/components/Page";
 import { SourceNote } from "@/components/SourceNote";
+import { PairExplorer } from "@/components/PairExplorer";
 import { PAIR_CATEGORY_LABELS, PAIR_ELEMENT_FAMILIES, PAIR_FREE_SKATING, PAIR_GOE_NOTES, PAIR_LEVEL_SCALE, PAIR_MAX_LEVEL_TABLE, PAIR_MAX_LEVEL_TABLE_NOTE, PAIR_PCS_FACTORS, PAIR_SHORT_PROGRAMS, PAIR_SHORT_PROGRAM_ROTATION } from "@/data/pairs";
 
 export const metadata: Metadata = {
@@ -26,6 +27,19 @@ export default function PairsPage() {
           </>
         }
       />
+      <Section>
+        <PairExplorer
+          presets={[
+            { id: "5RLi", label: "reverse lasso lift" },
+            { id: "3Tw", label: "triple twist" },
+            { id: "3LzTh", label: "throw triple Lutz" },
+            { id: "BoDs", label: "backward outside death spiral" },
+            { id: "PCoSp", label: "pair spin combination" },
+          ]}
+          camera="side"
+          height={460}
+        />
+      </Section>
       <Section>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {PAIR_ELEMENT_FAMILIES.map((f) => (

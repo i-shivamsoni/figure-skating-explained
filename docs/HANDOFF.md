@@ -1,16 +1,17 @@
 # Handoff: Figure Skating Explained
 
-Written 14 Oct 2026 (evening) so work can continue after a context reset. Everything below is
-verified against the repo at commit `70b29c9` unless marked *in progress*.
+Written 14 Oct 2026 (evening) so work can continue after a context reset; updated the same night
+after the physics review, the dress rebuild, the per-jump entries and Pair Skating landed.
 
 ## What this is
 
 A public Next.js 16 site, **https://figure-skating-explained.vercel.app**, that explains the
 components of figure skating from the official ISU 2026-27 documents: six jumps (single to
 quint), spins, step sequences, choreographic elements, field moves, non-listed jumps, the ISU
-Judging System, with a 3D rigged skater performing every element, a program score calculator,
-a side-by-side compare mode and a protocol-code decoder. Single Skating is complete; Pair
-Skating (phase 2) is in progress.
+Judging System, with a 3D rigged skater performing every element, a program score calculator
+(singles and pairs), a side-by-side compare mode and a protocol-code decoder. Single Skating
+and Pair Skating (rules pages, animated lifts/twist/throw/death spirals/pair spin, calculator
+categories) are both live.
 
 Vercel project `figure-skating-explained` (team `<vercel team>`), linked via
 `.vercel/`. Deploy with `vercel deploy --prod --yes` (preview: `vercel deploy --yes`; previews
@@ -70,10 +71,27 @@ are behind Vercel auth, production is public). The Vercel CLI is 54.x and nags t
   `steps.ts` (turns, basic steps, `CHOREO` field moves); `catalog.ts` (`ViewerSpec` →
   `buildTimeline`, `captionFor`); `store.ts` (zustand player store).
 - `three/physics/jump.ts`: ballistics from calibrated air times, angular momentum with a
-  tuck inertia schedule (`TUCK_RATIO` 0.4), on-ice pre-rotation continuous with the air rate
-  and scaled by jump size, edge lean `atan(v²/gR)` → `roll`, landing dip (small) +
-  critically damped check-out, `landingSkid` for under-rotations. Knee absorption is the
-  `POSES.landDeep` key in `jumps.ts`.
+  tuck inertia schedule (`TUCK_RATIO` 0.4), edge lean `atan(v²/gR)` → `roll`, landing dip.
+  The counted rotation = on-ice vault (`preRotationAngle`, a smoothstep rate ramp over
+  `VAULT_TIME` axel/toe/edge) + air turns + a finite blade skid (`landingSkid`, cubic Hermite,
+  at most `SKID_MAX`; clean landings skid `omegaLanding·SKID_TAU` capped at `SKID_CAP`).
+  `jumpModel` settles these with a fixed-point loop and exposes `airTurns`, `skid`,
+  `vaultTime`, `omegaIce`. `RotationInfo.yawStart` is the facing before the vault; the HUD
+  counts from it. Knee absorption is the `POSES.landDeep` key in `jumps.ts`.
+- Entries (`jumps.ts` `ENTRY_KIND`): Flip, Salchow and toe loop turn a forward three onto
+  the take-off edge (cusp on the trace), the Axel steps forward from the right back outside
+  edge (a clockwise half turn), the Lutz rides a 13 m back outside edge against its rotation
+  with a counter arm line and the head turned. Every jump timeline carries two `IceArrow`s
+  (edge curve direction, rotation direction) drawn by `IceArrows` in the player with a HUD
+  legend: for the Lutz they bend opposite ways.
+- Pairs: `three/animation/pairs.ts` (`PAIR_PRESETS` 3Li, 4Li, 5RLi, 3Tw, 3LzTh, FiDs,
+  BoDs, PCoSp, 3T+3T; the Woman is the primary track, the Man the `partner` track; lift
+  positions hang her hips from his measured palm points), `components/PairExplorer.tsx`
+  (preset buttons + viewer) used on `/pairs` and `/pairs/[id]`, dev lab `/dev/pair`.
+- Scoring for pairs: `ElementSpec` kind `"code"` (any SOV code: lifts, twists, throws, death
+  spirals, pair spins, ChPLi1/ChPSp1), `ScoringCategory = Category | PairCategory`, pairs PCS
+  factors 1.33/2.67, pair falls (−1 one partner, −2 both, `fallsBoth`), throws take the
+  second-half factor, `lib/scoring/validatePairs.ts` checks the SP boxes and FS limits.
 - `three/ElementPlayer.tsx`: canvas player (Actor applies root motion with Euler "YXZ"
   (pitch, yaw, roll) and poses; second Actor for `timeline.partner`), edge-coloured `Trace`,
   camera modes follow/side/front/overhead/orbit, HUD (phase marker, rotation counter, caption
@@ -90,20 +108,30 @@ are behind Vercel auth, production is public). The Vercel CLI is 54.x and nags t
   `~/Work/trash/blender-5.1.2-linux-x64/blender` from the CC0 Blender Studio Human Base
   Meshes (`tools/blender/fetch-assets.sh` downloads them to the gitignored
   `tools/blender/assets/`): `--body female|male`, `--preview DIR` (body renders),
-  `--boot-preview DIR` (skate close-ups). Gotcha: in Blender 5 `transform_apply(scale=True)`
-  bakes the object location into the mesh, so rotate parts with `rotate_about()` (mesh
-  transform about the part's centre), never `transform_apply(rotation=True)`.
+  `--boot-preview DIR` (skate close-ups). Builds take ~2 s each; GLBs are ~1.25 MB.
+  The dress is one garment: the bodice runs to the hip and the skirt is built from elliptical
+  rings measured on the torso (`body_extent`, which must ignore the A-pose arms hanging at hip
+  height) and weighted hips + nearer thigh (`tag_weights`); outfit regions are cut by geometry
+  (`region()`, arm-axis coordinate + height + neckline curves) with boundary faces subdivided
+  twice; fingers are drawn together beyond the wrist. Gotcha: in Blender 5
+  `transform_apply(scale=True)` bakes the object location into the mesh, so rotate parts with
+  `rotate_about()` (mesh transform about the part's centre), never `transform_apply(rotation=True)`.
+- Pose stills for the spins page live in `public/poses/*.png`; regenerate after a model or
+  pose change with the bare pose lab:
+  `CLIP="#bare-stage" node --experimental-strip-types scripts/shot.mts "http://localhost:3000/dev/pose?pose=camel&cam=card&bare=1" public/poses/camel.png 'body[data-skater-ready="1"]' 400 480`
+  (`cam=cardLow` for sit positions; the map of position → pose name is `POSE_IMAGE` in `app/spins/page.tsx`).
 
 ## Commands
 
 ```bash
 pnpm dev            # dev server (usually already running on :3000)
-pnpm test           # vitest: 60 tests (sov, scoring, rig, timeline, physics)
+pnpm test           # vitest: 91 tests (sov, scoring incl. pairs, rig, timeline, physics, pairs-data, pairs)
 pnpm typecheck && pnpm lint
-pnpm build          # 44 static routes
+pnpm build          # static routes incl. /pairs/[id]
 pnpm test:e2e       # Playwright smoke suite (uses the running dev server)
 node --experimental-strip-types scripts/shot.mts <url> <out.png> ['body[data-skater-ready="1"]'] [w] [h]
 SKATER=male node ... scripts/shot.mts ...   # screenshot with the male model
+CLIP="#id" node ... scripts/shot.mts ...    # screenshot one element only
 ```
 
 Screenshots and Blender previews go to the session scratchpad; view them with the Read tool.
@@ -120,34 +148,24 @@ Screenshots and Blender previews go to the session scratchpad; view them with th
 - Tests pin ISU numbers (4T 9.50, 3A 8.00, 4A 12.50, 3Lz< 4.72, CCoSp4V 3.15, factors
   1.67/3.33 and 1.33/2.67).
 
-## In progress at the time of writing
+## Done since the first handoff (all committed)
 
-1. **Physics review workflow** (Workflow tool, run `wf_5795390f-337`): two lenses
-   (biomechanics, correctness) then adversarial verification. When its result arrives, fix
-   confirmed findings only. Two known judgement calls remain: the quad's pre-rotation bunches
-   into the last frames before take-off (spread it with larger constants or a gentler ramp),
-   and a clean landing stops the air rotation abruptly at touchdown (let a little rotation
-   carry into the check-out).
-2. **Pairs rules data agent**: writing `data/pairs.ts` (+ types) and `tests/pairs-data.test.ts`
-   from the pairs handbook, Rules 619-621, Comm. 2788 and the SOV (lifts groups 1-5 and 5T/5S/
-   5A/5B/5R, positions, level features, twist, throws, death spirals, pair spins,
-   side-by-side rules, SP 2026-27 and FS limits, GOE guidelines, max-level table).
-3. **Pair animation agent**: writing `three/animation/pairs.ts` (`pairTimeline`,
-   `PAIR_PRESETS`: 3Li, 4Li, 5RLi, 3Tw, 3LzTh, FiDs, BoDs, PCoSp, 3T+3T), pair poses in
-   `poses.ts`, `kind: "pair"` in `catalog.ts`, `tests/pairs.test.ts`, dev page
-   `app/dev/pair`. The woman is the primary skater, the man the `partner` track (variant
-   "male").
-4. **Mine, after 2 and 3 land**: `/pairs` pages (index + element pages using the data and the
-   viewer), nav link, pairs category in the calculator (SP requirements/validation) and
-   README/sources updates; then commit, `pnpm build`, deploy.
-
-Agent reports arrive as messages; their transcripts are under the session's `tasks/` dir.
-Do not commit half-finished agent work: check `git status` and stage deliberately.
+1. Physics review fixes (8 confirmed findings): approach poses mirrored onto the take-off
+   foot, smoothstep vault, finite skid, continuous spin hook and exit, `yawStart` counter.
+2. Pair Skating animations, pages, viewers, calculator categories and validation.
+3. The dress rebuild, per-jump entries, ice arrows, softer arms, lifted heads (camel,
+   spiral), the spins page stills and orbit camera. The user's asks that drove this:
+   "performers don't follow kinesiology/anatomy", "legs disintegrated", "flip and lutz
+   look the same", "spins page is a bit different".
 
 ## Known gaps / ideas
 
 - Lace eyelets and plates are simple primitives; a hockey-style tongue is missing.
-- The dress neckline and hairline edges are face-cut (slightly jagged); a subdivided body
-  mesh would smooth them at the cost of GLB size (~0.95 MB each today).
+- The hairline edge is still face-cut; the dress edges are refined but not perfectly smooth.
+- No IK: hands do not exactly touch the blade in the Biellmann/catch-foot nor the partner in
+  lifts and death spirals (a hold-snap on the Man's arm would fix it).
+- Skirt weighting is static (hips + thigh share): in extreme positions it clips a little.
+- The counter-rotation arrows and the entry turns exist only for listed jumps; `special.ts`
+  (Walley, split, inside Axel, backflip) keeps the plain edge entry.
 - No program replay with running score yet (the animated-highlights clip was the inspiration).
 - Quiz mode, Ice Dance and localisation were explicitly deferred.

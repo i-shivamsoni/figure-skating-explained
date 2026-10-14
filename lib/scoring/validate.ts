@@ -1,4 +1,6 @@
-import type { Category, Segment } from "@/data/types";
+import type { Segment } from "@/data/types";
+import { isPairs, type ScoringCategory } from "./program";
+import { validatePairProgram } from "./validatePairs";
 import { JUMP_BY_ID, ROTATION_SHORT } from "@/data/jumps";
 import { countedJumps, elementCode, isListedJump, jumpDisplayCode, listedCountedJumps, type ElementSpec, type JumpElementSpec, type JumpSpec, type SpinElementSpec } from "./elements";
 
@@ -10,7 +12,7 @@ export interface Warning {
 
 export interface ValidationInput {
   segment: Segment;
-  category: Category;
+  category: ScoringCategory;
   elements: ElementSpec[];
 }
 
@@ -22,6 +24,7 @@ const isCombinationSpin = (s: SpinElementSpec) => s.family.endsWith("CoSp");
 const spinPosition = (s: SpinElementSpec) => s.family.replace(/^F?C?/, "").replace(/Sp$/, "");
 
 export function validateProgram(input: ValidationInput): Warning[] {
+  if (isPairs(input.category)) return validatePairProgram({ segment: input.segment, category: input.category, elements: input.elements });
   const w: Warning[] = [];
   const jumpElements = input.elements.map((e, i) => ({ e, i })).filter((x): x is { e: JumpElementSpec; i: number } => x.e.kind === "jump");
   const spins = input.elements.map((e, i) => ({ e, i })).filter((x): x is { e: SpinElementSpec; i: number } => x.e.kind === "spin");

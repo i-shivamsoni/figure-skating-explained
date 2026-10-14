@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Card, PageHeader, Section } from "@/components/Page";
 import { SourceNote } from "@/components/SourceNote";
 import { ValueTable } from "@/components/ValueTable";
+import { PairExplorer, type PairPresetChoice } from "@/components/PairExplorer";
 import { CHOREO_PAIR_LIFT, CHOREO_PAIR_SPIN, DEATH_SPIRALS, LIFT_CLARIFICATIONS, LIFT_GROUPS, LIFT_LEVEL_FEATURES, LIFT_LEVEL_RULES, LIFT_POSITIONS, PAIR_ELEMENT_BY_ID, PAIR_ELEMENT_FAMILIES, PAIR_GOE_GUIDELINES, PAIR_SPIN_COMBINATION, PIVOT_FIGURE, SIDE_BY_SIDE, SOLO_SPIN_COMBINATION, THROW_JUMPS, TWIST_LIFT } from "@/data/pairs";
 import type { PairElementId, PairGoeElementType, PairLevelFeature, RuleNote } from "@/data/types";
 import { hasCode } from "@/lib/scoring/sov";
@@ -65,6 +66,24 @@ function Notes({ notes }: { notes: RuleNote[] }) {
   );
 }
 
+/** Animated presets available for each family (three/animation/pairs.ts). */
+const VIEWERS: Partial<Record<PairElementId, PairPresetChoice[]>> = {
+  lift: [
+    { id: "3Li", label: "Group 3 hip lift, upright position" },
+    { id: "4Li", label: "Group 4 press lift, platter position" },
+    { id: "5RLi", label: "Group 5 reverse lasso, star to upright" },
+  ],
+  twist: [{ id: "3Tw", label: "triple twist" }],
+  throw: [{ id: "3LzTh", label: "throw triple Lutz" }],
+  deathSpiral: [
+    { id: "FiDs", label: "forward inside" },
+    { id: "BoDs", label: "backward outside" },
+  ],
+  pairSpinCombination: [{ id: "PCoSp", label: "camel, sit and upright" }],
+  pairSpin: [{ id: "PCoSp", label: "pair spin combination" }],
+  soloJump: [{ id: "3T+3T", label: "side-by-side triple toe loops" }],
+};
+
 const levelCodes = (prefix: string) => ["B", 1, 2, 3, 4].map((l) => `${prefix}${l}`).filter(hasCode);
 
 export default async function PairElementPage({ params }: { params: Promise<{ id: string }> }) {
@@ -75,6 +94,12 @@ export default async function PairElementPage({ params }: { params: Promise<{ id
   return (
     <>
       <PageHeader eyebrow="Pair Skating" title={fam.name} intro={<p>{fam.definition}</p>} />
+      {VIEWERS[fam.id] && (
+        <Section>
+          <PairExplorer presets={VIEWERS[fam.id]!} camera="side" height={460} />
+          <p className="mt-2 text-sm text-muted">The Woman is the primary skater; the Man rides the partner track. Use the camera menu to orbit, and scrub to see the hold, the counted revolutions and the dismount.</p>
+        </Section>
+      )}
       <Section>
         <div className="grid gap-4 md:grid-cols-[1fr_1fr]">
           <Card>

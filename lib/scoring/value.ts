@@ -1,5 +1,5 @@
 import { baseValueOf, goeValueOf, hasCode, round2 } from "./sov";
-import { countedJumps, elementCode, jumpSovCode, type ElementSpec, type JumpElementSpec } from "./elements";
+import { countedJumps, elementCode, isThrowCode, jumpSovCode, type ElementSpec, type JumpElementSpec } from "./elements";
 
 export interface ScoredElement {
   code: string;
@@ -74,17 +74,22 @@ export function scoreElement(e: ElementSpec, goeGrade: number, opts: ScoreOption
   if (!noValue && !hasCode(sovCode)) throw new Error(`Unknown element code ${sovCode}`);
   const baseValue = noValue ? 0 : baseValueOf(sovCode);
   const goeValue = noValue ? 0 : goeValueOf(sovCode, goeGrade);
+  const info = noValue ? ["No value (*)"] : [];
+  // a throw jump is a jump element: it takes the second-half factor like any jump
+  const secondHalf = Boolean(opts.secondHalf) && e.kind === "code" && isThrowCode(e.code);
+  const factoredBase = secondHalf ? round2(baseValue * SECOND_HALF_FACTOR) : baseValue;
+  if (secondHalf) info.push("Second-half bonus: base value × 1.1");
   return {
     code,
     kind: e.kind,
     baseValue,
-    factoredBase: baseValue,
+    factoredBase,
     rep: false,
-    secondHalf: false,
+    secondHalf,
     goeGrade,
     goeValue,
-    total: round2(baseValue + goeValue),
+    total: round2(factoredBase + goeValue),
     goeSourceCode: sovCode,
-    info: noValue ? ["No value (*)"] : [],
+    info,
   };
 }

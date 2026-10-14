@@ -44,7 +44,26 @@ export interface ChoreoElementSpec {
   noValue?: boolean;
 }
 
-export type ElementSpec = JumpElementSpec | SpinElementSpec | StepElementSpec | ChoreoElementSpec;
+/** An element entered by its Scale of Values code, used for the pair elements (lifts, twists, throws, death spirals, pair spins). */
+export interface CodeElementSpec {
+  kind: "code";
+  code: string;
+  noValue?: boolean;
+}
+
+export type ElementSpec = JumpElementSpec | SpinElementSpec | StepElementSpec | ChoreoElementSpec | CodeElementSpec;
+
+/** Throw jumps are jump elements for the second-half factor. */
+export const isThrowCode = (code: string): boolean => /Th(q|<|<<)?$/.test(code);
+export const isLiftCode = (code: string): boolean => /Li[B1-4]$/.test(code) && !code.startsWith("ChP");
+export const isTwistCode = (code: string): boolean => /Tw[B1-4](<<)?$/.test(code);
+export const isDeathSpiralCode = (code: string): boolean => /Ds[B1-4]b?$/.test(code);
+/** Group of a lift code: "3" for 3Li4, "5R" for 5RLi4. */
+export const liftGroupOf = (code: string): string => code.replace(/Li.*$/, "");
+/** Jump elements (jumps and throw jumps) can receive the second-half factor. */
+export function isJumpElement(e: ElementSpec): boolean {
+  return e.kind === "jump" || (e.kind === "code" && isThrowCode(e.code));
+}
 
 const EDGE_SIGN_JUMPS: JumpId[] = ["F", "Lz"];
 
@@ -84,6 +103,8 @@ export function elementCode(e: ElementSpec): string {
       return `ChSq1${e.noValue ? "*" : ""}`;
     case "choreoSpin":
       return `ChSp1${e.noValue ? "*" : ""}`;
+    case "code":
+      return `${e.code}${e.noValue ? "*" : ""}`;
   }
 }
 

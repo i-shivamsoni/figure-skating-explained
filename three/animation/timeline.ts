@@ -64,6 +64,24 @@ export interface PartnerTrack {
   variant: "female" | "male";
 }
 
+/**
+ * A curved arrow drawn on the ice: a jump's rotation direction, or the way an edge curves.
+ * Points on the arc are centre + radius·(sin a, cos a), the same convention as yaw.
+ */
+export interface IceArrow {
+  x: number;
+  z: number;
+  radius: number;
+  /** Start angle in radians and the signed sweep (positive = counter-clockwise seen from above). */
+  startAngle: number;
+  sweep: number;
+  /** Visible between these times. */
+  from: number;
+  to: number;
+  color: string;
+  label: string;
+}
+
 export interface Timeline {
   id: string;
   title: string;
@@ -75,6 +93,8 @@ export interface Timeline {
   markers: Marker[];
   trace: TraceSample[];
   rotation?: RotationInfo;
+  /** Curved arrows on the ice showing the sense of a curve or a rotation. */
+  arrows?: IceArrow[];
   /** Point of interest for fixed cameras (take-off point, spin centre). */
   focus: { x: number; z: number };
   /** Direction of travel at the focus, for side cameras. */

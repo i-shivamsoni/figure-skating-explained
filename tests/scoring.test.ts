@@ -224,3 +224,66 @@ describe("decoder", () => {
     expect(decode("hello").errors.length).toBeGreaterThan(0);
   });
 });
+
+describe("pairs", () => {
+  const pairCode = (code: string) => ({ kind: "code" as const, code });
+  it("values the pair codes from the Scale of Values and takes the second-half bonus on throws only", () => {
+    expect(scoreElement(pairCode("5RLi4"), 0).baseValue).toBe(7.0);
+    expect(scoreElement(pairCode("3Tw3"), 0).baseValue).toBe(5.7);
+    expect(scoreElement(pairCode("3LzTh"), 2).total).toBeCloseTo(5.3 + 1.06, 2);
+    expect(scoreElement(pairCode("3LzTh"), 0, { secondHalf: true }).factoredBase).toBeCloseTo(5.83, 2);
+    expect(scoreElement(pairCode("5RLi4"), 0, { secondHalf: true }).factoredBase).toBe(7.0);
+    expect(elementCode({ kind: "code", code: "FiDs4", noValue: true })).toBe("FiDs4*");
+    expect(() => scoreElement(pairCode("9Li4"), 0)).toThrow();
+  });
+  it("uses the pairs component factors and the pairs fall rule", () => {
+    const res = scoreProgram({
+      segment: "freeSkating",
+      category: "seniorPairs",
+      elements: [
+        { spec: pairCode("3Tw3"), goe: 0 },
+        { spec: pairCode("3LoTh"), goe: 0, secondHalf: true },
+        { spec: { kind: "jump", jumps: [{ jump: "S", rotations: 3 }] }, goe: 0, secondHalf: true },
+      ],
+      components: { composition: 8, presentation: 8, skatingSkills: 8 },
+      falls: 1,
+      fallsBoth: 1,
+    });
+    expect(res.pcs.factor).toBe(2.67);
+    expect(res.pcs.total).toBeCloseTo(3 * 8 * 2.67, 2);
+    expect(res.deductions.falls).toBe(3);
+    expect(res.elements[1].secondHalf).toBe(true);
+    expect(res.elements[2].secondHalf).toBe(true);
+    expect(fallDeduction("juniorPairs", 2, 0)).toBe(2);
+    expect(fallDeduction("seniorPairs", 0, 2)).toBe(4);
+    expect(scoreProgram({ segment: "shortProgram", category: "juniorPairs", elements: [], components: { composition: 5, presentation: 5, skatingSkills: 5 } }).pcs.factor).toBe(1.33);
+  });
+  it("checks the pair Short Program boxes and the Free Skating limits", () => {
+    const sp = validateProgram({
+      segment: "shortProgram",
+      category: "seniorPairs",
+      elements: [pairCode("4Li4"), pairCode("3Tw3"), pairCode("3LoTh"), { kind: "jump", jumps: [{ jump: "T", rotations: 3 }] }, pairCode("PCoSp4"), pairCode("BoDs4"), { kind: "step", level: 3 }],
+    });
+    expect(sp.some((w) => /Group 3/.test(w.message))).toBe(true);
+    expect(sp.some((w) => /forward inside death spiral/.test(w.message))).toBe(true);
+    expect(sp.some((w) => /missing/.test(w.message))).toBe(false);
+    const missing = validateProgram({ segment: "shortProgram", category: "seniorPairs", elements: [pairCode("3Li4")] });
+    expect(missing.filter((w) => /missing/.test(w.message)).length).toBe(6);
+    const fs = validateProgram({
+      segment: "freeSkating",
+      category: "seniorPairs",
+      elements: [pairCode("5RLi4"), pairCode("5ALi4"), pairCode("3LzTh"), pairCode("3FTh"), { kind: "jump", jumps: [{ jump: "T", rotations: 3 }, { jump: "T", rotations: 2 }, { jump: "Lo", rotations: 2 }] }, { kind: "jump", jumps: [{ jump: "T", rotations: 3 }] }, { kind: "choreoSequence" }],
+    });
+    expect(fs.some((w) => /Group 5/.test(w.message))).toBe(true);
+    expect(fs.some((w) => /same throw/.test(w.message))).toBe(true);
+    expect(fs.some((w) => /two jumps/.test(w.message))).toBe(true);
+    expect(fs.some((w) => /different names/.test(w.message))).toBe(true);
+    expect(fs.some((w) => /no choreographic sequence/.test(w.message))).toBe(true);
+    const clean = validateProgram({
+      segment: "freeSkating",
+      category: "seniorPairs",
+      elements: [pairCode("5RLi4"), pairCode("3Li4"), pairCode("ChPLi1"), pairCode("3Tw3"), pairCode("3LzTh"), pairCode("3LoTh"), { kind: "jump", jumps: [{ jump: "S", rotations: 3 }] }, { kind: "jump", jumps: [{ jump: "T", rotations: 3 }, { jump: "T", rotations: 2 }] }, pairCode("PCoSp4"), pairCode("FiDs4"), pairCode("ChPSp1")],
+    });
+    expect(clean).toEqual([]);
+  });
+});

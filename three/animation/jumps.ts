@@ -2,7 +2,7 @@ import type { JumpType } from "@/data/types";
 import { POSES, mirrorPose } from "../rig/poses";
 import { lerpPose, limb, mergePoses, vec, type Pose } from "../rig/pose";
 import { airTimeFor, edgeLean, flight, inertiaSchedule, landingDip, landingSkid, preRotationAngle, rollToward, rotationProfile, SKID_CAP, SKID_TAU, VAULT_TIME, verticalVelocityForAirTime, type Flight, type RotationProfile } from "../physics/jump";
-import { clamp01, easeInOut, easeOut, headingOf, linear, TWO_PI, type RootState, type Timeline, type TraceSample } from "./timeline";
+import { clamp01, easeInOut, easeOut, headingOf, linear, TWO_PI, type IceArrow, type RootState, type Timeline, type TraceSample } from "./timeline";
 
 export type RotationCall = "" | "q" | "<" | "<<";
 
@@ -273,6 +273,23 @@ export function jumpTimeline(p: JumpParams): Timeline {
     trace.push({ t, x: r.x, z: r.z, foot: landFoot, edge: jump.landing.edge });
   }
 
+  // two arrows on the ice make the counter-rotation visible: the way the entry edge curves over
+  // its last second, and the way the skater rotates; they bend the same way for every jump but the Lutz
+  const phi0 = (-1.0 * SPEED) / R;
+  const arrows: IceArrow[] = [
+    {
+      x: 0,
+      z: entryCentreZ,
+      radius: R + 0.3,
+      startAngle: entrySign === -1 ? phi0 : Math.PI - phi0,
+      sweep: entrySign === -1 ? -phi0 : phi0,
+      from: 0,
+      to: tTakeoff + 0.25,
+      color: "#475569",
+      label: `edge curves ${entrySign === -1 ? "counter-clockwise" : "clockwise"}`,
+    },
+    { x: 0, z: 0, radius: 0.9, startAngle: facing - 0.4, sweep: 1.55 * Math.PI, from: tLoad - 0.3, to: tLand + 0.4, color: "#d97706", label: "jump rotates counter-clockwise" },
+  ];
   const edgeName = `${jump.takeOff.foot} ${jump.takeOff.direction} ${jump.takeOff.edge}`;
   const preEdgeName = kind === "step-forward" ? "right backward outside" : `${jump.takeOff.foot} forward ${preEdge}`;
   const markers = [
@@ -301,6 +318,7 @@ export function jumpTimeline(p: JumpParams): Timeline {
     root,
     markers,
     trace,
+    arrows,
     rotation: { start: tTakeoff, end: tLand, turns, nominal, yawStart: facing },
     focus: { x: D / 2, z: 0 },
     heading: 0,

@@ -545,7 +545,7 @@ for side in ("L", "R"):
         d = v.co - foot
         if d.length > 0.08 * H:
             continue
-        k = 1.0 - 0.32 * min(1.0, (u - 0.86) / 0.1)
+        k = 1.0 - 0.5 * min(1.0, max(0.0, (u - 0.88) / 0.1))
         v.co = foot + d * k
 body.data.materials.append(mat_skin)
 body.data.materials.append(mat_top)

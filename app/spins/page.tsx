@@ -11,6 +11,32 @@ export const metadata: Metadata = {
   description: "Camel, sit, upright and layback spins, the ten difficult variations, flying entries, changes of foot and how spins earn Level 4 under the 2026-27 ISU rules.",
 };
 
+/** Stills in public/poses, captured from the pose lab (see docs/HANDOFF.md). */
+const POSE_IMAGE: Record<string, string> = {
+  camel: "camel",
+  sit: "sit",
+  upright: "upright",
+  layback: "layback",
+  sideways: "sidewaysLean",
+  biellmann: "biellmann",
+  CF: "camel",
+  CS: "camelSideways",
+  CU: "camelUpward",
+  SF: "sit",
+  SS: "sitSideways",
+  SB: "sitBehind",
+  UF: "uprightForward",
+  US: "crossfoot",
+  UB: "biellmann",
+  UL: "layback",
+};
+
+function PoseStill({ pose, alt, className = "" }: { pose: string; alt: string; className?: string }) {
+  // plain img: the stills are static PNGs served from /public, no optimisation pipeline needed
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={`/poses/${pose}.png`} alt={alt} width={180} height={220} loading="lazy" className={`shrink-0 rounded-lg border border-border bg-[#eaf3fa] object-cover ${className || "h-[132px] w-[108px]"}`} />;
+}
+
 export default function SpinsPage() {
   return (
     <>
@@ -27,26 +53,30 @@ export default function SpinsPage() {
         }
       />
       <Section title="The positions and their difficult variations">
-        <ElementViewer spec={{ kind: "spin", code: "variations" }} height={460} camera="side" />
-        <p className="mt-2 text-sm text-muted">One continuous spin cycling through the ten variation categories. Real spins hold each for at least two revolutions; only two difficult variations count toward the level in any one spin.</p>
+        <ElementViewer spec={{ kind: "spin", code: "variations" }} height={460} camera="orbit" />
+        <p className="mt-2 text-sm text-muted">One continuous spin cycling through the ten variation categories, seen from an orbiting camera so every position is read side-on at some point. Real spins hold each for at least two revolutions; only two difficult variations count toward the level in any one spin. The stills below show each position from a fixed angle.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {SPIN_POSITIONS.map((p) => (
-            <Card key={p.id}>
-              <h3 className="font-semibold">
-                {p.name} {p.codeLetter && <span className="font-mono text-muted">{p.codeLetter}</span>} {!p.basic && <span className="text-xs text-muted">(variation of upright)</span>}
-              </h3>
-              <p className="mt-1 text-sm">{p.definition}</p>
-              {p.notes?.map((n) => (
-                <p key={n} className="mt-1 text-xs text-muted">
-                  {n}
-                </p>
-              ))}
+          {SPIN_POSITIONS.filter((p) => POSE_IMAGE[p.id]).map((p) => (
+            <Card key={p.id} className="flex gap-3">
+              <PoseStill pose={POSE_IMAGE[p.id]} alt={`${p.name} position`} />
+              <div className="min-w-0">
+                <h3 className="font-semibold">
+                  {p.name} {p.codeLetter && <span className="font-mono text-muted">{p.codeLetter}</span>} {!p.basic && <span className="text-xs text-muted">(variation of upright)</span>}
+                </h3>
+                <p className="mt-1 text-sm">{p.definition}</p>
+                {p.notes?.map((n) => (
+                  <p key={n} className="mt-1 text-xs text-muted">
+                    {n}
+                  </p>
+                ))}
+              </div>
             </Card>
           ))}
         </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           {VARIATION_CATEGORIES.map((v) => (
             <div key={v.id} className="rounded-lg border border-border bg-surface p-3 text-sm">
+              {POSE_IMAGE[v.id] && <PoseStill pose={POSE_IMAGE[v.id]} alt={`${v.name} variation`} className="mb-2 w-full" />}
               <p className="font-mono font-semibold text-accent-strong">{v.id}</p>
               <p className="font-medium">{v.name}</p>
               <p className="text-xs text-muted">{v.definition}</p>
