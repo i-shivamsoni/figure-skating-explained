@@ -558,20 +558,22 @@ POSES.inaBauer = {
 /** Hydroblade: deep lean on a back inside edge, torso almost on the ice, hand trailing. */
 POSES.hydroblade = {
   bones: {
-    thigh_L: { dir: limb(70, 30) },
-    shin_L: { dir: limb(-20, 30) },
-    thigh_R: { dir: limb(10, -70) },
-    shin_R: { dir: limb(10, -75) },
-    foot_R: { dir: vec(-0.9, -0.1, 0.4) },
-    spine: { dir: vec(-0.8, 0.45, 0.35) },
-    chest: { dir: vec(-0.85, 0.3, 0.4) },
-    head: { dir: vec(-0.7, 0.5, 0.5) },
-    upper_arm_L: { dir: vec(-0.6, 0.7, 0.3) },
-    forearm_L: { dir: vec(-0.8, 0.5, 0.3) },
-    upper_arm_R: { dir: vec(-0.5, -0.85, 0.1) },
-    forearm_R: { dir: vec(-0.4, -0.9, 0.1) },
+    thigh_L: { dir: limb(105, 15) },
+    shin_L: { dir: limb(-5, 25) },
+    foot_L: { dir: vec(0.3, -0.2, 0.9) },
+    thigh_R: { dir: limb(-10, -85) },
+    shin_R: { dir: limb(-10, -88) },
+    foot_R: { dir: vec(-0.95, -0.1, 0.3) },
+    spine: { dir: vec(-0.9, 0.3, 0.3) },
+    chest: { dir: vec(-0.95, 0.2, 0.25) },
+    neck: { dir: vec(-0.85, 0.45, 0.3) },
+    head: { dir: vec(-0.75, 0.55, 0.35) },
+    upper_arm_L: { dir: vec(0.1, 0.95, 0.3) },
+    forearm_L: { dir: vec(0.2, 0.95, 0.2) },
+    upper_arm_R: { dir: vec(-0.55, -0.8, 0.2) },
+    forearm_R: { dir: vec(-0.4, -0.9, 0.15) },
   },
-  hips: [0.1, -0.55, 0],
+  hips: [-0.15, -0.62, 0.05],
 };
 
 /** Arabesque spiral at full extension (free leg well above hip height). */
