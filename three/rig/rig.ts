@@ -1,5 +1,6 @@
 import { Bone, Object3D, Quaternion, Vector3 } from "three";
 import { BONES, POSABLE, TAIL_CHILD, type BoneName } from "./bones";
+import { resolvePose, type PosableBone } from "./limits";
 import type { Pose, Vec3 } from "./pose";
 
 interface RestInfo {
@@ -14,6 +15,7 @@ const _q = new Quaternion();
 const _qAim = new Quaternion();
 const _qTwist = new Quaternion();
 const _v = new Vector3();
+const _v2 = new Vector3();
 
 /**
  * Wraps the loaded skeleton. Captures the bind pose on construction (bones must still be
@@ -26,6 +28,9 @@ export class SkaterRig {
   readonly hipsRest = new Vector3();
   /** Turns a skater-space hips offset into the hips bone's local frame. */
   private readonly hipsOffsetQ = new Quaternion();
+  /** Midpoint of the hip sockets relative to the hips bone's head, skater space (the pivot of a derived pelvic tilt). */
+  private readonly socketMid = new Vector3();
+  readonly restDirFn = (b: BoneName): Vec3 => this.restDir(b);
   readonly height: number;
 
   constructor(root: Object3D) {
@@ -54,6 +59,7 @@ export class SkaterRig {
     const hipsParent = this.bones.get("hips")!.parent;
     const parentRest = hipsParent && (hipsParent as Bone).isBone ? this.rest.get(hipsParent.name as BoneName) : undefined;
     if (parentRest) this.hipsOffsetQ.copy(parentRest.worldQ).invert();
+    this.socketMid.copy(this.rest.get("thigh_L")!.worldPos).add(this.rest.get("thigh_R")!.worldPos).multiplyScalar(0.5).sub(this.rest.get("hips")!.worldPos);
     this.height = this.rest.get("head_tip")!.worldPos.y - this.rest.get("foot_L_tip")!.worldPos.y + 0.04;
   }
 
@@ -87,17 +93,33 @@ export class SkaterRig {
     }
   }
 
+  /**
+   * Applies a pose after resolving it (three/rig/limits.ts): derived twists, hinge projection
+   * and pelvic tilt, so the rig renders exactly what `validatePose` measures. A pelvic tilt the
+   * pose did not author pivots about the hip sockets, not the hips bone's head, so the standing
+   * foot stays on the ice.
+   */
   applyPose(pose: Pose) {
+    const resolved = resolvePose(pose, this.restDirFn);
     const hips = this.bones.get("hips")!;
-    const off = pose.hips ?? [0, 0, 0];
-    _v.set(off[0], off[1], off[2]).applyQuaternion(this.hipsOffsetQ);
+    const off = resolved.hips;
+    _v.set(off[0], off[1], off[2]);
+    if (!pose.bones.hips) {
+      const aim = resolved.bones.hips;
+      _v2.set(aim.dir[0], aim.dir[1], aim.dir[2]).normalize();
+      _qAim.setFromUnitVectors(this.rest.get("hips")!.dir, _v2);
+      if (aim.twist) _qAim.premultiply(_qTwist.setFromAxisAngle(_v2, aim.twist));
+      _v2.copy(this.socketMid).applyQuaternion(_qAim);
+      _v.add(this.socketMid).sub(_v2);
+    }
+    _v.applyQuaternion(this.hipsOffsetQ);
     hips.position.set(this.hipsRest.x + _v.x, this.hipsRest.y + _v.y, this.hipsRest.z + _v.z);
     for (const name of this.hierarchyOrder()) {
       const b = this.bones.get(name)!;
       const r = this.rest.get(name)!;
       const parentName = b.parent && (b.parent as Bone).isBone ? (b.parent.name as BoneName) : undefined;
       const parentQ = parentName ? this.worldQ.get(parentName)! : null;
-      const aimSpec = POSABLE.includes(name) ? pose.bones[name] : undefined;
+      const aimSpec = POSABLE.includes(name) ? resolved.bones[name as PosableBone] : undefined;
       const wq = this.worldQ.get(name)!;
       if (aimSpec) {
         _v.set(aimSpec.dir[0], aimSpec.dir[1], aimSpec.dir[2]).normalize();
