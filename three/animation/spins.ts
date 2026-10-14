@@ -140,7 +140,17 @@ export const SPIN_PRESETS: Record<string, SpinParams> = {
   CSp: { id: "CSp", title: "Camel spin", entry: "step", phases: [{ pose: "camel", revolutions: 6, label: "Camel position", detail: "free leg back, knee above hip level, body horizontal" }] },
   SSp: { id: "SSp", title: "Sit spin", entry: "step", phases: [{ pose: "sit", revolutions: 6, label: "Sit position", detail: "thigh of the skating leg at least parallel to the ice" }] },
   USp: { id: "USp", title: "Upright spin", entry: "step", rps: 2.4, phases: [{ pose: "upright", revolutions: 6, label: "Upright position", detail: "skating leg extended, free foot crossed, arms pulled in to accelerate" }] },
-  LSp: { id: "LSp", title: "Layback spin", entry: "step", rps: 1.6, phases: [{ pose: "layback", revolutions: 8, label: "Layback position", detail: "head and shoulders back, back arched; 8 revolutions required in the Women's Short Program" }, { pose: "biellmann", revolutions: 3, label: "Biellmann", detail: "a difficult variation of upright taken after the required revolutions", transition: 0.7 }] },
+  LSp: {
+    id: "LSp",
+    title: "Layback spin",
+    entry: "step",
+    rps: 1.6,
+    phases: [
+      { pose: "layback", revolutions: 8, label: "Layback position", detail: "head and shoulders back, back arched; 8 revolutions required in the Women's Short Program" },
+      { pose: "catchFoot", revolutions: 2, label: "Catch-foot", detail: "the free foot is caught above the head; still a layback as long as the back stays arched", transition: 0.7 },
+      { pose: "biellmann", revolutions: 3, label: "Biellmann", detail: "a difficult variation of upright taken after the required revolutions", transition: 0.7 },
+    ],
+  },
   FCSp: { id: "FCSp", title: "Flying camel spin", entry: "fly", flyPose: "flyCamel", phases: [{ pose: "camel", revolutions: 6, label: "Camel position", detail: "landed directly into the camel" }] },
   FSSp: { id: "FSSp", title: "Flying sit spin", entry: "fly", flyPose: "flySit", phases: [{ pose: "sit", revolutions: 6, label: "Sit position" }] },
   CCSp: { id: "CCSp", title: "Camel spin with change of foot", entry: "step", phases: [{ pose: "camel", revolutions: 4, label: "Camel on the left foot" }, { pose: "changeFoot", revolutions: 0.5, label: "Change of foot", detail: "a step or a jump; at least three revolutions are needed on each side", transition: 0.3 }, { pose: "camel", mirrored: true, revolutions: 4, label: "Camel on the right foot", foot: "R", edge: "outside", transition: 0.4 }] },

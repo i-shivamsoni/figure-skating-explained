@@ -60,17 +60,23 @@ export const POSES: Record<string, Pose> = {
     hips: [0, -0.2, 0],
   },
 
-  /** Rotating in the air: legs crossed tight, arms pulled in. */
+  /** Rotating in the air: ankles crossed with the left foot in front, arms folded on the chest. */
   tuck: {
     bones: {
-      thigh_L: { dir: limb(5, -6) },
-      thigh_R: { dir: limb(2, 2) },
-      shin_L: { dir: limb(-5, -8) },
-      shin_R: { dir: limb(-2, 2) },
-      foot_L: { dir: vec(0, -0.6, 0.8) },
-      foot_R: { dir: vec(0, -0.6, 0.8) },
+      thigh_L: { dir: limb(8, -7) },
+      thigh_R: { dir: limb(1, 3) },
+      shin_L: { dir: limb(-6, -13) },
+      shin_R: { dir: limb(-2, 3) },
+      foot_L: { dir: vec(0, -0.82, 0.57) },
+      foot_R: { dir: vec(0, -0.82, 0.57) },
       spine: { dir: vec(0, 1, 0.02) },
-      ...armsCrossed,
+      neck: { dir: vec(0, 1, 0.05) },
+      upper_arm_L: { dir: vec(-0.2, -0.7, 0.68) },
+      upper_arm_R: { dir: vec(0.2, -0.7, 0.68) },
+      forearm_L: { dir: vec(-0.92, 0.3, 0.25) },
+      forearm_R: { dir: vec(0.92, 0.3, 0.25) },
+      hand_L: { dir: vec(-0.8, 0.5, 0.3) },
+      hand_R: { dir: vec(0.8, 0.5, 0.3) },
     },
   },
 
@@ -124,18 +130,21 @@ export const POSES: Record<string, Pose> = {
     hips: [0, -0.46, 0.05],
   },
 
-  /** Upright scratch spin: free leg crossed in front, arms overhead. */
+  /** Upright scratch spin: free foot crossed over the skating ankle, hands clasped overhead. */
   upright: {
     bones: {
-      thigh_L: { dir: limb(2, 0) },
-      shin_L: { dir: limb(-2, 0) },
-      thigh_R: { dir: limb(12, 10) },
-      shin_R: { dir: limb(-10, 12) },
-      foot_R: { dir: vec(0.3, -0.5, 0.8) },
-      upper_arm_L: { dir: vec(0.1, 0.98, 0.1) },
-      upper_arm_R: { dir: vec(-0.1, 0.98, 0.1) },
-      forearm_L: { dir: vec(-0.2, 0.97, 0.1) },
-      forearm_R: { dir: vec(0.2, 0.97, 0.1) },
+      thigh_L: { dir: limb(1, 0) },
+      shin_L: { dir: limb(-1, 0) },
+      thigh_R: { dir: limb(6, 14) },
+      shin_R: { dir: limb(-4, 18) },
+      foot_R: { dir: vec(0.5, -0.55, 0.65) },
+      spine: { dir: vec(0, 1, 0.02) },
+      upper_arm_L: { dir: vec(0.12, 0.97, 0.08) },
+      upper_arm_R: { dir: vec(-0.12, 0.97, 0.08) },
+      forearm_L: { dir: vec(-0.62, 0.78, 0.08) },
+      forearm_R: { dir: vec(0.62, 0.78, 0.08) },
+      hand_L: { dir: vec(-0.85, 0.5, 0.05) },
+      hand_R: { dir: vec(0.85, 0.5, 0.05) },
     },
   },
 
@@ -589,4 +598,46 @@ POSES.arabesque = {
     forearm_L: { dir: vec(0.2, 0.4, 0.9) },
     forearm_R: { dir: vec(-0.2, 0.4, 0.9) },
   },
+};
+
+/** Catch-foot layback on a bent skating knee: the free foot is held above the head by one hand. */
+POSES.catchFoot = {
+  bones: {
+    thigh_L: { dir: limb(35, 0) },
+    shin_L: { dir: limb(-35, 0) },
+    thigh_R: { dir: limb(-70, -12) },
+    shin_R: { dir: vec(0.05, 0.9, -0.45) },
+    foot_R: { dir: vec(0.05, 0.75, 0.65) },
+    spine: { dir: vec(0, 0.82, -0.57) },
+    chest: { dir: vec(0, 0.62, -0.78) },
+    neck: { dir: vec(0, 0.4, -0.92) },
+    head: { dir: vec(0, 0.25, -0.97) },
+    upper_arm_R: { dir: vec(-0.15, 0.85, -0.5) },
+    forearm_R: { dir: vec(-0.05, 0.45, -0.9) },
+    hand_R: { dir: vec(0, 0.2, -1) },
+    upper_arm_L: { dir: vec(0.9, 0.35, 0.25) },
+    forearm_L: { dir: vec(0.95, 0.25, 0.2) },
+  },
+  hips: [0, -0.2, 0.08],
+};
+
+/** Open arch: chest to the ceiling, hands behind the head, on a long glide. */
+POSES.openArch = {
+  bones: {
+    thigh_L: { dir: limb(15, 25) },
+    shin_L: { dir: limb(-10, 25) },
+    thigh_R: { dir: limb(-15, -40) },
+    shin_R: { dir: limb(-15, -40) },
+    foot_L: { dir: vec(0.6, -0.2, 0.75) },
+    foot_R: { dir: vec(-0.8, -0.2, 0.55) },
+    spine: { dir: vec(0, 0.85, -0.52) },
+    chest: { dir: vec(0, 0.7, -0.7) },
+    neck: { dir: vec(0, 0.5, -0.85) },
+    head: { dir: vec(0, 0.45, -0.9) },
+    upper_arm_L: { dir: vec(0.5, 0.75, -0.4) },
+    upper_arm_R: { dir: vec(-0.5, 0.75, -0.4) },
+    forearm_L: { dir: vec(-0.7, 0.4, -0.55) },
+    forearm_R: { dir: vec(0.7, 0.4, -0.55) },
+  },
+  hips: [0, -0.1, 0.04],
 };

@@ -46,3 +46,6 @@ tools/blender/assets/
 # playwright
 test-results/
 playwright-report/
+
+# reference clips (not redistributed)
+videos/

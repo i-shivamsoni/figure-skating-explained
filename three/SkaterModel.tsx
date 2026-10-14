@@ -6,8 +6,7 @@ import { useGLTF } from "@react-three/drei";
 import { SkeletonUtils } from "three/examples/jsm/Addons.js";
 import { SkaterRig } from "./rig/rig";
 import type { Pose } from "./rig/pose";
-
-export const SKATER_URL = "/models/skater.glb";
+import { skaterUrl, useSkaterStore, type SkaterVariant } from "./skaterStore";
 
 export interface SkaterHandle {
   rig: SkaterRig;
@@ -17,13 +16,17 @@ export interface SkaterHandle {
 export interface SkaterModelProps {
   /** Applied once when it changes; for per-frame animation use the handle's rig directly. */
   pose?: Pose;
+  /** Overrides the site-wide choice. */
+  variant?: SkaterVariant;
   ref?: Ref<SkaterHandle>;
   onReady?: (h: SkaterHandle) => void;
 }
 
 /** The rigged skater. Faces +Z with its blades on y = 0. */
-export function SkaterModel({ pose, ref, onReady }: SkaterModelProps) {
-  const gltf = useGLTF(SKATER_URL);
+export function SkaterModel({ pose, variant, ref, onReady }: SkaterModelProps) {
+  const global = useSkaterStore((s) => s.variant);
+  const url = skaterUrl(variant ?? global);
+  const gltf = useGLTF(url);
   const { group, rig } = useMemo(() => {
     const clone = SkeletonUtils.clone(gltf.scene) as Group;
     clone.traverse((o) => {
@@ -46,4 +49,4 @@ export function SkaterModel({ pose, ref, onReady }: SkaterModelProps) {
   return <primitive object={group} />;
 }
 
-useGLTF.preload(SKATER_URL);
+useGLTF.preload(skaterUrl("female"));

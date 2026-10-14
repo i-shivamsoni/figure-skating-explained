@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useMemo, type ReactNode } from "react";
-import { buildTimeline, type ViewerSpec } from "@/three/animation/catalog";
+import { buildTimeline, captionFor, type ViewerSpec } from "@/three/animation/catalog";
 import type { CameraMode } from "@/three/animation/store";
 
 const ElementPlayer = dynamic(() => import("@/three/ElementPlayer").then((m) => m.ElementPlayer), {
@@ -24,9 +24,10 @@ export interface ElementViewerProps {
 /** Client wrapper: turns a serialisable spec into a timeline and renders the 3D player. */
 export function ElementViewer({ spec, height = 480, camera = "follow", autoplay = true, speed = 1, className, hud, showControls = true }: ElementViewerProps) {
   const timeline = useMemo(() => buildTimeline(spec), [spec]);
+  const label = useMemo(() => captionFor(spec), [spec]);
   return (
     <div style={{ height }} className={className}>
-      <ElementPlayer timeline={timeline} camera={camera} autoplay={autoplay} speed={speed} height={height} hud={hud} showControls={showControls} />
+      <ElementPlayer timeline={timeline} camera={camera} autoplay={autoplay} speed={speed} height={height} hud={hud} showControls={showControls} caption={label.caption} value={label.value} />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { Stage } from "./Stage";
 import { SkaterModel, type SkaterHandle } from "./SkaterModel";
 import { markerAt, poseAt, TWO_PI, type Timeline } from "./animation/timeline";
 import { createPlayerStore, type CameraMode, type PlayerStore } from "./animation/store";
+import { useSkaterStore, type SkaterVariant } from "./skaterStore";
 
 const EDGE_COLOR: Record<string, string> = { outside: "#1f6fd6", inside: "#e0532f", flat: "#888", toe: "#222" };
 
@@ -25,9 +26,13 @@ export interface ElementPlayerProps {
   showControls?: boolean;
   /** Called with the store so parents (compare mode) can drive time. */
   onStore?: (store: PlayerStore) => void;
+  /** Element name shown under the action, like a broadcast caption. */
+  caption?: string;
+  /** Base value that pops up once the element is complete. */
+  value?: number;
 }
 
-export function ElementPlayer({ timeline, autoplay = true, initialTime = 0, camera = "follow", speed = 1, height = 480, className = "", hud, showControls = true, onStore }: ElementPlayerProps) {
+export function ElementPlayer({ timeline, autoplay = true, initialTime = 0, camera = "follow", speed = 1, height = 480, className = "", hud, showControls = true, onStore, caption, value }: ElementPlayerProps) {
   const store = useMemo(() => createPlayerStore({ duration: timeline.duration, playing: autoplay, time: initialTime, camera, speed }), [timeline.duration, autoplay, initialTime, camera, speed]);
   useEffect(() => {
     onStore?.(store);
@@ -54,7 +59,7 @@ export function ElementPlayer({ timeline, autoplay = true, initialTime = 0, came
         <Trace timeline={timeline} />
         <CameraRig timeline={timeline} store={store} />
       </Stage>
-      <Hud timeline={timeline} store={store} extra={hud} />
+      <Hud timeline={timeline} store={store} extra={hud} caption={caption} value={value} />
       {showControls && <Controls store={store} />}
     </div>
   );
@@ -171,11 +176,13 @@ function CameraRig({ timeline, store }: { timeline: Timeline; store: PlayerStore
   return null;
 }
 
-function Hud({ timeline, store, extra }: { timeline: Timeline; store: PlayerStore; extra?: ReactNode }) {
+function Hud({ timeline, store, extra, caption, value }: { timeline: Timeline; store: PlayerStore; extra?: ReactNode; caption?: string; value?: number }) {
   const time = useStore(store, (s) => s.time);
   const ready = useStore(store, (s) => s.ready);
   const marker = markerAt(timeline, time);
   const rot = timeline.rotation;
+  const complete = rot ? time > rot.end + 0.1 : time > timeline.duration * 0.8;
+  const popIn = rot ? Math.min(1, Math.max(0, (time - rot.end - 0.1) / 0.3)) : 1;
   let counter: string | null = null;
   if (rot) {
     if (time >= rot.start && time <= rot.end) {
@@ -198,8 +205,18 @@ function Hud({ timeline, store, extra }: { timeline: Timeline; store: PlayerStor
       </div>
       <div className="flex flex-col items-end gap-2">
         {counter && <div className="rounded-lg bg-surface/85 px-3 py-2 font-mono text-base font-semibold shadow backdrop-blur">{counter}</div>}
+        {value !== undefined && complete && (
+          <div className="rounded-lg bg-accent px-3 py-1.5 font-mono text-lg font-semibold text-white shadow" style={{ transform: `scale(${0.8 + 0.2 * popIn})`, opacity: popIn }}>
+            {value.toFixed(2)}
+          </div>
+        )}
         {extra}
       </div>
+      {caption && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-12 flex justify-center">
+          <span className="rounded-full bg-foreground/80 px-4 py-1.5 text-sm font-semibold text-background shadow">{caption}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -220,6 +237,8 @@ function Controls({ store }: { store: PlayerStore }) {
   const speed = useStore(store, (s) => s.speed);
   const camera = useStore(store, (s) => s.camera);
   const loop = useStore(store, (s) => s.loop);
+  const variant = useSkaterStore((s) => s.variant);
+  const setVariant = useSkaterStore((s) => s.setVariant);
   const api = store.getState();
   return (
     <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-center gap-2 bg-surface/90 px-3 py-2 text-xs backdrop-blur">
@@ -264,6 +283,13 @@ function Controls({ store }: { store: PlayerStore }) {
       </label>
       <label className="flex items-center gap-1">
         <input type="checkbox" checked={loop} onChange={(e) => api.setLoop(e.target.checked)} /> Loop
+      </label>
+      <label className="flex items-center gap-1">
+        Skater
+        <select value={variant} onChange={(e) => setVariant(e.target.value as SkaterVariant)} className="rounded border border-border bg-surface px-1 py-0.5">
+          <option value="female">Woman</option>
+          <option value="male">Man</option>
+        </select>
       </label>
     </div>
   );
