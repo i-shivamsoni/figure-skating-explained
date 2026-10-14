@@ -39,6 +39,8 @@ export const JUMP_POSES: Record<string, Pose> = {
   /** Loop knee bend: sitting back over the right heel, the crossed free foot kept low and in front. */
   loopLoad: {
     bones: {
+      // the standing blade lies flat on the ice however far the shin leans
+      foot_R: { dir: vec(0, -0.38, 0.925) },
       thigh_R: { dir: limb(50, -2) },
       shin_R: { dir: limb(-42, -2) },
       // the free knee folds with the skating knee so the crossed foot stays just above the ice
@@ -77,6 +79,8 @@ export const JUMP_POSES: Record<string, Pose> = {
   /** Salchow knee bend: deep left knee on the back inside edge, the right leg trailing behind and out, arms back, ready to swing. */
   salchowLoad: {
     bones: {
+      // the standing blade lies flat on the ice however far the shin leans
+      foot_L: { dir: vec(0, -0.38, 0.925) },
       thigh_L: { dir: limb(45, 2) },
       shin_L: { dir: limb(-40, 2) },
       // the trailing leg is lifted enough behind to clear the ice under the deeply bent standing hip
@@ -115,6 +119,8 @@ export const JUMP_POSES: Record<string, Pose> = {
   /** Flip pick: a quick, straight reach back of the right toe after the three turn; shoulders square to the circle, eyes into it. */
   flipPick: {
     bones: {
+      // the standing blade lies flat on the ice however far the shin leans
+      foot_L: { dir: vec(0, -0.38, 0.925) },
       thigh_L: { dir: limb(32, 2) },
       shin_L: { dir: limb(-32, 2) },
       thigh_R: { dir: limb(-45, -6) },
@@ -136,6 +142,8 @@ export const JUMP_POSES: Record<string, Pose> = {
   /** Toe loop pick: on the right back outside edge the left toe reaches back; the right arm leads, the left trails with the picking leg, the body opens to the pick. */
   toeLoopPick: {
     bones: {
+      // the standing blade lies flat on the ice however far the shin leans
+      foot_R: { dir: vec(0, -0.38, 0.925) },
       thigh_R: { dir: limb(32, -2) },
       shin_R: { dir: limb(-32, -2) },
       thigh_L: { dir: limb(-48, 8) },
@@ -174,6 +182,8 @@ export const JUMP_POSES: Record<string, Pose> = {
   /** Axel knee bend: the left knee deep on the forward edge, arms fully drawn back, the free leg stretched behind. */
   axelLoad: {
     bones: {
+      // the standing blade lies flat on the ice however far the shin leans
+      foot_L: { dir: vec(0, -0.38, 0.925) },
       thigh_L: { dir: limb(52, 2) },
       shin_L: { dir: limb(-45, 2) },
       thigh_R: { dir: limb(-42, -8) },
@@ -236,6 +246,8 @@ export const JUMP_POSES: Record<string, Pose> = {
   /** Lutz pick: the right toe reaches far back along the line while the shoulders stay counter and the eyes stay over the right shoulder. */
   lutzPick: {
     bones: {
+      // the standing blade lies flat on the ice however far the shin leans
+      foot_L: { dir: vec(0, -0.38, 0.925) },
       thigh_L: { dir: limb(36, 2) },
       shin_L: { dir: limb(-36, 2) },
       thigh_R: { dir: limb(-50, -8) },

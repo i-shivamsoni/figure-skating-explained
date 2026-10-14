@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { poseAt, TWO_PI, type RootState } from "@/three/animation/timeline";
-import { spinPreset } from "@/three/animation/spins";
+import { spinPreset, SPIN_PRESETS, spinFromSpec } from "@/three/animation/spins";
 import { SPIN_FAMILIES } from "@/data/spins";
 import { baseValueOf, hasCode } from "@/lib/scoring/sov";
 
@@ -106,7 +106,7 @@ describe("spins built from a family code and level features (the explorer)", asy
       else expect(new Set(basics), fam.code).toEqual(new Set([POSITION_OF[fam.position!]]));
       expect(p.entry, fam.code).toBe(fam.flying ? "fly" : "step");
       const feet = new Set(p.phases.filter((ph) => ph.basic).map((ph) => ph.foot ?? "L"));
-      expect(feet.has("R"), fam.code).toBe(fam.changeOfFoot);
+      expect(feet.size, fam.code).toBe(fam.changeOfFoot ? 2 : 1);
       for (const ph of p.phases) expect(POSES[ph.pose], `${fam.code}: ${ph.pose}`).toBeDefined();
       const tl = spinTimeline(p);
       for (let t = 0; t <= tl.duration; t += 0.5) expect(Object.keys(poseAt(tl, t, rest).bones).length, fam.code).toBeGreaterThan(0);
@@ -121,7 +121,7 @@ describe("spins built from a family code and level features (the explorer)", asy
       if (fam.changeOfFoot) {
         expect(r.perFoot.L, fam.code).toBeGreaterThanOrEqual(3);
         expect(r.perFoot.R, fam.code).toBeGreaterThanOrEqual(3);
-      } else expect(r.perFoot.R, fam.code).toBe(0);
+      } else expect(Math.min(r.perFoot.L, r.perFoot.R), fam.code).toBe(0);
       expect(r.total).toBeCloseTo(spinTimeline(spinFromSpec(fam.code)).rotation!.turns, 6);
     }
     // the V of a change-of-foot spin: fewer than three held on the second foot
@@ -253,5 +253,28 @@ describe("spins built from a family code and level features (the explorer)", asy
     expect(spinFeatureNotes("CSSp", { changeByJump: true }).features[0].counted).toBe(true);
     // a stepped-over flying entry has no flying feature
     expect(spinFeatureNotes("FCSp", { difficultFly: true, v: true }).features[0].counted).toBe(false);
+  });
+});
+
+describe("the flying camel lands on the other foot", () => {
+  it("starts the camel on the right foot after a left-foot take-off, and the change of foot goes back to the left", () => {
+    for (const code of ["FCSp", "FCCSp", "FCCoSp"]) {
+      const first = spinFromSpec(code).phases.find((ph) => ph.basic)!;
+      expect(first.foot, code).toBe("R");
+      expect(first.edge, code).toBe("outside");
+      expect(first.mirrored, code).toBe(true);
+    }
+    const basics = (code: string) => spinFromSpec(code).phases.filter((ph) => ph.basic).map((ph) => ph.foot);
+    expect(basics("FCCoSp")[0]).toBe("R");
+    expect(basics("FCCoSp").at(-1)).toBe("L");
+    expect(basics("CCoSp")[0]).toBe("L");
+    expect(basics("CCoSp").at(-1)).toBe("R");
+    expect(spinFromSpec("FSSp").phases.find((ph) => ph.basic)!.foot).toBe("L");
+    for (const id of ["FCSp", "FCSpToeArabian"]) expect(SPIN_PRESETS[id].phases[0].foot, id).toBe("R");
+  });
+
+  it("never turns a flying entry into travelling threes, whatever the explorer's toggles say", () => {
+    expect(spinFromSpec("FCSp", { difficultEntrance: true, v: true }).entry).toBe("step");
+    expect(spinFromSpec("CSp", { difficultEntrance: true }).entry).toBe("threes");
   });
 });

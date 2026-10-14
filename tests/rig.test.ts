@@ -109,7 +109,8 @@ describe("joint model (resolvePose)", () => {
       expect(r.bones[b], b).toBeDefined();
       expect(Number.isFinite(r.bones[b].twist), b).toBe(true);
     }
-    const again = resolvePose(r, defaultRest);
+    // the player blends between keys: a pose blended with itself must resolve to the same thing
+    const again = resolvePose(lerpPose(POSES.camel, POSES.camel, 0.5, defaultRest), defaultRest);
     for (const b of ORDER) {
       for (let i = 0; i < 3; i++) expect(again.bones[b].dir[i], `${b} dir`).toBeCloseTo(r.bones[b].dir[i], 6);
       expect(again.bones[b].twist, `${b} twist`).toBeCloseTo(r.bones[b].twist, 6);

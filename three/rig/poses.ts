@@ -57,6 +57,8 @@ export const POSES: Record<string, Pose> = {
   /** Deep knee before take-off. */
   loadBO: {
     bones: {
+      // the standing blade lies flat on the ice however far the shin leans
+      foot_R: { dir: vec(0, -0.38, 0.925) },
       thigh_R: { dir: limb(45, -2) },
       shin_R: { dir: limb(-40, -2) },
       thigh_L: { dir: limb(-50, 8) },
@@ -90,6 +92,8 @@ export const POSES: Record<string, Pose> = {
   /** Landing check-out: right knee bent, left leg stretched back, arms open. */
   land: {
     bones: {
+      // the standing blade lies flat on the ice however far the shin leans
+      foot_R: { dir: vec(0, -0.38, 0.925) },
       thigh_R: { dir: limb(35, -2) },
       shin_R: { dir: limb(-30, -2) },
       thigh_L: { dir: limb(-60, 10) },
@@ -271,6 +275,8 @@ POSES.glideFO = {
 /** Deep knee on the forward edge, arms swung back before the Axel. */
 POSES.loadFO = {
   bones: {
+    // the standing blade lies flat on the ice however far the shin leans
+    foot_L: { dir: vec(0, -0.38, 0.925) },
     thigh_L: { dir: limb(50, 2) },
     shin_L: { dir: limb(-45, 2) },
     thigh_R: { dir: limb(-45, -8) },
@@ -890,6 +896,8 @@ POSES.toeStep = {
 /** Deep landing absorption: the landing knee bends well past the check-out depth before rising. */
 POSES.landDeep = {
   bones: {
+    // the standing blade lies flat on the ice however far the shin leans
+    foot_R: { dir: vec(0, -0.38, 0.925) },
     ...POSES.land.bones,
     thigh_R: { dir: limb(55, -2) },
     shin_R: { dir: limb(-45, -2) },

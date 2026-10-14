@@ -1,5 +1,6 @@
 import type { JumpType } from "@/data/types";
 import { POSES, mirrorPose } from "../rig/poses";
+import { defaultRest } from "../rig/limits";
 import { JUMP_POSES } from "../rig/poses-jumps";
 import { lerpPose, mergePoses, type Pose } from "../rig/pose";
 import { airTimeFor, edgeLean, flight, inertiaSchedule, landingSkid, preRotationAngle, rollToward, rotationProfile, SKID_CAP, SKID_TAU, VAULT_TIME, verticalVelocityForAirTime, type Flight, type RotationProfile } from "../physics/jump";
@@ -396,7 +397,7 @@ export function jumpTimeline(p: JumpParams): Timeline {
   const landsLeft = jump.landing.foot === "left";
   const landOn = (pose: Pose): Pose => (landsLeft ? mirrorPose(pose) : pose);
   const landPose = landOn(POSES.land);
-  const deepPose = landOn(lerpPose(POSES.land, POSES.landDeep, Math.min(1, Math.max(0, (rotations - 1) / 4)), () => [0, -1, 0]));
+  const deepPose = landOn(lerpPose(POSES.land, POSES.landDeep, Math.min(1, Math.max(0, (rotations - 1) / 4)), defaultRest));
   const exitPose = landOn(POSES.glideBO);
   // the tuck closes and opens on the inertia schedule, so what the viewer sees drives the spin rate
   const keys = [

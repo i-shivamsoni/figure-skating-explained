@@ -118,9 +118,8 @@ const lerpAngle = (a: number, b: number, t: number) => {
  * linearly, using the resolved frames of both poses (derived twists, pelvic tilt, hinge
  * projection; see limits.ts). A knee therefore stays a knee mid-blend, a leg swinging from
  * behind to in front passes beside the body, and a hand unposed on one side keeps following its
- * forearm. The result aims every bone either side posed; twists are written only where an
- * endpoint set one and the pelvis only where an endpoint aimed it, so the rig re-derives them
- * from the blended directions.
+ * forearm. The result aims every bone either side posed, with its blended twist; the pelvis is
+ * written only where an endpoint aimed it, so the rig re-derives the tilt from the blend.
  */
 export function lerpPose(a: Pose, b: Pose, t: number, rest: (bone: BoneName) => Vec3): Pose {
   const fa = poseFrames(a, rest);
@@ -144,9 +143,9 @@ export function lerpPose(a: Pose, b: Pose, t: number, rest: (bone: BoneName) => 
     const aimA = a.bones[n];
     const aimB = b.bones[n];
     if (!aimA && !aimB) continue;
-    const aim: BoneAim = { dir };
-    if (aimA?.twist !== undefined || aimB?.twist !== undefined) aim.twist = twistAfterSwing(q, restDir, dir);
-    bones[n] = aim;
+    // the blended twist is written for every aimed bone, so the player renders a held position
+    // with exactly the roll the resolver, the pose lab and the stills give it
+    bones[n] = { dir, twist: twistAfterSwing(q, restDir, dir) };
   }
   const ha = a.hips ?? [0, 0, 0];
   const hb = b.hips ?? [0, 0, 0];

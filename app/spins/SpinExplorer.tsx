@@ -55,7 +55,19 @@ export function SpinExplorer({ family: initialFamily, defaultLevel = 4 }: { fami
         <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
           <label className="flex items-center gap-1">
             Family
-            <select value={fam.code} onChange={(e) => setFamily(e.target.value)} className="rounded border border-border bg-surface px-1 py-0.5 font-mono" aria-label="Spin family">
+            <select
+              value={fam.code}
+              onChange={(e) => {
+                // toggles hidden for the new family must not carry state
+                setFamily(e.target.value);
+                setDifficultEntrance(false);
+                setWindmills(false);
+                setChangeByJump(false);
+                setDifficultFly(false);
+              }}
+              className="rounded border border-border bg-surface px-1 py-0.5 font-mono"
+              aria-label="Spin family"
+            >
               {SPIN_FAMILIES.map((f) => (
                 <option key={f.code} value={f.code}>
                   {f.code} · {f.name}
@@ -171,8 +183,9 @@ export function SpinExplorer({ family: initialFamily, defaultLevel = 4 }: { fami
               ))}
             <li className="mt-1 flex justify-between gap-2 border-t border-border pt-1 text-muted">
               <span>
-                left foot {revs.perFoot.L.toFixed(1)}
-                {fam.changeOfFoot && ` · right foot ${revs.perFoot.R.toFixed(1)}`}
+                {revs.perFoot.L > 0 && `left foot ${revs.perFoot.L.toFixed(1)}`}
+                {revs.perFoot.L > 0 && revs.perFoot.R > 0 && " · "}
+                {revs.perFoot.R > 0 && `right foot ${revs.perFoot.R.toFixed(1)}`}
               </span>
               <span className="font-mono">{revs.total.toFixed(1)} in all</span>
             </li>

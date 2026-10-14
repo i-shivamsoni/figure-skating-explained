@@ -96,8 +96,11 @@ export const LIMITS: Partial<Record<BoneName, JointLimit>> = {
   // inversion/eversion 25
   // in a figure skating boot the shaft is stiff: plantarflexion stops about 30° past the rest angle
   // (74° → ~45° from the shin line), where a bare foot would point to ~12°; the leg must stay in the boot
-  foot_L: { ref: "parent", cone: 95, minAngle: 45, lateral: 25, joint: "left ankle (booted)" },
-  foot_R: { ref: "parent", cone: 95, minAngle: 45, lateral: 25, joint: "right ankle (booted)" },
+  // dorsiflexion: a loaded knee bend with the heel down carries the shin 35-45° forward of vertical
+  // (weight-bearing lunge norms) and the boot's raised heel adds to it, so the blade stays flat up to
+  // ~35° past the 74° booted rest; the boot only restricts plantarflexion
+  foot_L: { ref: "parent", cone: 110, minAngle: 45, lateral: 25, joint: "left ankle (booted)" },
+  foot_R: { ref: "parent", cone: 110, minAngle: 45, lateral: 25, joint: "right ankle (booted)" },
 };
 
 export interface PoseViolation {

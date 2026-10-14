@@ -29,6 +29,11 @@ export interface SpinPhase {
   jump?: boolean;
 }
 
+/** A change of edge is credited in a sit, camel, layback, Biellmann or a difficult variation of upright, not in a plain upright. */
+const allowsChangeOfEdge = (ph: SpinPhase) => ph.basic !== undefined && (ph.basic !== "upright" || ph.variation !== undefined);
+/** Eight revolutions count in a camel, a layback or a difficult variation of any basic position. */
+const allowsEight = (ph: SpinPhase) => ph.basic === "camel" || ph.basic === "layback" || ph.variation !== undefined;
+
 export interface SpinParams {
   id: string;
   title: string;
@@ -284,7 +289,11 @@ export function spinTimeline(p: SpinParams): Timeline {
       markers.push({ t: flipAt, label: `${phase.label} · change of edge`, detail: `clear change of edge: two revolutions on the ${edgeName(foot, edge)} edge, then two on the ${edgeName(foot, otherEdge(edge))} in the same position (one of the six features that unlock Level 4)` });
     }
     if (phase.basic && phase.revolutions >= 8) {
-      markers.push({ t: from + trans + 8 / rate, label: `${phase.label} · 8 revolutions`, detail: "at least eight revolutions without any change of position, variation, foot or edge: a level feature (once per program)" });
+      markers.push({
+        t: from + trans + 8 / rate,
+        label: `${phase.label} · 8 revolutions`,
+        detail: allowsEight(phase) ? "at least eight revolutions without any change of position, variation, foot or edge: a level feature (once per program)" : "eight revolutions held, but the feature needs a camel, a layback or a difficult variation",
+      });
     }
   }
   keys.push({ t: tSpinEnd + 0.35, pose: POSES.windUp, ease: easeInOut });
@@ -339,7 +348,7 @@ export const SPIN_PRESETS: Record<string, SpinParams> = {
       { pose: "biellmann", revolutions: 3, label: "Biellmann", detail: "a difficult variation of upright taken after the required revolutions", transition: 0.7, basic: "upright", variation: "UB" },
     ],
   },
-  FCSp: { id: "FCSp", title: "Flying camel spin", entry: "fly", flyPose: "flyCamel", phases: [{ pose: "camel", revolutions: 6, label: "Camel position", detail: "landed directly into the camel", basic: "camel" }] },
+  FCSp: { id: "FCSp", title: "Flying camel spin", entry: "fly", flyPose: "flyCamel", phases: [{ pose: "camel", mirrored: true, foot: "R", edge: "outside", revolutions: 6, label: "Camel position", detail: "landed on the other foot, in a back camel", basic: "camel" }] },
   FSSp: { id: "FSSp", title: "Flying sit spin", entry: "fly", flyPose: "flySit", phases: [{ pose: "sit", revolutions: 6, label: "Sit position", basic: "sit" }] },
   CCSp: { id: "CCSp", title: "Camel spin with change of foot", entry: "step", phases: [{ pose: "camel", revolutions: 4, label: "Camel on the left foot", basic: "camel" }, { pose: "changeFoot", revolutions: 0.5, label: "Change of foot", detail: "a step or a jump; at least three revolutions are needed on each side", transition: 0.3 }, { pose: "camel", mirrored: true, revolutions: 4, label: "Camel on the right foot", foot: "R", edge: "outside", transition: 0.4, basic: "camel" }] },
   CSSp: { id: "CSSp", title: "Sit spin with change of foot", entry: "step", phases: [{ pose: "sit", revolutions: 4, label: "Sit on the left foot", basic: "sit" }, { pose: "changeFoot", revolutions: 0.5, label: "Change of foot", transition: 0.3 }, { pose: "sit", mirrored: true, revolutions: 4, label: "Sit on the right foot", foot: "R", edge: "outside", transition: 0.5, basic: "sit" }] },
@@ -384,7 +393,7 @@ export const SPIN_PRESETS: Record<string, SpinParams> = {
       { pose: "layback", revolutions: 2, label: "Matching the music", detail: "judges score it in GOE only; no levels", transition: 0.6 },
     ],
   },
-  FCSpToeArabian: { id: "FCSpToeArabian", title: "Toe Arabian into a camel", entry: "fly", flyPose: "toeArabian", phases: [{ pose: "camel", revolutions: 5, label: "Camel position", detail: "the Toe Arabian counts as a difficult variation of the flying entry, or as a change of foot by jump", basic: "camel" }] },
+  FCSpToeArabian: { id: "FCSpToeArabian", title: "Toe Arabian into a camel", entry: "fly", flyPose: "toeArabian", phases: [{ pose: "camel", mirrored: true, foot: "R", edge: "outside", revolutions: 5, label: "Camel position", detail: "the Toe Arabian counts as a difficult variation of the flying entry, or as a change of foot by jump", basic: "camel" }] },
   edgeChange: { id: "edgeChange", title: "Camel with a clear change of edge", entry: "step", phases: [{ pose: "camel", revolutions: 5, label: "Camel position", detail: "two revolutions on the back inside edge, then the blade rolls onto the forward outside edge for the rest", basic: "camel", changeEdge: true }] },
   jumpChange: {
     id: "jumpChange",
@@ -543,10 +552,6 @@ const WINDMILL_PHASES: SpinPhase[] = [
   { pose: "windmillUp", revolutions: 0.5, label: "Windmill 3", detail: "three consecutive windmills are one level feature, and one of the six that unlock Level 4", transition: 0.3 },
 ];
 
-/** A change of edge is credited in a sit, camel, layback, Biellmann or a difficult variation of upright, not in a plain upright. */
-const allowsChangeOfEdge = (ph: SpinPhase) => ph.basic !== undefined && (ph.basic !== "upright" || ph.variation !== undefined);
-/** Eight revolutions count in a camel, a layback or a difficult variation of any basic position. */
-const allowsEight = (ph: SpinPhase) => ph.basic === "camel" || ph.basic === "layback" || ph.variation !== undefined;
 
 /** Builds the animation parameters of any Scale of Values family with the chosen level features. */
 export function spinFromSpec(code: string, f: SpinFeatures = {}): SpinParams {
@@ -561,19 +566,23 @@ export function spinFromSpec(code: string, f: SpinFeatures = {}): SpinParams {
   // change of foot needs three before and after it, and each basic position two
   const revsFirst = fam.combination ? 3 : twoFeet ? 4 : 6;
   const revsSecond = f.v && !fam.combination ? 2 : 3;
+  // a flying camel takes off from the left foot and lands on the right, in a back camel; the other
+  // flying spins land on the take-off foot
+  const first: "L" | "R" = flying && landing === "camel" ? "R" : "L";
+  const second: "L" | "R" = first === "R" ? "L" : "R";
   if (!twoFeet) {
-    positions.forEach((pos, i) => phases.push(...positionPhases(pos, f.variations?.[pos], revsFirst, "L", i === 0)));
+    positions.forEach((pos, i) => phases.push(...positionPhases(pos, f.variations?.[pos], revsFirst, first, i === 0)));
   } else if (!fam.combination) {
-    phases.push(...positionPhases(landing, f.variations?.[landing], revsFirst, "L", true));
+    phases.push(...positionPhases(landing, f.variations?.[landing], revsFirst, first, true));
     phases.push(changeOfFootPhase(!!f.changeByJump));
-    phases.push(...positionPhases(landing, undefined, revsSecond, "R", false));
+    phases.push(...positionPhases(landing, undefined, revsSecond, second, false));
   } else {
     // the camel on the first foot, the change (landing in the sit, where a jump is credited), the sit and
     // the upright on the second foot
     const [a, ...rest] = positions;
-    phases.push(...positionPhases(a, f.variations?.[a], revsFirst, "L", true));
+    phases.push(...positionPhases(a, f.variations?.[a], revsFirst, first, true));
     phases.push(changeOfFootPhase(!!f.changeByJump));
-    for (const pos of rest) phases.push(...positionPhases(pos, f.variations?.[pos], revsSecond, "R", false));
+    for (const pos of rest) phases.push(...positionPhases(pos, f.variations?.[pos], revsSecond, second, false));
   }
   if (f.changeOfEdge) {
     const target = phases.find(allowsChangeOfEdge) ?? phases.find((ph) => ph.basic);
@@ -597,7 +606,7 @@ export function spinFromSpec(code: string, f: SpinFeatures = {}): SpinParams {
   return {
     id: `${spinCode(code, f)}:${JSON.stringify(f)}`,
     title: fam.name,
-    entry: flying ? "fly" : f.difficultEntrance ? "threes" : "step",
+    entry: flying ? "fly" : f.difficultEntrance && !fam.flying ? "threes" : "step",
     flyPose: flying ? (difficultFly ? fly.difficult : fly.plain) : undefined,
     flyHeight: difficultFly ? 0.72 : undefined,
     flyDetail: flying ? (difficultFly ? fly.difficultDetail : fly.plainDetail) : undefined,
@@ -616,6 +625,8 @@ export interface SpinFeatureNote {
   /** Whether the animation shows it in a way the panel would count. */
   counted: boolean;
   note: string;
+  /** The foot the feature is executed on. */
+  foot?: "L" | "R";
 }
 
 /** The level features shown by a spec, in the handbook's words, and the level they would support. */
@@ -626,31 +637,44 @@ export function spinFeatureNotes(code: string, f: SpinFeatures = {}): { features
   const out: SpinFeatureNote[] = [];
   const positions = spinPositions(code, f).map((position) => ({ position, variation: f.variations?.[position] }));
   const variations = positions.filter((p) => p.variation).map((p) => p.variation!);
+  const footOf = (ph: { foot?: "L" | "R" } | undefined) => ph?.foot ?? "L";
+  const firstFoot = footOf(params.phases.find((ph) => ph.basic));
   variations.forEach((id, i) => {
     const cat = VARIATION_CATEGORIES.find((c) => c.id === id);
     const counted = i < 2;
-    out.push({ name: `${feature(1).name}: ${cat?.name ?? VARIATION_POSE[id]?.name ?? id}`, number: 1, mandatory: false, counted, note: counted ? "held for two revolutions; each of the ten categories counts once per program" : "only two difficult variations are counted in any spin" });
+    out.push({ name: `${feature(1).name}: ${cat?.name ?? VARIATION_POSE[id]?.name ?? id}`, number: 1, mandatory: false, counted, note: counted ? "held for two revolutions; each of the ten categories counts once per program" : "only two difficult variations are counted in any spin", foot: footOf(params.phases.find((ph) => ph.variation === id)) });
   });
   if (f.changeByJump && fam.changeOfFoot) {
-    const landsIn = params.phases[params.phases.findIndex((ph) => ph.jump) + 1]?.basic;
+    const after = params.phases[params.phases.findIndex((ph) => ph.jump) + 1];
+    const landsIn = after?.basic;
     const counted = landsIn === "camel" || landsIn === "sit";
-    out.push({ name: feature(2).name, number: 2, mandatory: false, counted, note: counted ? `the jump lands in a ${landsIn} position within two revolutions` : "not credited into an upright position" });
+    out.push({ name: feature(2).name, number: 2, mandatory: false, counted, note: counted ? `the jump lands in a ${landsIn} position within two revolutions` : "not credited into an upright position", foot: footOf(after) });
   }
-  if (f.difficultEntrance && !fam.flying) out.push({ name: `${feature(5).name}: travelling threes`, number: 5, mandatory: false, counted: true, note: "two revolutions turned without the free foot touching the ice; the basic position is reached within two revolutions" });
+  if (f.difficultEntrance && !fam.flying) out.push({ name: `${feature(5).name}: travelling threes`, number: 5, mandatory: false, counted: true, note: "two revolutions turned without the free foot touching the ice; the basic position is reached within two revolutions", foot: firstFoot });
   if (f.changeOfEdge) {
     const ph = params.phases.find((x) => x.changeEdge);
     const counted = !!ph && allowsChangeOfEdge(ph);
-    out.push({ name: feature(7).name, number: 7, mandatory: true, counted, note: counted ? `two revolutions on each edge in the ${ph!.basic} position` : "only in a sit, camel, layback, Biellmann or a difficult upright variation" });
+    out.push({ name: feature(7).name, number: 7, mandatory: true, counted, note: counted ? `two revolutions on each edge in the ${ph!.basic} position` : "only in a sit, camel, layback, Biellmann or a difficult upright variation", foot: footOf(ph) });
   }
   if (f.eightRevolutions) {
     const ph = params.phases.find((x) => x.basic && x.revolutions >= 8);
     const counted = !!ph && allowsEight(ph);
-    out.push({ name: feature(10).name, number: 10, mandatory: false, counted, note: counted ? `eight revolutions in the ${ph!.variation ? VARIATION_POSE[ph!.variation]?.name ?? ph!.basic : ph!.basic}` : "only in a camel, a layback or a difficult variation of a basic position" });
+    out.push({ name: feature(10).name, number: 10, mandatory: false, counted, note: counted ? `eight revolutions in the ${ph!.variation ? VARIATION_POSE[ph!.variation]?.name ?? ph!.basic : ph!.basic}` : "only in a camel, a layback or a difficult variation of a basic position", foot: footOf(ph) });
   }
-  if (f.difficultFly && fam.flying) out.push({ name: feature(11).name, number: 11, mandatory: true, counted: !f.v, note: f.v ? "the entry was stepped over: no flying feature" : "a clear jump with a genuinely difficult air position, the basic position reached within two revolutions of landing" });
-  if (f.windmills && !fam.flying && spinPositions(code, f)[0] === "camel") out.push({ name: feature(13).name, number: 13, mandatory: true, counted: true, note: "three consecutive windmills, each close to a split" });
-  if (f.variations?.layback === "sideways") out.push({ name: feature(14).name, number: 14, mandatory: false, counted: true, note: "two revolutions in each position without rising to upright" });
-  if (f.variations?.layback === "UB" && fam.position === "L") out.push({ name: feature(15).name, number: 15, mandatory: false, counted: true, note: "taken after the required revolutions in the layback" });
+  if (f.difficultFly && fam.flying) out.push({ name: feature(11).name, number: 11, mandatory: true, counted: !f.v, note: f.v ? "the entry was stepped over: no flying feature" : "a clear jump with a genuinely difficult air position, the basic position reached within two revolutions of landing", foot: firstFoot });
+  if (f.windmills && !fam.flying && spinPositions(code, f)[0] === "camel") out.push({ name: feature(13).name, number: 13, mandatory: true, counted: true, note: "three consecutive windmills, each close to a split", foot: firstFoot });
+  if (f.variations?.layback === "sideways") out.push({ name: feature(14).name, number: 14, mandatory: false, counted: true, note: "two revolutions in each position without rising to upright", foot: footOf(params.phases.find((ph) => ph.basic === "layback")) });
+  if (f.variations?.layback === "UB" && fam.position === "L") out.push({ name: feature(15).name, number: 15, mandatory: false, counted: true, note: "taken after the required revolutions in the layback", foot: footOf(params.phases.find((ph) => ph.basic === "layback")) });
+  // in a spin with a change of foot at most two features count on one foot: keep a mandatory one first
+  if (fam.changeOfFoot) {
+    for (const foot of ["L", "R"] as const) {
+      const onFoot = out.filter((x) => x.counted && x.foot === foot).sort((a, b) => Number(b.mandatory) - Number(a.mandatory));
+      for (const x of onFoot.slice(2)) {
+        x.counted = false;
+        x.note = "at most two features count on one foot";
+      }
+    }
+  }
   const counted = out.filter((x) => x.counted).length;
   const mandatoryCounted = out.some((x) => x.counted && x.mandatory);
   const supported: SpinLevel = counted === 0 ? "B" : counted >= 4 && mandatoryCounted ? 4 : (Math.min(3, counted) as SpinLevel);
