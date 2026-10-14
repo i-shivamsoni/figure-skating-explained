@@ -592,13 +592,24 @@ def shin_centre(side):
 
 for side in ("L", "R"):
     cx, cy = shin_centre(side)
+    _, _, ankle_pt, _ = leg_points(side)
     for part in build_skate(side):
         part.location = (cx, cy, 0.0)
         bpy.ops.object.select_all(action="DESELECT")
         part.select_set(True)
         bpy.context.view_layer.objects.active = part
         bpy.ops.object.transform_apply(location=True)
-        tag(part, f"foot_{side}")
+        # a skating boot bends only a little at the ankle: everything below the malleoli (sole, heel,
+        # blade, toe box) rides the foot bone, the shaft above them rides the shin, and the leather in
+        # between blends, so a pointed or flexed foot never carries the shaft away from the leg
+        lo = ankle_pt.z - 0.015
+        hi = ankle_pt.z + 0.055
+        shares = []
+        for v in part.data.vertices:
+            u = min(1.0, max(0.0, (v.co.z - lo) / (hi - lo)))
+            u = u * u * (3 - 2 * u)
+            shares.append({f"foot_{side}": 1.0 - u, f"shin_{side}": u})
+        tag_weights(part, shares)
         extras.append(part)
 
 # ---------------------------------------------------------------- hair

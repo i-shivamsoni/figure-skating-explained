@@ -94,8 +94,10 @@ export const LIMITS: Partial<Record<BoneName, JointLimit>> = {
   // ankle: measured from the shin line; the rest foot sits ~74° from it. A fully pointed foot
   // (plantarflexion) comes within ~12° of the shin line; dorsiflexion opens the angle to ~95°;
   // inversion/eversion 25
-  foot_L: { ref: "parent", cone: 95, minAngle: 12, lateral: 25, joint: "left ankle" },
-  foot_R: { ref: "parent", cone: 95, minAngle: 12, lateral: 25, joint: "right ankle" },
+  // in a figure skating boot the shaft is stiff: plantarflexion stops about 30° past the rest angle
+  // (74° → ~45° from the shin line), where a bare foot would point to ~12°; the leg must stay in the boot
+  foot_L: { ref: "parent", cone: 95, minAngle: 45, lateral: 25, joint: "left ankle (booted)" },
+  foot_R: { ref: "parent", cone: 95, minAngle: 45, lateral: 25, joint: "right ankle (booted)" },
 };
 
 export interface PoseViolation {
@@ -462,6 +464,43 @@ function resolve(pose: Pose, rest: RestFn = defaultRest): Resolution {
       dir = unit(aim.dir);
       const hinge = HINGE[b];
       const lim = LIMITS[b];
+      if ((b === "foot_L" || b === "foot_R") && lim?.minAngle !== undefined && lim.lateral !== undefined) {
+        // the boot's stiff shaft limits the ankle: a foot aimed past the booted range (pointed closer to
+        // the shin line than minAngle, or rolled sideways past `lateral`) is brought back to the limit in
+        // the same sagittal/side frame the validator measures, so the leg stays in the boot and what is
+        // rendered is what is validated
+        const u = parent.dir;
+        let fwdAxis = perp(parent.forward, u);
+        if (len(fwdAxis) < 1e-3) fwdAxis = perp([0, 1, 0], u);
+        fwdAxis = unit(fwdAxis);
+        const sideAxis = unit(cross(u, fwdAxis));
+        let c = dot(dir, u);
+        let f = dot(dir, fwdAxis);
+        let sd = dot(dir, sideAxis);
+        let changed = false;
+        const sideMax = Math.sin((lim.lateral - 0.5) * RAD);
+        if (Math.abs(sd) > sideMax) {
+          sd = Math.sign(sd) * sideMax;
+          changed = true;
+        }
+        const r = Math.hypot(c, f);
+        const floor = (lim.minAngle + 1) * RAD;
+        const ceil = (lim.cone - 1) * RAD;
+        let theta = Math.atan2(f, c);
+        if (theta < floor) {
+          theta = floor;
+          changed = true;
+        } else if (theta > ceil) {
+          theta = ceil;
+          changed = true;
+        }
+        if (changed) {
+          const rr = Math.sqrt(Math.max(0, 1 - sd * sd)) || r;
+          c = rr * Math.cos(theta);
+          f = rr * Math.sin(theta);
+          dir = unit([u[0] * c + fwdAxis[0] * f + sideAxis[0] * sd, u[1] * c + fwdAxis[1] * f + sideAxis[1] * sd, u[2] * c + fwdAxis[2] * f + sideAxis[2] * sd]);
+        }
+      }
       if (hinge) {
         // project into the parent's hinge plane; the plane follows the parent's swing and twist
         const u = parent.dir;

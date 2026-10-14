@@ -57,7 +57,7 @@ const _vz = new Vector3();
  * A pointed foot: the foot direction `deg` degrees from the shin line, bent in the shin's own
  * sagittal plane (plantarflexion). The ankle folds to about 12° from the shin line at most.
  */
-export function pointed(shin: Vec3, deg = 15): Vec3 {
+export function pointed(shin: Vec3, deg = 50): Vec3 {
   const s = _vp.set(shin[0], shin[1], shin[2]).normalize();
   // where the shin's "forward" went: the rest shin hangs down, so swing +Z along with it
   _qp.setFromUnitVectors(_vz.set(0, -1, 0), s);
