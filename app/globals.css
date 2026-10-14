@@ -1,26 +1,73 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --background: #f5f9fc;
+  --surface: #ffffff;
+  --surface-2: #e8f1f8;
+  --foreground: #0f1b2a;
+  --muted: #4a5d72;
+  --border: #cfdde9;
+  --accent: #0b6fb8;
+  --accent-strong: #084f85;
+  --accent-soft: #d6e9f8;
+  --highlight: #e0532f;
+  --ok: #1f8a4c;
+  --warn: #b7791f;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #07111c;
+    --surface: #0e1b2b;
+    --surface-2: #142639;
+    --foreground: #e9f1f8;
+    --muted: #9fb3c8;
+    --border: #23384f;
+    --accent: #5db2ef;
+    --accent-strong: #8fcbf5;
+    --accent-soft: #163a5a;
+    --highlight: #ff8a66;
+    --ok: #4cc17a;
+    --warn: #e2b35a;
   }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-highlight: var(--highlight);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+.prose-tight p + p {
+  margin-top: 0.75rem;
+}
+
+code.sig {
+  font-family: var(--font-mono);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.9em;
 }
