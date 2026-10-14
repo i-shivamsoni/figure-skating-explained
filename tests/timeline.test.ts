@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { JUMP_BY_ID } from "@/data/jumps";
-import { jumpTimeline, MISSING_TURNS } from "@/three/animation/jumps";
+import { jumpModel, jumpTimeline, MISSING_TURNS } from "@/three/animation/jumps";
 import { markerAt, poseAt, TWO_PI } from "@/three/animation/timeline";
 
 describe("jump timeline", () => {
-  it("rotates the named number of revolutions in the air", () => {
+  it("rotates the named number of revolutions, all but the short blade skid before touchdown", () => {
     const tl = jumpTimeline({ jump: JUMP_BY_ID.Lz, rotations: 4 });
     const r = tl.rotation!;
-    const a = tl.root(r.start).yaw;
-    const b = tl.root(r.end).yaw;
-    expect((b - a) / TWO_PI).toBeCloseTo(4, 5);
+    const counted = (tl.root(r.end).yaw - r.yawStart!) / TWO_PI;
+    expect(counted).toBeCloseTo(4 - jumpModel({ jump: JUMP_BY_ID.Lz, rotations: 4 }).skid / TWO_PI, 5);
+    expect(counted).toBeGreaterThan(3.8);
+    expect(tl.root(r.end).yaw - tl.root(r.start).yaw).toBeLessThan(4 * TWO_PI);
     expect(tl.root(r.start).y).toBeCloseTo(0, 5);
     expect(tl.root((r.start + r.end) / 2).y).toBeGreaterThan(0.5);
   });
@@ -17,11 +18,11 @@ describe("jump timeline", () => {
     const tl = jumpTimeline({ jump: JUMP_BY_ID.A, rotations: 3 });
     expect(tl.rotation!.nominal).toBe(3.5);
     const r = tl.rotation!;
-    expect((tl.root(r.end).yaw - tl.root(r.start).yaw) / TWO_PI).toBeCloseTo(3.5, 5);
+    expect((tl.root(r.end).yaw - r.yawStart!) / TWO_PI).toBeCloseTo(3.5 - jumpModel({ jump: JUMP_BY_ID.A, rotations: 3 }).skid / TWO_PI, 5);
     // facing +X (direction of travel) at take-off, unlike the backward toe loop
-    expect(Math.sin(tl.root(r.start).yaw)).toBeGreaterThan(0.8);
+    expect(Math.sin(r.yawStart!)).toBeGreaterThan(0.8);
     const toe = jumpTimeline({ jump: JUMP_BY_ID.T, rotations: 3 });
-    expect(Math.sin(toe.root(toe.rotation!.start).yaw)).toBeLessThan(-0.8);
+    expect(Math.sin(toe.rotation!.yawStart!)).toBeLessThan(-0.8);
   });
   it("short-changes the air rotation for q, < and <<", () => {
     for (const call of ["q", "<", "<<"] as const) {

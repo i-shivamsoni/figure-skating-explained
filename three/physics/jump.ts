@@ -147,6 +147,21 @@ export function preRotationRamp(x: number, total: number, rateEnd: number): numb
   return total * Math.pow(clamp01(x), n);
 }
 
+/** How long the vault on the ice lasts before the blade leaves it, by take-off type. */
+export const VAULT_TIME = { axel: 0.18, toe: 0.12, edge: 0.25 } as const;
+
+/**
+ * Angle turned on the ice in the last `tau` seconds before take-off when the rate ramps up
+ * with a smoothstep from zero to `omegaIce`: S(u) = u³ − u⁴/2 is the integral of 3u² − 2u³,
+ * so the total is omegaIce·tau/2, the rate at take-off is exactly omegaIce and its slope
+ * there is zero, matching an air rate that starts flat (dI/dt = 0 at take-off).
+ */
+export function preRotationAngle(tBefore: number, tau: number, omegaIce: number): number {
+  if (tau <= 0 || omegaIce <= 0) return 0;
+  const u = clamp01(1 - tBefore / tau);
+  return omegaIce * tau * (u * u * u - (u * u * u * u) / 2);
+}
+
 /* ---------- edge lean ---------- */
 
 /** Lean of a skater holding a circle of radius R at speed v: the body lines up with the resultant of gravity and the centripetal pull. */
@@ -192,12 +207,23 @@ export function checkOut(t: number, tau = CHECK_TAU): number {
   return 1 - (1 + r) * Math.exp(-r);
 }
 
+/** Longest the blade takes to finish a rotation on the ice, inside the landing phase. */
+export const SKID_MAX = 0.45;
+/** A clean landing still carries this much time of rotation into the blade before it bites. */
+export const SKID_TAU = 0.07;
+/** Cap on the natural skid, below the quarter turn that would make the panel call "q". */
+export const SKID_CAP = 0.2 * 2 * Math.PI;
+
 /**
- * Rotation finished on the ice after an under-rotated landing. The body keeps turning at
- * the landing rate while the blade's grip brakes it exponentially, with the time constant
- * that makes the braked rotation total exactly `missing` radians.
+ * Rotation finished on the ice after touchdown: a cubic Hermite from the landing rate to
+ * rest that totals exactly `missing` radians by tSkid. With tSkid = 2·missing/ω the rate
+ * decays linearly (a constant blade brake); when SKID_MAX caps it, as on a single called
+ * << , the rate rises first, like the two-foot pivot that finishes a downgraded single.
  */
-export function landingSkid(t: number, missing: number, omegaLanding: number): number {
+export function landingSkid(t: number, missing: number, omegaLanding: number, tMax = SKID_MAX): number {
   if (t <= 0 || missing <= 0 || omegaLanding <= 0) return 0;
-  return missing * (1 - Math.exp((-t * omegaLanding) / missing));
+  const tSkid = Math.min(tMax, (2 * missing) / omegaLanding);
+  const u = clamp01(t / tSkid);
+  const w = omegaLanding * tSkid;
+  return missing * u * u * (3 - 2 * u) + w * u * (1 - u) * (1 - u);
 }

@@ -194,7 +194,7 @@ function Hud({ timeline, store, extra, caption, value }: { timeline: Timeline; s
   let counter: string | null = null;
   if (rot) {
     if (time >= rot.start && time <= rot.end) {
-      const done = (timeline.root(time).yaw - timeline.root(rot.start).yaw) / TWO_PI;
+      const done = (timeline.root(time).yaw - (rot.yawStart ?? timeline.root(rot.start).yaw)) / TWO_PI;
       counter = `${done.toFixed(2)} / ${rot.nominal} rev`;
     } else if (time > rot.end) {
       counter = rot.turns < rot.nominal ? `${rot.turns.toFixed(2)} of ${rot.nominal} rev in the air` : `${rot.nominal} rev`;

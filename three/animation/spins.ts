@@ -48,6 +48,8 @@ const ENTRY = 1.3;
 const FLY = 0.5;
 const EXIT = 1.2;
 const R_ENTRY = 4; // entry edge radius
+const EXIT_DECEL = 0.4; // seconds the blade takes to brake the spin on the exit
+const FLY_TURN = 0.5 * TWO_PI; // a flying entry turns about half a revolution in the air
 
 /**
  * Builds a spin: glide in on a forward edge, optional flying entry, the listed phases
@@ -88,7 +90,18 @@ export function spinTimeline(p: SpinParams): Timeline {
   const endRate = segments.length ? segments[segments.length - 1].w1 : rps;
   const duration = tSpinEnd + 0.4 + EXIT;
   const yawTravelIn = headingOf(1, 0); // entering while travelling +X, facing forward
-  const yawSpinStart = yawTravelIn + 0.6;
+  // the hook: the body's yaw rate ramps from the entry curve's rate up to the first position's
+  // rate with a smoothstep, so there is no kink at either end; a flying entry adds a sine bump
+  // so that about half a revolution happens in the air
+  const tHook = tSpinStart - ENTRY;
+  const wDrift = 3.2 / R_ENTRY;
+  const wSpin = (segments[0]?.w0 ?? rps * 0.6) * TWO_PI;
+  const baseHook = tHook * (wDrift + (wSpin - wDrift) / 2);
+  const bump = p.entry === "fly" ? (Math.max(0, FLY_TURN - baseHook) * Math.PI) / (2 * tHook) : 0;
+  const hookYaw = (u: number): number => tHook * (wDrift * u + (wSpin - wDrift) * (u * u * u - (u * u * u * u) / 2) + (bump * (1 - Math.cos(Math.PI * u))) / Math.PI);
+  // travelling threes turn two full revolutions on the entry curve; carry them so the yaw never jumps
+  const yawCarry = p.entry === "threes" ? TWO_PI * 2 : 0;
+  const yawSpinStart = yawTravelIn + yawCarry + hookYaw(1);
   const yawSpinEnd = yawSpinStart + totalRev * TWO_PI;
 
   const root = (time: number): RootState => {
@@ -102,7 +115,7 @@ export function spinTimeline(p: SpinParams): Timeline {
     if (time < tSpinStart) {
       const u = clamp01((time - ENTRY) / (tSpinStart - ENTRY));
       const y = p.entry === "fly" ? 0.55 * 4 * u * (1 - u) : 0;
-      return { x: 0.25 * (1 - u), y, z: 0, yaw: yawTravelIn + (yawSpinStart - yawTravelIn) * easeOut(u) };
+      return { x: 0.25 * (1 - u), y, z: 0, yaw: yawTravelIn + yawCarry + hookYaw(u) };
     }
     if (time < tSpinEnd) {
       // slow drift: real spins travel a few centimetres; keep it centred with a tiny wobble
@@ -110,10 +123,11 @@ export function spinTimeline(p: SpinParams): Timeline {
       return { x: 0.03 * Math.cos(yaw), y: 0, z: 0.03 * Math.sin(yaw), yaw };
     }
     const u = time - tSpinEnd;
-    const slow = clamp01(u / 0.4);
-    // exit: the rotation decays from the last position's rate, then a push out on a back outside edge toward -X
-    const yaw = yawSpinEnd + endRate * TWO_PI * 0.4 * (1 - Math.pow(1 - slow, 2));
-    const s = Math.max(0, u - 0.4) * 3.0;
+    // exit: the blade brakes the rotation at a constant rate from the last position's rate to rest
+    // over EXIT_DECEL seconds, then a push out on a back outside edge toward -X
+    const e = Math.min(u, EXIT_DECEL);
+    const yaw = yawSpinEnd + endRate * TWO_PI * (e - (e * e) / (2 * EXIT_DECEL));
+    const s = Math.max(0, u - EXIT_DECEL) * 3.0;
     const phi = s / R_ENTRY;
     return { x: -R_ENTRY * Math.sin(phi), y: 0, z: -R_ENTRY + R_ENTRY * Math.cos(phi), yaw: yaw + phi };
   };

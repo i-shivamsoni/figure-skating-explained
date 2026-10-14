@@ -5,7 +5,10 @@ import type { JumpId } from "@/data/types";
 import { jumpModel, jumpTimeline, MISSING_TURNS } from "@/three/animation/jumps";
 import { specialTimeline } from "@/three/animation/special";
 import { TWO_PI, type RootState } from "@/three/animation/timeline";
-import { ABSORB_TIME, AIR_TIME, DIP_PER_SPEED, airTimeFor, CHECK_TAU, checkOut, edgeLean, flight, G, I_OPEN, inertiaAt, inertiaSchedule, landingDip, landingSkid, preRotationRamp, rollToward, rotationProfile, TUCK_RATIO, verticalVelocityForAirTime, verticalVelocityForHeight } from "@/three/physics/jump";
+import { ABSORB_TIME, AIR_TIME, DIP_PER_SPEED, airTimeFor, edgeLean, flight, G, I_OPEN, inertiaAt, inertiaSchedule, landingDip, landingSkid, preRotationAngle, rollToward, rotationProfile, SKID_CAP, SKID_MAX, SKID_TAU, TUCK_RATIO, VAULT_TIME, verticalVelocityForAirTime, verticalVelocityForHeight } from "@/three/physics/jump";
+import { spinPreset } from "@/three/animation/spins";
+import { poseAt } from "@/three/animation/timeline";
+import type { Pose } from "@/three/rig/pose";
 
 /** World-space up vector of the skater, applied exactly as the Actor does. */
 const upOf = (r: RootState) => new Vector3(0, 1, 0).applyEuler(new Euler(r.pitch ?? 0, r.yaw, r.roll ?? 0, "YXZ"));
@@ -13,6 +16,10 @@ const upOf = (r: RootState) => new Vector3(0, 1, 0).applyEuler(new Euler(r.pitch
 const rateAt = (tl: { root: (t: number) => RootState }, t: number, side: -1 | 1) => (tl.root(t + side * 2e-6).yaw - tl.root(t + side * 1e-6).yaw) / (side * 1e-6);
 
 const CASES: { id: JumpId; n: number }[] = [...[1, 2, 3, 4, 5].map((n) => ({ id: "T" as const, n })), { id: "A", n: 2 }, { id: "A", n: 4 }];
+/** Yaw of the landing edge's own curve after `tl` seconds on it (exit speed 4.2 × 0.92 m/s on a 7 m lobe). */
+const exitCurve = (tl: number) => (tl * 4.2 * 0.92) / 7;
+/** The leg a pose stands on: the shin pointing closest to straight down (the free leg's shin trails behind). */
+const standingLeg = (pose: Pose): "L" | "R" => ((pose.bones.shin_L?.dir[1] ?? 0) < (pose.bones.shin_R?.dir[1] ?? 0) ? "L" : "R");
 
 describe("ballistics", () => {
   it("flies for the calibrated air time within 2% and lands at ice level", () => {
@@ -33,17 +40,42 @@ describe("ballistics", () => {
 });
 
 describe("angular momentum", () => {
-  it("turns exactly the required revolutions in the air, including the Axel half and the calls", () => {
+  it("counts the nominal revolutions minus the blade skid at touchdown, and finishes them on the ice", () => {
     for (const { id, n } of CASES) {
       const jump = JUMP_BY_ID[id];
-      const tl = jumpTimeline({ jump, rotations: n });
-      const r = tl.rotation!;
-      expect((tl.root(r.end).yaw - tl.root(r.start).yaw) / TWO_PI).toBeCloseTo(r.nominal, 6);
-      for (const call of ["q", "<", "<<"] as const) {
-        const u = jumpTimeline({ jump, rotations: n, call });
-        expect((u.root(u.rotation!.end).yaw - u.root(u.rotation!.start).yaw) / TWO_PI).toBeCloseTo(r.nominal - MISSING_TURNS[call], 6);
+      for (const call of ["", "q", "<", "<<"] as const) {
+        const tl = jumpTimeline({ jump, rotations: n, call });
+        const m = jumpModel({ jump, rotations: n, call });
+        const r = tl.rotation!;
+        const counted = (t: number) => (tl.root(t).yaw - r.yawStart!) / TWO_PI;
+        // the counted rotation = vault + air + skid; at touchdown the skid is still to come
+        expect(counted(r.end), `${n}${id}${call}`).toBeCloseTo(r.nominal - m.skid / TWO_PI, 6);
+        expect(m.skid / TWO_PI).toBeGreaterThanOrEqual(MISSING_TURNS[call] - 1e-9);
+        if (call) expect(m.skid / TWO_PI).toBeCloseTo(MISSING_TURNS[call], 6);
+        else expect(m.skid).toBeLessThanOrEqual(SKID_CAP + 1e-9);
+        expect(m.preRotation + m.airTurns * TWO_PI + m.skid).toBeCloseTo(r.nominal * TWO_PI, 6);
+        expect(r.turns).toBeCloseTo(r.nominal - MISSING_TURNS[call], 6);
+        // the skid finishes the rotation within SKID_MAX; after that only the landing lobe turns the skater
+        expect(counted(r.end + SKID_MAX) - exitCurve(SKID_MAX) / TWO_PI, `${n}${id}${call} skid`).toBeCloseTo(r.nominal, 6);
       }
     }
+  });
+  it("stands on the take-off foot through the approach and lands on the listed foot", () => {
+    const rest = () => [0, -1, 0] as [number, number, number];
+    for (const id of ["T", "S", "Lo", "F", "Lz", "A", "Eu"] as const) {
+      const jump = JUMP_BY_ID[id];
+      const tl = jumpTimeline({ jump, rotations: id === "Eu" ? 1 : 3 });
+      const foot = jump.takeOff.foot === "left" ? "L" : "R";
+      for (const t of [0, tl.rotation!.start - 0.5, tl.rotation!.start - 0.25]) expect(standingLeg(poseAt(tl, t, rest)), `${id} at ${t}`).toBe(foot);
+      const landFoot = jump.landing.foot === "left" ? "L" : "R";
+      expect(standingLeg(poseAt(tl, tl.rotation!.end + 0.4, rest)), `${id} landing`).toBe(landFoot);
+      expect(tl.trace.filter((s) => s.t > tl.rotation!.end).every((s) => s.foot === landFoot && s.edge === jump.landing.edge)).toBe(true);
+    }
+    // the split jump takes off from the left toe and lands forward on the right
+    const split = specialTimeline("split-jump");
+    expect(standingLeg(poseAt(split, 0, rest))).toBe("L");
+    expect(standingLeg(poseAt(split, split.duration, rest))).toBe("R");
+    expect(standingLeg(poseAt(specialTimeline("walley"), 0, rest))).toBe("R");
   });
   it("spins fastest in the middle third of the flight and slower at take-off and landing", () => {
     for (const { id, n } of CASES) {
@@ -96,12 +128,22 @@ describe("angular momentum", () => {
       const t0 = tl.rotation!.start;
       expect(rateAt(tl, t0, -1) / rateAt(tl, t0, 1), id).toBeCloseTo(1, 2);
     }
-    const f = (x: number) => preRotationRamp(x, 0.45, 5);
-    expect(f(0)).toBe(0);
-    expect(f(1)).toBeCloseTo(0.45, 9);
-    expect((f(1) - f(1 - 1e-6)) / 1e-6).toBeCloseTo(5, 3);
-    expect(f(0.5)).toBeLessThan(f(0.75));
-    expect(preRotationRamp(0.5, 0, 5)).toBe(0);
+    // the vault ramps the on-ice rate with a smoothstep: half the peak rate times its length in total
+    const f = (tBefore: number) => preRotationAngle(tBefore, 0.2, 5);
+    expect(f(0.2)).toBe(0);
+    expect(f(1)).toBe(0);
+    expect(f(0)).toBeCloseTo(0.5, 9);
+    expect((f(0) - f(1e-6)) / 1e-6).toBeCloseTo(5, 3);
+    expect(f(0.1)).toBeLessThan(f(0.05));
+    expect(preRotationAngle(0.1, 0.2, 0)).toBe(0);
+    // the last quarter of the vault holds under half of the pre-rotation, so it never bunches into the final frames
+    expect(1 - f(0.05) / f(0)).toBeLessThan(0.5);
+    for (const id of ["T", "Lz", "A", "Lo"] as const) {
+      const m = jumpModel({ jump: JUMP_BY_ID[id], rotations: 3 });
+      expect(m.preRotation, id).toBeGreaterThan(0.3);
+      expect(m.vaultTime).toBe(id === "A" ? VAULT_TIME.axel : id === "Lo" ? VAULT_TIME.edge : VAULT_TIME.toe);
+      expect(m.preRotation).toBeCloseTo((m.omegaIce * m.vaultTime) / 2, 9);
+    }
   });
 });
 
@@ -158,26 +200,77 @@ describe("landing", () => {
     const single = jumpTimeline({ jump: JUMP_BY_ID.S, rotations: 1 });
     expect(single.root(single.rotation!.end + 0.07).y).toBeGreaterThan(tl.root(tLand + 0.07).y);
   });
-  it("checks out exponentially and finishes an under-rotation on the ice at the landing rate", () => {
-    expect(checkOut(0)).toBe(0);
-    expect(checkOut(0.5)).toBeGreaterThan(0.8);
-    expect(checkOut(2)).toBeCloseTo(1, 4);
-    // once under way the remainder at least halves every time constant
-    expect(1 - checkOut(4 * CHECK_TAU)).toBeLessThan(0.5 * (1 - checkOut(3 * CHECK_TAU)));
+  it("brakes the rotation on the blade in finite time, starting at the landing rate", () => {
     expect(landingSkid(0, Math.PI / 2, 10)).toBe(0);
     expect(landingSkid(1e-6, Math.PI / 2, 10) / 1e-6).toBeCloseTo(10, 3);
+    // linear braking: done in 2·missing/ω, never later than SKID_MAX
+    expect(landingSkid(Math.PI / 10 - 1e-3, Math.PI / 2, 10)).toBeLessThan(Math.PI / 2);
+    expect(landingSkid(Math.PI / 10, Math.PI / 2, 10)).toBeCloseTo(Math.PI / 2, 9);
     expect(landingSkid(5, Math.PI / 2, 10)).toBeCloseTo(Math.PI / 2, 6);
+    expect(landingSkid(SKID_MAX, TWO_PI, 3)).toBeCloseTo(TWO_PI, 9);
     expect(landingSkid(1, 0, 10)).toBe(0);
+    // the rate never reverses, whether the brake is linear or capped by SKID_MAX
+    for (const [missing, w] of [[Math.PI / 2, 10], [TWO_PI, 3], [0.3, 12]] as const) {
+      let prev = 0;
+      for (let t = 0; t <= SKID_MAX; t += 0.001) {
+        const y = landingSkid(t, missing, w);
+        expect(y).toBeGreaterThanOrEqual(prev - 1e-9);
+        prev = y;
+      }
+    }
     const clean = jumpTimeline({ jump: JUMP_BY_ID.T, rotations: 3 });
     const q = jumpTimeline({ jump: JUMP_BY_ID.T, rotations: 3, call: "q" });
     const tLand = q.rotation!.end;
-    // a clean landing stops the spin; a q landing keeps turning at the air rate until the blade brakes it
-    expect(rateAt(clean, tLand, 1)).toBeLessThan(0.2 * rateAt(clean, tLand, -1));
-    expect(rateAt(q, tLand, 1) / rateAt(q, tLand, -1)).toBeGreaterThan(0.9);
-    expect(rateAt(q, tLand, 1) / rateAt(q, tLand, -1)).toBeLessThan(1.2);
-    // by the end the missing quarter is made up and the pre-rotation checked out, plus the curve of the exit edge
-    const { preRotation } = jumpModel({ jump: JUMP_BY_ID.T, rotations: 3, call: "q" });
-    const curve = ((q.duration - tLand) * 4.2 * 0.92) / 7; // the exit edge's own share of the yaw
-    expect(q.root(q.duration).yaw - q.root(q.rotation!.start).yaw).toBeCloseTo(3 * TWO_PI - preRotation + curve, 2);
+    // the rate is continuous through touchdown for clean and called landings alike (the exit lobe adds its share)
+    for (const tl of [clean, q]) {
+      expect(rateAt(tl, tLand, 1) / rateAt(tl, tLand, -1)).toBeGreaterThan(0.95);
+      expect(rateAt(tl, tLand, 1) / rateAt(tl, tLand, -1)).toBeLessThan(1.3);
+    }
+    // a clean landing carries a short natural skid; a q landing finishes its quarter on the ice
+    expect(jumpModel({ jump: JUMP_BY_ID.T, rotations: 3 }).skid).toBeCloseTo(Math.min(jumpModel({ jump: JUMP_BY_ID.T, rotations: 3 }).spin.omegaLanding * SKID_TAU, SKID_CAP), 6);
+    expect(jumpModel({ jump: JUMP_BY_ID.T, rotations: 3, call: "q" }).skid).toBeCloseTo(Math.PI / 2, 9);
+    // by the end the yaw has finished the three revolutions plus the curve of the exit edge
+    expect(q.root(q.duration).yaw - q.rotation!.yawStart!).toBeCloseTo(3 * TWO_PI + exitCurve(q.duration - tLand), 6);
+    // a downgraded single pivots its missing rotation out within SKID_MAX
+    const dg = jumpTimeline({ jump: JUMP_BY_ID.S, rotations: 1, call: "<<" });
+    const end = dg.rotation!.end;
+    expect((dg.root(end + SKID_MAX).yaw - dg.rotation!.yawStart! - exitCurve(SKID_MAX)) / TWO_PI).toBeCloseTo(1, 6);
+    let prev = dg.root(end).yaw;
+    for (let t = end; t <= dg.duration; t += 0.002) {
+      expect(dg.root(t).yaw).toBeGreaterThanOrEqual(prev - 1e-9);
+      prev = dg.root(t).yaw;
+    }
+  });
+});
+
+describe("spin entry and exit", () => {
+  it("ramps the hook into the first position's rate and turns half a revolution in the air on a flying entry", () => {
+    for (const code of ["CSp", "FCSp", "CCoSp", "FSSp", "threes"]) {
+      const tl = spinPreset(code);
+      const start = tl.rotation!.start;
+      expect(rateAt(tl, start, 1) / rateAt(tl, start, -1), code).toBeCloseTo(1, 2);
+      let prev = tl.root(0.2).yaw;
+      for (let t = 0.2; t <= start; t += 0.005) {
+        expect(tl.root(t).yaw, `${code} at ${t.toFixed(3)}`).toBeGreaterThanOrEqual(prev - 1e-9);
+        prev = tl.root(t).yaw;
+      }
+      if (code.startsWith("F")) {
+        const fly = tl.markers.find((m) => m.label === "Fly")!.t;
+        expect((tl.root(start).yaw - tl.root(fly).yaw) / TWO_PI, code).toBeGreaterThanOrEqual(0.4);
+      }
+    }
+  });
+  it("brakes the exit at a constant rate from the last position's speed to rest", () => {
+    const tl = spinPreset("CCoSp");
+    const end = tl.rotation!.end;
+    expect(rateAt(tl, end, 1) / rateAt(tl, end, -1)).toBeCloseTo(1, 2);
+    const w0 = rateAt(tl, end, 1);
+    expect(rateAt(tl, end + 0.2, 1) / w0).toBeCloseTo(0.5, 2);
+    expect(rateAt(tl, end + 0.4, -1) / w0).toBeLessThan(0.02);
+    let prev = tl.root(end).yaw;
+    for (let t = end; t <= tl.duration; t += 0.002) {
+      expect(tl.root(t).yaw).toBeGreaterThanOrEqual(prev - 1e-9);
+      prev = tl.root(t).yaw;
+    }
   });
 });

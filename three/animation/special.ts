@@ -1,5 +1,6 @@
-import { POSES } from "../rig/poses";
-import { checkOut, edgeLean, flight, inertiaSchedule, landingDip, preRotationRamp, rollToward, rotationProfile, verticalVelocityForAirTime } from "../physics/jump";
+import { POSES, mirrorPose } from "../rig/poses";
+import type { Pose } from "../rig/pose";
+import { edgeLean, flight, inertiaSchedule, landingDip, landingSkid, preRotationAngle, rollToward, rotationProfile, SKID_CAP, SKID_TAU, VAULT_TIME, verticalVelocityForAirTime } from "../physics/jump";
 import { clamp01, easeInOut, easeOut, headingOf, linear, TWO_PI, type RootState, type Timeline, type TraceSample } from "./timeline";
 
 export type SpecialId = "split-jump" | "walley" | "inside-axel" | "backflip";
@@ -49,23 +50,36 @@ export function specialTimeline(id: SpecialId): Timeline {
   const duration = tExit + EXIT;
   const f = flight(verticalVelocityForAirTime(T), SPEED * 0.9);
   const D = f.range;
-  const spin = rotationProfile(spec.turns, T);
   const tuck = inertiaSchedule(T);
   const entryCentreZ = spec.entrySign * RADIUS;
   const exitSign = spec.landsForward ? 1 : -1;
   const exitCentreZ = exitSign * RADIUS;
-  const pre = spec.flips ? 0 : 0.4;
   const facing = spec.forwardTakeoff ? headingOf(1, 0) : headingOf(-1, 0);
   // two-footed flat take-off and landing for the backflip: no edge, so no lean
   const lean = spec.flips ? 0 : edgeLean(SPEED, RADIUS);
   const driftRate = (-spec.entrySign * SPEED) / RADIUS;
+  // as for the listed jumps: the on-ice vault and the blade skid take their share of the rotation
+  const vaultTime = spec.flips || !spec.turns ? 0 : spec.forwardTakeoff ? VAULT_TIME.axel : spec.toePick ? VAULT_TIME.toe : VAULT_TIME.edge;
+  let spin = rotationProfile(spec.turns, T);
+  let pre = 0;
+  let skid = 0;
+  let airTurns = spec.turns;
+  let omegaIce = 0;
+  for (let pass = 0; pass < 8 && vaultTime > 0; pass++) {
+    omegaIce = Math.max(0.5, spin.omegaTakeoff - driftRate);
+    pre = (omegaIce * vaultTime) / 2;
+    skid = Math.min(spin.omegaLanding * SKID_TAU, SKID_CAP);
+    airTurns = Math.max(0.25, spec.turns - (pre + skid) / TWO_PI);
+    spin = rotationProfile(airTurns, T);
+  }
+  if (vaultTime > 0) omegaIce = (2 * pre) / vaultTime;
 
   const root = (t: number): RootState => {
     if (t < tTakeoff) {
       const phi = ((t - tTakeoff) * SPEED) / RADIUS;
       const x = RADIUS * Math.sin(phi);
       const z = entryCentreZ - spec.entrySign * RADIUS * Math.cos(phi);
-      const yaw = facing - spec.entrySign * phi + preRotationRamp((t - tLoad) / LOAD, pre, (spin.omegaTakeoff - driftRate) * LOAD);
+      const yaw = facing - spec.entrySign * phi + preRotationAngle(tTakeoff - t, vaultTime, omegaIce);
       const onEdge = easeInOut(clamp01(t / LEAN_RAMP)) * (1 - easeInOut(clamp01((t - (tTakeoff - LEAN_RAMP)) / LEAN_RAMP)));
       return { x, y: 0, z, yaw, roll: rollToward(yaw, -x, entryCentreZ - z, lean) * onEdge };
     }
@@ -80,35 +94,43 @@ export function specialTimeline(id: SpecialId): Timeline {
     const phi = (tl * SPEED * 0.9) / RADIUS;
     const x = D + RADIUS * Math.sin(phi);
     const z = exitCentreZ - exitSign * RADIUS * Math.cos(phi);
-    const yaw = facing + pre + spec.turns * TWO_PI - pre * checkOut(tl) + (spec.landsForward ? -phi : phi);
+    const yaw = facing + pre + airTurns * TWO_PI + landingSkid(tl, skid, spin.omegaLanding) + (spec.landsForward ? -phi : phi);
     const onEdge = easeInOut(clamp01((tl - 0.1) / LEAN_RAMP)) * (1 - easeInOut(clamp01((t - (duration - LEAN_RAMP)) / LEAN_RAMP)));
     return { x, y: landingDip(tl, f.vy), z, yaw, roll: rollToward(yaw, D - x, exitCentreZ - z, lean) * onEdge };
   };
 
-  const glide = spec.forwardTakeoff ? POSES.glideFO : POSES.glideBO;
-  const prep = spec.toePick ? POSES.pickBack : spec.forwardTakeoff ? POSES.loadFO : POSES.loadBO;
-  const landPose = spec.landsForward ? POSES.glideFO : POSES.land;
+  // forward glides are authored on the left foot, back glides, the pick and the launch on the right:
+  // mirror whichever does not match the take-off foot (the two-footed backflip keeps the authored poses)
+  const leftFoot = spec.takeOffFoot === "L";
+  const onFoot = (pose: Pose, authoredLeft: boolean): Pose => (spec.flips || leftFoot === authoredLeft ? pose : mirrorPose(pose));
+  const glide = spec.forwardTakeoff ? onFoot(POSES.glideFO, true) : onFoot(POSES.glideBO, false);
+  const prep = spec.toePick ? onFoot(POSES.pickBack, false) : spec.forwardTakeoff ? onFoot(POSES.loadFO, true) : onFoot(POSES.loadBO, false);
+  const launch = onFoot(POSES.launch, false);
+  // a half-revolution jump lands forward on the other foot; the rest land on the right back outside edge
+  const landFoot: TraceSample["foot"] = spec.flips ? "both" : spec.landsForward ? (leftFoot ? "R" : "L") : "R";
+  const landPose = spec.landsForward ? (landFoot === "L" ? POSES.glideFO : mirrorPose(POSES.glideFO)) : POSES.land;
+  const exitPose = spec.landsForward ? landPose : POSES.glideBO;
   const keys = [
     { t: 0, pose: glide },
     { t: tLoad - 0.2, pose: glide },
     { t: tLoad + LOAD * 0.55, pose: prep, ease: easeInOut },
-    { t: tTakeoff, pose: POSES.launch, ease: easeOut },
+    { t: tTakeoff, pose: launch, ease: easeOut },
     { t: tTakeoff + tuck.tuckIn, pose: POSES[spec.airPose], ease: easeOut },
     { t: tTakeoff + tuck.openOut, pose: POSES[spec.airPose], ease: linear },
     { t: tLand, pose: POSES.open, ease: easeOut },
     { t: tLand + 0.14, pose: landPose, ease: easeOut },
-    { t: tExit + 0.5, pose: spec.landsForward ? POSES.glideFO : POSES.glideBO, ease: easeInOut },
-    { t: duration, pose: spec.landsForward ? POSES.glideFO : POSES.glideBO, ease: linear },
+    { t: tExit + 0.5, pose: exitPose, ease: easeInOut },
+    { t: duration, pose: exitPose, ease: linear },
   ];
   const trace: TraceSample[] = [];
   for (let t = 0; t < tTakeoff; t += 1 / 40) {
     const r = root(t);
     trace.push({ t, x: r.x, z: r.z, foot: spec.flips ? "both" : spec.takeOffFoot, edge: spec.flips ? "flat" : spec.takeOffEdge });
   }
-  if (spec.toePick) trace.push({ t: tTakeoff, x: -0.35, z: -0.12, foot: "R", edge: "toe" });
+  if (spec.toePick) trace.push({ t: tTakeoff, x: -0.35, z: -0.12, foot: leftFoot ? "R" : "L", edge: "toe" });
   for (let t = tLand; t <= duration; t += 1 / 40) {
     const r = root(t);
-    trace.push({ t, x: r.x, z: r.z, foot: spec.flips ? "both" : "R", edge: spec.flips ? "flat" : "outside" });
+    trace.push({ t, x: r.x, z: r.z, foot: landFoot, edge: spec.flips ? "flat" : "outside" });
   }
   const markers = [
     { t: 0, label: "Entry", detail: spec.flips ? "backward on two feet" : `${spec.takeOffFoot === "L" ? "left" : "right"} ${spec.forwardTakeoff ? "forward" : "backward"} ${spec.takeOffEdge} edge` },
@@ -124,7 +146,7 @@ export function specialTimeline(id: SpecialId): Timeline {
     root,
     markers,
     trace,
-    rotation: spec.turns ? { start: tTakeoff, end: tLand, turns: spec.turns, nominal: spec.turns } : undefined,
+    rotation: spec.turns ? { start: tTakeoff, end: tLand, turns: spec.turns, nominal: spec.turns, yawStart: facing } : undefined,
     focus: { x: D / 2, z: 0 },
     heading: 0,
   };

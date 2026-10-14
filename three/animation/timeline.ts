@@ -50,6 +50,8 @@ export interface RotationInfo {
   turns: number;
   /** Revolutions the jump is named for (Axel: n + 0.5). */
   nominal: number;
+  /** Yaw the counted rotation starts from (the facing before the on-ice pre-rotation); defaults to the yaw at `start`. */
+  yawStart?: number;
 }
 
 /** A second skater sharing the clock: pose keys and root motion of the pair partner. */
