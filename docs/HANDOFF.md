@@ -20,9 +20,9 @@ Vercel project `figure-skating-explained` (team `<vercel team>`), linked via `.v
 Deploy with `vercel deploy --prod --yes` (preview: `vercel deploy --yes`; previews sit behind
 Vercel auth, production is public). The Vercel CLI is 54.x and nags to upgrade; ignore it.
 
-State at the time of writing (updated 15 Oct 01:20 IST): see §10 for the overhaul; 269 vitest
-tests green plus the six GLB-contract tests that fail until the model variants are built, 21
-Playwright tests green, typecheck and lint clean, production redeployed after commit `e2b40dc`.
+State at the time of writing (updated 15 Oct 05:10 IST): see §10 for the overhaul; 275 vitest
+tests green, 21 Playwright tests green, typecheck and lint clean, production redeployed after
+commit `584218b`.
 
 ## 2. The user and the working agreement
 
@@ -322,16 +322,24 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
   (derive a pelvis twist from authored spine/chest twists in `resolve()`, add `twist` limits for
   spine 15 / chest 45 and check twists in `validatePose`); the `sitStand` shin/`SIT_HIPS` retune
   mentioned in finding [0] was also skipped.
-- **Pending, in priority order (the user asked for all of these explicitly):**
-  1. **Hair and outfit styles (plan agent 1A + 2B):** build the variant hair meshes, both skirts
-     and the `sleeve_upper/sleeve_lower` regions into the GLBs with `tools/blender/build_skater.py`
-     per the contract in `three/skaterStore.ts` (names in `variantNodes()`), make
-     `tests/glb.test.ts` green, then extend `components/SkaterDrawer.tsx` with hair style/length,
-     sleeves, skirt, gloves and a live preview. `three/appearance.ts` already maps everything.
-  2. Content pages onto the new primitives (plan Wave 3, agents 3A/3B); Compare and
-     FlipVsLutz still carry their own camera selects.
-  3. Review finding [2] above; `sitStand` retune.
-  4. Regenerate `public/poses/*.png` (the clamp and the flat feet change several stills).
+- **Hair and outfit styles (584218b, done inline, 05:10 IST):** `tools/blender/build_skater.py`
+  builds every hair style as a separate skinned object (`finish_variant`, bound to the armature
+  before export; woman lowBun/highBun/ponytail×3/loose×3/bob, man quiff/crop/sidePart/sweptBack),
+  both skirts (`build_skirt`), and paints `sleeve_upper`/`sleeve_lower` regions (the man's cuffs
+  take the upper-sleeve material). GLBs 2.5 MB / 1.4 MB; `tests/glb.test.ts` green (275 tests).
+  **Gotcha:** three's glTF loader strips dots from node names, so `three/appearance.ts` looks nodes
+  up by `nodeKey()` as well; `SkaterModel` applies the look in `useLayoutEffect`; the persisted
+  store deep-merges with the defaults (`merge`). `components/SkaterDrawer.tsx` has body, looks,
+  skin, hair style/length/colour, sleeves, skirt, gloves and a colour row per piece; no live
+  preview stage yet. Verified with nine looks in the pose lab (`scratchpad/looks`) and the e2e
+  drawer test (ponytail long + no skirt survive a reload).
+- **Pending, in priority order:**
+  1. Content pages onto the new primitives (plan Wave 3, agents 3A/3B); Compare and FlipVsLutz
+     still carry their own camera selects; the drawer could get a live preview stage.
+  2. Review finding [2] above; `sitStand` retune.
+  3. Stills for the hair-style cards in the drawer (`public/looks/`), if wanted.
+  4. Hair is rigid on the head (a long ponytail or loose hair passes through the back in a layback);
+     hair physics is a later item.
 - **User feedback during the night, verbatim themes:** "blades sink in the ice" (fixed),
   "horrible ui" on the rink (panels/fullscreen/phone rebuilt), "give arrow keys for direction"
   (done), colours "dull out" sometimes (the arena glass was tinted and the follow camera often
