@@ -49,3 +49,6 @@ playwright-report/
 
 # reference clips (not redistributed)
 videos/
+
+# agent worktrees created by Claude Code
+.claude/worktrees/
