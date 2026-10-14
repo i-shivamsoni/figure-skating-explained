@@ -2,7 +2,7 @@
 
 import { Suspense, type ReactNode } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { Environment, Lightformer, OrbitControls } from "@react-three/drei";
 import { Rink } from "./Rink";
 
 export interface StageProps {
@@ -29,10 +29,16 @@ export function Stage({ children, camera, controls = true, className = "", frame
         gl.setClearColor("#eaf3fa");
       }}
     >
-      <hemisphereLight args={["#ffffff", "#b8cfe0", 0.9]} />
+      <hemisphereLight args={["#ffffff", "#b8cfe0", 0.55]} />
+      <Environment resolution={128} frames={1}>
+        <Lightformer form="rect" intensity={2.2} color="#fff6ea" position={[4, 6, 5]} scale={[8, 6, 1]} target={[0, 1, 0]} />
+        <Lightformer form="rect" intensity={1.1} color="#dbe9ff" position={[-6, 4, -3]} scale={[6, 5, 1]} target={[0, 1, 0]} />
+        <Lightformer form="ring" intensity={0.8} color="#ffffff" position={[0, 8, 0]} scale={[6, 6, 1]} target={[0, 0, 0]} />
+        <Lightformer form="rect" intensity={0.5} color="#cfe3f5" position={[0, 0.5, 8]} scale={[10, 2, 1]} target={[0, 1, 0]} />
+      </Environment>
       <directionalLight
         position={[6, 10, 4]}
-        intensity={1.6}
+        intensity={1.4}
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-6}

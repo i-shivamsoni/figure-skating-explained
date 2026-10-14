@@ -19,7 +19,7 @@ import sys
 
 import bmesh
 import bpy
-from mathutils import Vector
+from mathutils import Euler, Matrix, Vector
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BUNDLE = os.path.join(ROOT, "tools/blender/assets/human-base-meshes/human-base-meshes-bundle-v1.4.1/human_base_meshes_bundle.blend")
@@ -39,8 +39,10 @@ FEMALE = args.body == "female"
 GROUND = 0.057
 
 OUTFITS = {
-    "female": {"top": (0.36, 0.03, 0.09), "legs": (0.80, 0.60, 0.50), "boot": (0.93, 0.91, 0.88), "sole": (0.78, 0.68, 0.55), "lace": (0.97, 0.96, 0.94), "vent": (0.72, 0.70, 0.66), "hair": (0.16, 0.08, 0.05)},
-    "male": {"top": (0.16, 0.25, 0.58), "legs": (0.05, 0.05, 0.08), "boot": (0.05, 0.05, 0.06), "sole": (0.08, 0.07, 0.07), "lace": (0.12, 0.12, 0.13), "vent": (0.02, 0.02, 0.02), "hair": (0.09, 0.06, 0.04)},
+    # black sleeveless dress with a short flared skirt, black gloves, auburn low bun, white boots
+    "female": {"top": (0.035, 0.03, 0.04), "legs": (0.80, 0.60, 0.50), "glove": (0.03, 0.03, 0.035), "sleeves": "none", "boot": (0.93, 0.91, 0.88), "sole": (0.78, 0.68, 0.55), "lace": (0.97, 0.96, 0.94), "vent": (0.72, 0.70, 0.66), "eyelet": (0.55, 0.52, 0.48), "hair": (0.30, 0.10, 0.05)},
+    # fitted charcoal shirt with rolled sleeves, slim black trousers, black gloves, dark hair, black boots
+    "male": {"top": (0.10, 0.10, 0.11), "legs": (0.04, 0.04, 0.05), "glove": (0.03, 0.03, 0.035), "sleeves": "short", "boot": (0.05, 0.05, 0.06), "sole": (0.08, 0.07, 0.07), "lace": (0.14, 0.14, 0.15), "vent": (0.02, 0.02, 0.02), "eyelet": (0.30, 0.30, 0.32), "hair": (0.07, 0.045, 0.035)},
 }
 PALETTE = OUTFITS[args.body]
 
@@ -131,6 +133,12 @@ def make_ellipsoid(name, center, radii, material, segments=24, rings=16):
     return ob
 
 
+def rotate_about(ob, center, euler):
+    """Rotates mesh data (already in world coordinates) about `center`."""
+    c = Vector(center)
+    ob.data.transform(Matrix.Translation(c) @ Euler(euler).to_matrix().to_4x4() @ Matrix.Translation(-c))
+
+
 def delete_faces(ob, predicate):
     bm = bmesh.new()
     bm.from_mesh(ob.data)
@@ -141,8 +149,10 @@ def delete_faces(ob, predicate):
 
 
 mat_skin = make_material("skin", (0.78, 0.56, 0.45), roughness=0.55)
-mat_top = make_material("top", PALETTE["top"], roughness=0.5)
+mat_top = make_material("top", PALETTE["top"], roughness=0.36 if FEMALE else 0.55)
 mat_legs = make_material("legs", PALETTE["legs"], roughness=0.55)
+mat_glove = make_material("glove", PALETTE["glove"], roughness=0.5)
+mat_eyelet = make_material("eyelet", PALETTE["eyelet"], metallic=0.6, roughness=0.4)
 mat_boot = make_material("boot", PALETTE["boot"], roughness=0.38)
 mat_sole = make_material("sole", PALETTE["sole"], roughness=0.6)
 mat_lace = make_material("lace", PALETTE["lace"], roughness=0.7)
@@ -150,7 +160,7 @@ mat_vent = make_material("vent", PALETTE["vent"], roughness=0.6)
 mat_blade = make_material("blade", (0.86, 0.88, 0.91), metallic=1.0, roughness=0.22)
 mat_plate = make_material("plate", (0.80, 0.81, 0.84), metallic=0.9, roughness=0.35)
 mat_hair = make_material("hair", PALETTE["hair"], roughness=0.7)
-mat_skirt = make_material("skirt", PALETTE["top"], roughness=0.5, double_sided=True)
+mat_skirt = make_material("skirt", PALETTE["top"], roughness=0.42, double_sided=True)
 
 extras = []
 
@@ -283,14 +293,24 @@ def build_skate(side):
         yy = front_at(zw) + 0.0045
         pitch = math.radians(34 - 22 * t)
         for sign in (1, -1):
-            bpy.ops.mesh.primitive_cube_add(size=1, location=(0, yy, zw))
+            lc = (0, yy, zw)
+            bpy.ops.mesh.primitive_cube_add(size=1, location=lc)
             strip = bpy.context.active_object
             strip.name = f"lace_{side}_{i}_{sign}"
             strip.scale = (0.030 * k, 0.0035, 0.0045)
-            strip.rotation_euler = (pitch, 0, sign * math.radians(40))
-            bpy.ops.object.transform_apply(scale=True, rotation=True)
+            bpy.ops.object.transform_apply(scale=True)
+            rotate_about(strip, lc, (pitch, 0, sign * math.radians(40)))
             strip.data.materials.append(mat_lace)
             parts.append(strip)
+        for sx in (1, -1):
+            ec = (sx * 0.0135 * k, yy - 0.0035, zw)
+            bpy.ops.mesh.primitive_cylinder_add(vertices=10, radius=0.0028, depth=0.003, location=ec)
+            eye = bpy.context.active_object
+            eye.name = f"eyelet_{side}_{i}_{sx}"
+            bpy.ops.object.transform_apply(scale=True)
+            rotate_about(eye, ec, (math.pi / 2 - pitch, 0, 0))
+            eye.data.materials.append(mat_eyelet)
+            parts.append(eye)
 
     # side vents: three slanted slits on each side of the ankle, flush with the leather
     for sx in (1, -1):
@@ -298,12 +318,13 @@ def build_skate(side):
             y = (-0.028 + 0.028 * i) * k
             yy, zw = tilted(y, 0.125 * k)
             x = side_at(yy, zw) - 0.0025
-            bpy.ops.mesh.primitive_cube_add(size=1, location=(sx * x, yy, zw))
+            vc = (sx * x, yy, zw)
+            bpy.ops.mesh.primitive_cube_add(size=1, location=vc)
             vent = bpy.context.active_object
             vent.name = f"vent_{side}_{sx}_{i}"
             vent.scale = (0.004, 0.0085, 0.026)
-            vent.rotation_euler = (math.radians(-16), 0, 0)
-            bpy.ops.object.transform_apply(scale=True, rotation=True)
+            bpy.ops.object.transform_apply(scale=True)
+            rotate_about(vent, vc, (math.radians(-16), 0, 0))
             vent.data.materials.append(mat_vent)
             parts.append(vent)
 
@@ -330,13 +351,17 @@ for side in ("L", "R"):
 # the cranium sits between y = -0.12 (forehead) and y = +0.05 (back of the head) on the female body
 k = H / 1.639
 head_c = Vector((0, -0.036 * k, z(0.949)))
-hair = make_ellipsoid("hair", head_c, (0.087 * k, 0.107 * k, 0.099 * k) if FEMALE else (0.086 * k, 0.105 * k, 0.094 * k), mat_hair, segments=64, rings=40)
+hair = make_ellipsoid("hair", head_c, (0.087 * k, 0.107 * k, 0.099 * k) if FEMALE else (0.089 * k, 0.112 * k, 0.104 * k), mat_hair, segments=64, rings=40)
 
 
 # hairline: high on the forehead, dipping behind the ears, lowest at the nape
 def hairline(y):
     y = y / k
-    pts = [(-0.14, z(0.968)), (-0.09, z(0.956)), (-0.04, z(0.922)), (0.0, z(0.905)), (0.06, z(0.888))]
+    if FEMALE:
+        pts = [(-0.14, z(0.968)), (-0.09, z(0.956)), (-0.04, z(0.922)), (0.0, z(0.905)), (0.06, z(0.888))]
+    else:
+        # fringe: the cap reaches down over the forehead at the front
+        pts = [(-0.14, z(0.945)), (-0.10, z(0.948)), (-0.05, z(0.925)), (0.0, z(0.905)), (0.06, z(0.885))]
     if y <= pts[0][0]:
         return pts[0][1]
     for (y0, z0), (y1, z1) in zip(pts, pts[1:]):
@@ -346,11 +371,33 @@ def hairline(y):
     return pts[-1][1]
 
 
-delete_faces(hair, lambda c: c.z < hairline(c.y) or c.y < -0.113 * k)
+delete_faces(hair, lambda c: c.z < hairline(c.y) or c.y < (-0.113 if FEMALE else -0.126) * k)
 tag(hair, "head")
 extras.append(hair)
 if FEMALE:
-    bun = make_ellipsoid("bun", (0, 0.064 * k, z(0.948)), (0.038, 0.034, 0.036), mat_hair, 16, 12)
+    fc = (0.028 * k, -0.075 * k, z(0.962))
+    fringe = make_ellipsoid("fringe", fc, (0.052 * k, 0.05 * k, 0.03 * k), mat_hair, 32, 20)
+    rotate_about(fringe, fc, (0, math.radians(-14), math.radians(-18)))
+    delete_faces(fringe, lambda c: c.y < -0.112 * k or c.z < z(0.94))
+else:
+    qc = (0, -0.062 * k, z(0.985))
+    quiff = make_ellipsoid("quiff", qc, (0.072 * k, 0.07 * k, 0.034 * k), mat_hair, 32, 20)
+    rotate_about(quiff, qc, (math.radians(-16), 0, 0))
+    delete_faces(quiff, lambda c: c.y < -0.128 * k or c.z < z(0.95))
+    fringe = quiff
+tag(fringe, "head")
+extras.append(fringe)
+if not FEMALE:
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.147 * k, minor_radius=0.011, major_segments=48, minor_segments=8, location=(0, -0.012, z(0.535)))
+    belt = bpy.context.active_object
+    belt.name = "belt"
+    belt.scale = (1.0, 0.70, 1.0)
+    bpy.ops.object.transform_apply(scale=True)
+    belt.data.materials.append(make_material("belt", (0.03, 0.03, 0.035), roughness=0.35))
+    tag(belt, "hips")
+    extras.append(belt)
+if FEMALE:
+    bun = make_ellipsoid("bun", (0, 0.062 * k, z(0.912)), (0.042, 0.036, 0.038), mat_hair, 20, 14)
     tag(bun, "head")
     extras.append(bun)
 
@@ -358,7 +405,7 @@ if FEMALE:
 if FEMALE:
     top_z = z(0.515)
     bottom_z = z(0.395)
-    bpy.ops.mesh.primitive_cone_add(vertices=36, radius1=0.21, radius2=0.145, depth=top_z - bottom_z, location=(0, 0.0, (top_z + bottom_z) / 2))
+    bpy.ops.mesh.primitive_cone_add(vertices=48, radius1=0.235, radius2=0.14, depth=top_z - bottom_z, location=(0, 0.0, (top_z + bottom_z) / 2))
     skirt = bpy.context.active_object
     skirt.name = "skirt"
     skirt.data.materials.append(mat_skirt)
@@ -367,8 +414,8 @@ if FEMALE:
     for v in skirt.data.vertices:
         if v.co.z < (top_z + bottom_z) / 2:
             ang = math.atan2(v.co.y, v.co.x)
-            v.co.z += 0.012 * math.sin(ang * 6)
-            v.co.y += 0.015 if v.co.y > 0 else 0.0
+            v.co.z += 0.014 * math.sin(ang * 7) + 0.006 * math.sin(ang * 3 + 1)
+            v.co.y += 0.012 if v.co.y > 0 else 0.0
     bpy.ops.object.shade_smooth()
     tag(skirt, "hips")
     extras.append(skirt)
@@ -413,13 +460,23 @@ for side in ("L", "R"):
     bone(f"foot_{side}_tip", toe, toe + Vector((0, -0.03 * H, 0)), f"foot_{side}")
 bpy.ops.object.mode_set(mode="OBJECT")
 
-# ---------------------------------------------------------------- remove bare feet, add material slots, join, auto weights
+# ---------------------------------------------------------------- remove bare feet, weight the body, then join the accessories
 bpy.context.view_layer.objects.active = body
 cut = GROUND + 0.085 * H
 delete_faces(body, lambda c: c.z < cut)
 body.data.materials.append(mat_skin)
 body.data.materials.append(mat_top)
 body.data.materials.append(mat_legs)
+body.data.materials.append(mat_glove)
+
+bpy.ops.object.select_all(action="DESELECT")
+body.select_set(True)
+rig.select_set(True)
+bpy.context.view_layer.objects.active = rig
+bpy.ops.object.parent_set(type="ARMATURE_AUTO")
+body_unweighted = sum(1 for v in body.data.vertices if not v.groups)
+if body_unweighted:
+    raise RuntimeError(f"automatic weights left {body_unweighted} body vertices unweighted")
 
 bpy.ops.object.select_all(action="DESELECT")
 for ob in extras:
@@ -429,12 +486,6 @@ bpy.context.view_layer.objects.active = body
 bpy.ops.object.join()
 body = bpy.context.active_object
 bpy.ops.object.shade_smooth()
-
-bpy.ops.object.select_all(action="DESELECT")
-body.select_set(True)
-rig.select_set(True)
-bpy.context.view_layer.objects.active = rig
-bpy.ops.object.parent_set(type="ARMATURE_AUTO")
 
 # tagged parts follow one bone rigidly
 for vg in list(body.vertex_groups):
@@ -457,7 +508,10 @@ for b in arm_data.bones:
             body.vertex_groups.remove(vg)
 
 # ---------------------------------------------------------------- outfit by dominant bone
-skin_groups = {"head", "neck", "hand_L", "hand_R"}
+skin_groups = {"head", "neck"}
+glove_groups = {"hand_L", "hand_R"}
+sleeves = PALETTE["sleeves"]
+bare_arm_groups = {"none": {"shoulder_L", "shoulder_R", "upper_arm_L", "upper_arm_R", "forearm_L", "forearm_R"}, "short": {"forearm_L", "forearm_R"}, "long": set()}[sleeves]
 leg_groups = {"thigh_L", "thigh_R", "shin_L", "shin_R", "foot_L", "foot_R"}
 arm_groups = {"shoulder_L", "shoulder_R", "upper_arm_L", "upper_arm_R", "forearm_L", "forearm_R", "hand_L", "hand_R"}
 gi = {vg.index: vg.name for vg in body.vertex_groups}
@@ -470,15 +524,21 @@ for v in mesh.vertices:
             bw, best = g.weight, gi.get(g.group)
     dominant.append(best)
 slot = {m.name: i for i, m in enumerate(mesh.materials) if m}
-fixed_slots = {slot[n] for n in ("boot", "sole", "lace", "vent", "blade", "plate", "hair", "skirt") if n in slot}
+fixed_slots = {slot[n] for n in ("boot", "sole", "lace", "vent", "eyelet", "blade", "plate", "hair", "skirt", "belt") if n in slot}
 waist = z(0.53)
 for p in mesh.polygons:
     if p.material_index in fixed_slots:
         continue
     names = [dominant[vi] for vi in p.vertices]
     centre = sum((mesh.vertices[vi].co for vi in p.vertices), Vector()) / len(p.vertices)
-    if sum(1 for n in names if n in skin_groups) * 2 > len(names):
+    if sum(1 for n in names if n in glove_groups) * 2 > len(names):
+        p.material_index = slot["glove"]
+    elif sum(1 for n in names if n in skin_groups or n in bare_arm_groups) * 2 > len(names):
         p.material_index = slot["skin"]
+    elif FEMALE and centre.z > z(0.775) and centre.y < -0.02 and abs(centre.x) < 0.075:
+        p.material_index = slot["skin"]  # scoop neckline
+    elif FEMALE and centre.z > z(0.70) and centre.y > 0.045 and abs(centre.x) < 0.09:
+        p.material_index = slot["skin"]  # open back
     elif centre.z < waist and sum(1 for n in names if n in arm_groups) * 2 <= len(names):
         p.material_index = slot["legs"]
     else:
