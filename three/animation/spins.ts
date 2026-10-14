@@ -27,6 +27,23 @@ export interface SpinParams {
   rps?: number;
 }
 
+/**
+ * Relative moment of inertia of each position about the spin axis (camel = 1). A spin keeps its
+ * angular momentum, so pulling the arms and free leg to the axis makes it faster: the scratch spin
+ * is the quickest, the camel the slowest. Rates are clamped so the animation stays readable.
+ */
+const INERTIA: Record<string, number> = {
+  camel: 1.0, camelSideways: 1.0, camelUpward: 0.95, doughnut: 0.85, windmillUp: 1.0, windmillDown: 0.8,
+  sit: 0.55, sitSideways: 0.6, sitBehind: 0.5, pancake: 0.5, layback: 0.5, catchFoot: 0.5, biellmann: 0.4,
+  upright: 0.32, uprightForward: 0.45, crossfoot: 0.35, headless: 0.35, changeFoot: 0.65,
+};
+
+/** Angular velocity multiplier for a pose relative to the preset's base rate. */
+export function spinRateFactor(pose: string): number {
+  const inertia = INERTIA[pose] ?? 0.7;
+  return Math.min(2.4, Math.max(0.6, 0.75 / inertia));
+}
+
 const ENTRY = 1.3;
 const FLY = 0.5;
 const EXIT = 1.2;
@@ -40,22 +57,39 @@ const R_ENTRY = 4; // entry edge radius
 export function spinTimeline(p: SpinParams): Timeline {
   const rps = p.rps ?? 1.7;
   const tSpinStart = ENTRY + (p.entry === "fly" ? FLY : 0.25);
-  // phase schedule
+  // phase schedule: each position spins at its own rate; transitions blend the rate linearly
   let t = tSpinStart;
-  const schedule: { phase: SpinPhase; from: number; to: number }[] = [];
-  let totalRev = 0;
+  const schedule: { phase: SpinPhase; from: number; to: number; rate: number }[] = [];
+  const segments: { from: number; to: number; w0: number; w1: number }[] = []; // ω in rev/s
+  let prevRate = rps * spinRateFactor(p.phases[0]?.pose ?? "camel") * 0.6;
   for (const ph of p.phases) {
-    const hold = ph.revolutions / rps;
+    const rate = rps * spinRateFactor(ph.pose);
     const trans = ph.transition ?? 0.45;
-    schedule.push({ phase: ph, from: t, to: t + trans + hold });
+    const hold = ph.revolutions / rate;
+    segments.push({ from: t, to: t + trans, w0: prevRate, w1: rate });
+    segments.push({ from: t + trans, to: t + trans + hold, w0: rate, w1: rate });
+    schedule.push({ phase: ph, from: t, to: t + trans + hold, rate });
     t += trans + hold;
-    totalRev += ph.revolutions + trans * rps;
+    prevRate = rate;
   }
   const tSpinEnd = t;
+  const revsUntil = (time: number): number => {
+    let revs = 0;
+    for (const sg of segments) {
+      if (time <= sg.from) break;
+      const end = Math.min(time, sg.to);
+      const u = (end - sg.from) / (sg.to - sg.from);
+      const wEnd = sg.w0 + (sg.w1 - sg.w0) * u;
+      revs += ((sg.w0 + wEnd) / 2) * (end - sg.from);
+    }
+    return revs;
+  };
+  const totalRev = revsUntil(tSpinEnd);
+  const endRate = segments.length ? segments[segments.length - 1].w1 : rps;
   const duration = tSpinEnd + 0.4 + EXIT;
   const yawTravelIn = headingOf(1, 0); // entering while travelling +X, facing forward
   const yawSpinStart = yawTravelIn + 0.6;
-  const yawSpinEnd = yawSpinStart + (tSpinEnd - tSpinStart) * rps * TWO_PI;
+  const yawSpinEnd = yawSpinStart + totalRev * TWO_PI;
 
   const root = (time: number): RootState => {
     if (time < ENTRY) {
@@ -72,13 +106,13 @@ export function spinTimeline(p: SpinParams): Timeline {
     }
     if (time < tSpinEnd) {
       // slow drift: real spins travel a few centimetres; keep it centred with a tiny wobble
-      const yaw = yawSpinStart + (time - tSpinStart) * rps * TWO_PI;
+      const yaw = yawSpinStart + revsUntil(time) * TWO_PI;
       return { x: 0.03 * Math.cos(yaw), y: 0, z: 0.03 * Math.sin(yaw), yaw };
     }
     const u = time - tSpinEnd;
     const slow = clamp01(u / 0.4);
-    // exit: rotation decays, then push out on a back outside edge toward -X
-    const yaw = yawSpinEnd + rps * TWO_PI * 0.4 * (1 - Math.pow(1 - slow, 2)) + (u > 0.4 ? 0 : 0);
+    // exit: the rotation decays from the last position's rate, then a push out on a back outside edge toward -X
+    const yaw = yawSpinEnd + endRate * TWO_PI * 0.4 * (1 - Math.pow(1 - slow, 2));
     const s = Math.max(0, u - 0.4) * 3.0;
     const phi = s / R_ENTRY;
     return { x: -R_ENTRY * Math.sin(phi), y: 0, z: -R_ENTRY + R_ENTRY * Math.cos(phi), yaw: yaw + phi };
@@ -100,7 +134,7 @@ export function spinTimeline(p: SpinParams): Timeline {
     const trans = phase.transition ?? 0.45;
     keys.push({ t: from + trans, pose: poseOf(phase.pose, phase.mirrored), ease: easeInOut });
     keys.push({ t: to, pose: poseOf(phase.pose, phase.mirrored), ease: linear });
-    markers.push({ t: from, label: phase.label, detail: phase.detail ?? `${phase.revolutions} revolutions` });
+    markers.push({ t: from, label: phase.label, detail: `${phase.detail ?? `${phase.revolutions} revolutions`} · about ${schedule.find((x) => x.phase === phase)!.rate.toFixed(1)} rev/s` });
   }
   keys.push({ t: tSpinEnd + 0.35, pose: POSES.windUp, ease: easeInOut });
   keys.push({ t: tSpinEnd + 0.9, pose: POSES.spinExit, ease: easeInOut });

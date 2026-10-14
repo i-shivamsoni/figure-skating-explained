@@ -173,3 +173,19 @@ describe("audit additions", async () => {
     expect(threes.root(1.2).yaw - threes.root(0.1).yaw).toBeGreaterThan(TWO_PI * 1.5);
   });
 });
+
+describe("spin angular momentum", async () => {
+  const { spinPreset, spinRateFactor } = await import("@/three/animation/spins");
+  it("spins faster in tight positions than in the camel", () => {
+    expect(spinRateFactor("upright")).toBeGreaterThan(2 * spinRateFactor("camel"));
+    expect(spinRateFactor("sit")).toBeGreaterThan(spinRateFactor("camel"));
+    const tl = spinPreset("CCoSp");
+    const rate = (t: number) => (tl.root(t + 0.05).yaw - tl.root(t).yaw) / 0.05 / TWO_PI;
+    const camelPhase = tl.markers.find((m) => m.label === "Camel")!.t + 0.6;
+    const uprightPhase = tl.markers.find((m) => m.label === "Upright")!.t + 0.8;
+    expect(rate(uprightPhase)).toBeGreaterThan(rate(camelPhase) * 1.8);
+    // revolutions still add up to the preset's count plus the blended transitions
+    const r = tl.rotation!;
+    expect((tl.root(r.end).yaw - tl.root(r.start).yaw) / TWO_PI).toBeCloseTo(r.turns, 1);
+  });
+});
