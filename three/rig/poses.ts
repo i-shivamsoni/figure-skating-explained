@@ -847,3 +847,16 @@ POSES.toeStep = {
   },
   hips: [0, -0.04, 0],
 };
+
+/** Deep landing absorption: the landing knee bends well past the check-out depth before rising. */
+POSES.landDeep = {
+  bones: {
+    ...POSES.land.bones,
+    thigh_R: { dir: limb(55, -2) },
+    shin_R: { dir: limb(-45, -2) },
+    thigh_L: { dir: limb(-50, 10) },
+    shin_L: { dir: limb(-55, 10) },
+    spine: { dir: vec(0, 0.9, 0.42) },
+  },
+  hips: [0, -0.26, 0],
+};

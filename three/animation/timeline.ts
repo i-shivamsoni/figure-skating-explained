@@ -23,6 +23,8 @@ export interface RootState {
   yaw: number;
   /** Somersault rotation about the skater's own lateral axis (backflip); 0 when absent. */
   pitch?: number;
+  /** Edge lean: rotation about the skater's forward axis, positive toward the skater's right; 0 when absent. */
+  roll?: number;
 }
 
 export interface Marker {

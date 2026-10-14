@@ -47,7 +47,9 @@ It appends the base mesh, builds a 25-bone FK armature, adds boots and blades, a
 and costume materials by dominant bone and exports glTF. Animation is not baked into the
 file: `three/rig/poses.ts` holds named poses (bone directions in skater space) and
 `three/animation/*` composes them into timelines with root motion, so every jump can be
-produced at any rotation count and with any technical-panel call.
+produced at any rotation count and with any technical-panel call. `three/physics/jump.ts` is the
+pure model behind the jumps (ballistics, angular momentum with a tuck inertia schedule,
+edge lean, landing absorption); `tests/physics.test.ts` pins its behaviour.
 
 ## Sources and licence
 

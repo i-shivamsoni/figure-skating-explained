@@ -1,5 +1,6 @@
 import { POSES } from "../rig/poses";
-import { clamp01, easeIn, easeInOut, easeOut, headingOf, linear, TWO_PI, type RootState, type Timeline, type TraceSample } from "./timeline";
+import { checkOut, edgeLean, flight, inertiaSchedule, landingDip, preRotationRamp, rollToward, rotationProfile, verticalVelocityForAirTime } from "../physics/jump";
+import { clamp01, easeInOut, easeOut, headingOf, linear, TWO_PI, type RootState, type Timeline, type TraceSample } from "./timeline";
 
 export type SpecialId = "split-jump" | "walley" | "inside-axel" | "backflip";
 
@@ -31,11 +32,11 @@ export const SPECIALS: Record<SpecialId, SpecialSpec> = {
 
 const SPEED = 4.0;
 const RADIUS = 7;
-const G = 9.81;
 const APPROACH = 1.3;
 const LOAD = 0.4;
 const LAND = 0.55;
 const EXIT = 1.1;
+const LEAN_RAMP = 0.3;
 
 /** Non-listed jumps and the backflip, built like a listed jump but without a Scale of Values code. */
 export function specialTimeline(id: SpecialId): Timeline {
@@ -46,35 +47,42 @@ export function specialTimeline(id: SpecialId): Timeline {
   const tLand = tTakeoff + T;
   const tExit = tLand + LAND;
   const duration = tExit + EXIT;
-  const D = SPEED * T * 0.9;
-  const H = spec.flips ? (G * T * T) / 8 + 0.15 : (G * T * T) / 8;
+  const f = flight(verticalVelocityForAirTime(T), SPEED * 0.9);
+  const D = f.range;
+  const spin = rotationProfile(spec.turns, T);
+  const tuck = inertiaSchedule(T);
   const entryCentreZ = spec.entrySign * RADIUS;
-  const yawBack = headingOf(-1, 0);
-  const yawFwd = headingOf(1, 0);
+  const exitSign = spec.landsForward ? 1 : -1;
+  const exitCentreZ = exitSign * RADIUS;
   const pre = spec.flips ? 0 : 0.4;
-  const facingOut = spec.forwardTakeoff ? yawFwd : yawBack;
+  const facing = spec.forwardTakeoff ? headingOf(1, 0) : headingOf(-1, 0);
+  // two-footed flat take-off and landing for the backflip: no edge, so no lean
+  const lean = spec.flips ? 0 : edgeLean(SPEED, RADIUS);
+  const driftRate = (-spec.entrySign * SPEED) / RADIUS;
 
   const root = (t: number): RootState => {
     if (t < tTakeoff) {
       const phi = ((t - tTakeoff) * SPEED) / RADIUS;
       const x = RADIUS * Math.sin(phi);
       const z = entryCentreZ - spec.entrySign * RADIUS * Math.cos(phi);
-      const tangent = -spec.entrySign * phi;
-      const load = clamp01((t - tLoad) / LOAD);
-      return { x, y: 0, z, yaw: facingOut + tangent + pre * easeIn(load) };
+      const yaw = facing - spec.entrySign * phi + preRotationRamp((t - tLoad) / LOAD, pre, (spin.omegaTakeoff - driftRate) * LOAD);
+      const onEdge = easeInOut(clamp01(t / LEAN_RAMP)) * (1 - easeInOut(clamp01((t - (tTakeoff - LEAN_RAMP)) / LEAN_RAMP)));
+      return { x, y: 0, z, yaw, roll: rollToward(yaw, -x, entryCentreZ - z, lean) * onEdge };
     }
     if (t < tLand) {
-      const u = (t - tTakeoff) / T;
+      const ta = t - tTakeoff;
+      const u = ta / T;
       const pitch = spec.flips ? -spec.flips * TWO_PI * easeInOut(u) : 0;
-      return { x: D * u, y: H * 4 * u * (1 - u) + (spec.flips ? 0.25 * Math.sin(Math.PI * u) : 0), z: 0, yaw: facingOut + pre + spec.turns * TWO_PI * u, pitch };
+      // the somersault folds the body over its root, which rides above the ballistic path
+      return { x: f.x(ta), y: f.y(ta) + (spec.flips ? 0.4 * Math.sin(Math.PI * u) : 0), z: 0, yaw: facing + pre + spin.angle(ta), pitch };
     }
-    const s = (t - tLand) * SPEED * 0.9;
-    const phi = s / RADIUS;
-    const exitSign = spec.landsForward ? 1 : -1;
+    const tl = t - tLand;
+    const phi = (tl * SPEED * 0.9) / RADIUS;
     const x = D + RADIUS * Math.sin(phi);
-    const checkOut = easeInOut(clamp01((t - tLand - 0.1) / 0.5));
-    const yaw = facingOut + pre + spec.turns * TWO_PI - pre * checkOut + (spec.landsForward ? -phi : phi);
-    return { x, y: 0, z: exitSign === 1 ? RADIUS - RADIUS * Math.cos(phi) : -RADIUS + RADIUS * Math.cos(phi), yaw };
+    const z = exitCentreZ - exitSign * RADIUS * Math.cos(phi);
+    const yaw = facing + pre + spec.turns * TWO_PI - pre * checkOut(tl) + (spec.landsForward ? -phi : phi);
+    const onEdge = easeInOut(clamp01((tl - 0.1) / LEAN_RAMP)) * (1 - easeInOut(clamp01((t - (duration - LEAN_RAMP)) / LEAN_RAMP)));
+    return { x, y: landingDip(tl, f.vy), z, yaw, roll: rollToward(yaw, D - x, exitCentreZ - z, lean) * onEdge };
   };
 
   const glide = spec.forwardTakeoff ? POSES.glideFO : POSES.glideBO;
@@ -85,8 +93,8 @@ export function specialTimeline(id: SpecialId): Timeline {
     { t: tLoad - 0.2, pose: glide },
     { t: tLoad + LOAD * 0.55, pose: prep, ease: easeInOut },
     { t: tTakeoff, pose: POSES.launch, ease: easeOut },
-    { t: tTakeoff + T * 0.3, pose: POSES[spec.airPose], ease: easeOut },
-    { t: tLand - T * 0.2, pose: POSES[spec.airPose], ease: linear },
+    { t: tTakeoff + tuck.tuckIn, pose: POSES[spec.airPose], ease: easeOut },
+    { t: tTakeoff + tuck.openOut, pose: POSES[spec.airPose], ease: linear },
     { t: tLand, pose: POSES.open, ease: easeOut },
     { t: tLand + 0.14, pose: landPose, ease: easeOut },
     { t: tExit + 0.5, pose: spec.landsForward ? POSES.glideFO : POSES.glideBO, ease: easeInOut },

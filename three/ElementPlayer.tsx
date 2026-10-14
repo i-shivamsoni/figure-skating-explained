@@ -92,7 +92,7 @@ function Actor({ timeline, store }: { timeline: Timeline; store: PlayerStore }) 
     if (!h || !g) return;
     const root = timeline.root(t);
     g.position.set(root.x, root.y, root.z);
-    g.rotation.set(root.pitch ?? 0, root.yaw, 0, "YXZ");
+    g.rotation.set(root.pitch ?? 0, root.yaw, root.roll ?? 0, "YXZ");
     h.rig.applyPose(poseAt(timeline, t, (b) => h.rig.restDir(b)));
   });
   return (
