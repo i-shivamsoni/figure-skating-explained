@@ -308,3 +308,15 @@ export const JUMP_SIGNS: JumpSign[] = [
 
 export const JUMP_BY_ID = Object.fromEntries(JUMPS.map((j) => [j.id, j])) as Record<JumpType["id"], JumpType>;
 export const JUMP_BY_SLUG = Object.fromEntries(JUMPS.map((j) => [j.slug, j])) as Record<string, JumpType>;
+
+/** Calling rules from the Technical Panel Handbook, Jump Elements, that decide what code a jump gets. */
+export const JUMP_CALLING_RULES: { title: string; rule: string }[] = [
+  { title: "Over-rotation", rule: "A jump turned more than a quarter past its name is called as the next jump up and downgraded: a double toe loop with an extra quarter and more becomes 3T<<, valued as a double." },
+  { title: "Popped jumps", rule: "A jump that opens up into a single still counts as an attempt and uses a jump slot. A small hop or jump of up to half a revolution done as decoration is not a jump; it goes into the Composition mark." },
+  { title: "What is an attempt", rule: "A clear preparation for take-off (stepping onto the entry edge, planting the toe pick, leaving the ice with or without a turn) is an attempt: it receives no value and blocks a box. Falling on a loop take-off before leaving the ice can also be called an attempt." },
+  { title: "Wrong foot or wrong edge on landing", rule: "In a combination or sequence every jump but the last may land on either foot. Landing the last jump on the wrong foot, or any jump on the wrong edge, keeps the call but costs GOE (weak landing, -1 to -3)." },
+  { title: "Listed plus non-listed jumps", rule: "When a listed jump is preceded or followed by non-listed jumps (Walley, split jump, inside Axel, half-rotation jumps), only the listed jump is called, as a solo jump." },
+  { title: "Euler with missing rotation", rule: "An Euler short of its revolution is never marked q, < or <<; a step-over Euler costs -2 to -3 in GOE instead." },
+  { title: "Spin and jump back to back", rule: "A spin followed immediately by a jump, or the reverse, is two separate elements. The difficult take-off or entry is rewarded in GOE, but a jump after a spin is not a difficult exit of the spin." },
+  { title: "Non-listed jumps", rule: "Walley, split jump, inside Axel and similar jumps are not in the Scale of Values. They never count as jump elements but can serve as creative entries, judged in Composition. A toe Walley is called and counted as a toe loop." },
+];

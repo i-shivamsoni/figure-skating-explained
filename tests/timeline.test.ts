@@ -125,3 +125,51 @@ describe("turn and choreo timelines", async () => {
     }
   });
 });
+
+describe("audit additions", async () => {
+  const { specialTimeline, SPECIALS } = await import("@/three/animation/special");
+  const { choreoTimeline, turnTimeline, CHOREO, TURN_SPECS } = await import("@/three/animation/steps");
+  const { spinPreset } = await import("@/three/animation/spins");
+  const rest = () => [0, -1, 0] as [number, number, number];
+  it("builds the non-listed jumps and the backflip", () => {
+    for (const id of Object.keys(SPECIALS) as (keyof typeof SPECIALS)[]) {
+      const tl = specialTimeline(id);
+      for (let t = 0; t <= tl.duration; t += 0.4) expect(Object.keys(poseAt(tl, t, rest).bones).length, id).toBeGreaterThan(0);
+    }
+    const flip = specialTimeline("backflip");
+    const mid = flip.root(flip.markers[2].t + 0.4);
+    expect(Math.abs(mid.pitch ?? 0)).toBeGreaterThan(1);
+    expect(mid.y).toBeGreaterThan(0.5);
+    const walley = specialTimeline("walley");
+    expect(walley.root(0).z).toBeGreaterThan(0); // counter-rotated entry like the Lutz
+    expect(walley.rotation!.turns).toBe(1);
+  });
+  it("builds every field move and basic step", () => {
+    for (const id of Object.keys(CHOREO) as (keyof typeof CHOREO)[]) expect(choreoTimeline(id).markers.map((m) => m.label)).toContain(CHOREO[id].label);
+    const facing = (tl: { root: (t: number) => { x: number; z: number; yaw: number } }, t: number) => {
+      const a = tl.root(t);
+      const b = tl.root(t + 0.02);
+      const l = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+      return (Math.sin(a.yaw) * (b.x - a.x) + Math.cos(a.yaw) * (b.z - a.z)) / l;
+    };
+    for (const id of ["change-of-edge", "cross-roll", "chasse", "toe-step"] as const) {
+      const tl = turnTimeline(id);
+      expect(TURN_SPECS[id].noTurn).toBe(true);
+      // still skating forward after the step
+      expect(facing(tl, 0.3), id).toBeGreaterThan(0.9);
+      expect(facing(tl, tl.duration - 0.3), id).toBeGreaterThan(0.9);
+    }
+    expect(turnTimeline("toe-step").trace.some((s) => s.edge === "toe")).toBe(true);
+    expect(turnTimeline("chasse").trace.some((s) => s.foot === "R")).toBe(true);
+    expect(new Set(turnTimeline("change-of-edge").trace.map((s) => s.edge))).toEqual(new Set(["outside", "inside"]));
+  });
+  it("builds the spin shape and entry presets", () => {
+    for (const code of ["shapes", "FCSpToeArabian", "threes"]) {
+      const tl = spinPreset(code);
+      expect(tl.trace.length).toBeGreaterThan(50);
+      for (let t = 0; t <= tl.duration; t += 0.6) expect(Object.keys(poseAt(tl, t, rest).bones).length, code).toBeGreaterThan(0);
+    }
+    const threes = spinPreset("threes");
+    expect(threes.root(1.2).yaw - threes.root(0.1).yaw).toBeGreaterThan(TWO_PI * 1.5);
+  });
+});

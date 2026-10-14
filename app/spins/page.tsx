@@ -4,7 +4,7 @@ import { Card, PageHeader, Section, Sig } from "@/components/Page";
 import { SourceNote } from "@/components/SourceNote";
 import { ElementViewer } from "@/components/ElementViewer";
 import { ValueTable } from "@/components/ValueTable";
-import { SPIN_FAMILIES, SPIN_LEVEL_FEATURES, SPIN_LEVEL_RULES, SPIN_POSITIONS, SPIN_REQUIREMENTS, VARIATION_CATEGORIES, V_SIGN_CASES } from "@/data/spins";
+import { SPIN_CLARIFICATIONS, SPIN_FAMILIES, SPIN_LEVEL_FEATURES, SPIN_LEVEL_RULES, SPIN_POSITIONS, SPIN_REQUIREMENTS, VARIATION_CATEGORIES, V_SIGN_CASES } from "@/data/spins";
 
 export const metadata: Metadata = {
   title: "Spins",
@@ -85,6 +85,27 @@ export default function SpinsPage() {
             <p className="mt-2 text-sm text-muted">Windmills: three in a row, each close to a split, count as one feature and are one of the six that unlock Level 4.</p>
           </div>
         </div>
+      </Section>
+      <Section title="Popular names, special entries">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <ElementViewer spec={{ kind: "spin", code: "shapes" }} height={360} camera="side" />
+            <p className="mt-2 text-sm text-muted">Pancake, doughnut, haircutter and headless: skaters’ names that the panel files under the ten official categories.</p>
+          </div>
+          <div>
+            <ElementViewer spec={{ kind: "spin", code: "FCSpToeArabian" }} height={360} camera="side" />
+            <p className="mt-2 text-sm text-muted">Toe Arabian entry: a horizontal butterfly from the toe pick, credited as a difficult fly or as a change of foot by jump.</p>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {SPIN_CLARIFICATIONS.map((c) => (
+            <Card key={c.title}>
+              <h3 className="font-semibold">{c.title}</h3>
+              <p className="mt-1 text-sm">{c.rule}</p>
+            </Card>
+          ))}
+        </div>
+        <SourceNote refs={[{ doc: "tpSingles", where: "Spins: Clarifications" }]} className="mt-3" />
       </Section>
       <Section title="Reduced value (V)">
         <p className="text-sm">The V sign cuts the base value to the row below the full code in the Scale of Values. It is used in exactly four situations:</p>

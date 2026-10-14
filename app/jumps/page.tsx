@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { Card, PageHeader, Section } from "@/components/Page";
 import { SourceNote } from "@/components/SourceNote";
 import { ElementViewer } from "@/components/ElementViewer";
-import { JUMPS, JUMP_SIGNS, ROTATION_NAMES } from "@/data/jumps";
+import { JUMPS, JUMP_CALLING_RULES, JUMP_SIGNS, ROTATION_NAMES } from "@/data/jumps";
+import { SpecialExplorer } from "./SpecialExplorer";
 import { SOV } from "@/lib/scoring/sov";
 
 export const metadata: Metadata = {
@@ -86,6 +87,21 @@ export default function JumpsPage() {
       <Section title="Watch a quad Lutz">
         <ElementViewer spec={{ kind: "jump", slug: "lutz", rotations: 4 }} height={460} camera="follow" />
         <p className="mt-2 text-sm text-muted">The blue line is the back outside edge; the dashed arc is the flight; the counter shows revolutions in the air. Open the Lutz page to change rotations, add a q or &lt; call and compare the take-off with the flip.</p>
+      </Section>
+      <Section title="What the technical panel calls">
+        <div className="grid gap-3 md:grid-cols-2">
+          {JUMP_CALLING_RULES.map((r) => (
+            <Card key={r.title}>
+              <h3 className="font-semibold">{r.title}</h3>
+              <p className="mt-1 text-sm">{r.rule}</p>
+            </Card>
+          ))}
+        </div>
+        <SourceNote refs={[{ doc: "tpSingles", where: "Jump Elements: Clarifications" }, { doc: "refJudges", where: "Jump Elements Q&A" }]} className="mt-3" />
+      </Section>
+      <Section title="Jumps that are not in the Scale of Values">
+        <SpecialExplorer />
+        <SourceNote refs={[{ doc: "tpSingles", where: "Non-listed jumps" }, { doc: "deductionsChart", where: "Illegal elements (Novice)" }]} className="mt-3" />
       </Section>
       <Section title="Signs that change the value">
         <div className="grid gap-3 md:grid-cols-2">

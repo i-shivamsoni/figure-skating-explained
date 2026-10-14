@@ -141,3 +141,15 @@ export const SPIN_REQUIREMENTS = {
     "Multiple changes of foot are allowed in Free Skating; a second change is a wrong element in the Short Program.",
   ],
 };
+
+/** Further clarifications from the Technical Panel Handbook, Spins. */
+export const SPIN_CLARIFICATIONS: { title: string; rule: string }[] = [
+  { title: "Weight transfer ends the spin", rule: "A clear transfer of weight during a spin finishes it; only the part before the transfer is called and counted for features." },
+  { title: "Two spinning centres", rule: "If the centres before and after a change of foot are far apart with an exit curve and an entry curve between them, the Short Program spin has no value and in Free Skating only the first part counts." },
+  { title: "Toe Arabian", rule: "A Toe Arabian (butterfly with a toe-pick push) is allowed as a change of foot: it counts as a change of foot executed by jump in both programs. As a flying entry it can earn the difficult-fly feature." },
+  { title: "Travelling threes", rule: "Three turns travelling into the spin are a difficult entrance only if at least two revolutions are turned without the free foot touching the ice, and the basic position arrives within two revolutions." },
+  { title: "Headless spin", rule: "A named upright variation: the head and neck move backward off the main axis so the balance is affected." },
+  { title: "Illusion", rule: "A single windmill movement counts as difficult only near a full split (135 degrees). It can be the difficult change of position; it is no longer a difficult entry or exit unless the blade is held on the spinning foot." },
+  { title: "Crossfoot spin", rule: "On both feet with equal weight, toes close, heels open: a difficult upright variation credited to the foot before the cross. Increasing speed in it is not a feature." },
+  { title: "Popular names", rule: "Pancake, doughnut, haircutter, Y-spin and Biellmann are skaters' names. The panel files each one under one of the ten variation categories (sit, camel or upright with its direction), so a doughnut is a camel variation and a haircutter an upright layback variation." },
+];

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
 import { Group, Vector3 } from "three";
@@ -37,9 +37,11 @@ export function ElementPlayer({ timeline, autoplay = true, initialTime = 0, came
   useEffect(() => {
     onStore?.(store);
   }, [store, onStore]);
+  // this component only renders on the client (dynamic import, ssr: false), so reading matchMedia here is safe
+  const [reducedMotion] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   useEffect(() => {
-    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) store.getState().pause();
-  }, [store]);
+    if (reducedMotion) store.getState().pause();
+  }, [reducedMotion, store]);
   const containerRef = useRef<HTMLDivElement>(null);
   const onKey = useCallback(
     (e: React.KeyboardEvent) => {
@@ -60,6 +62,7 @@ export function ElementPlayer({ timeline, autoplay = true, initialTime = 0, came
         <CameraRig timeline={timeline} store={store} />
       </Stage>
       <Hud timeline={timeline} store={store} extra={hud} caption={caption} value={value} />
+      {reducedMotion && <p className="pointer-events-none absolute left-3 bottom-14 rounded-md bg-surface/90 px-2 py-1 text-xs text-muted">Autoplay off (reduced motion). Use Play or the slider.</p>}
       {showControls && <Controls store={store} />}
     </div>
   );
@@ -89,7 +92,7 @@ function Actor({ timeline, store }: { timeline: Timeline; store: PlayerStore }) 
     if (!h || !g) return;
     const root = timeline.root(t);
     g.position.set(root.x, root.y, root.z);
-    g.rotation.y = root.yaw;
+    g.rotation.set(root.pitch ?? 0, root.yaw, 0, "YXZ");
     h.rig.applyPose(poseAt(timeline, t, (b) => h.rig.restDir(b)));
   });
   return (

@@ -19,7 +19,7 @@ export interface SpinPhase {
 export interface SpinParams {
   id: string;
   title: string;
-  entry: "step" | "fly";
+  entry: "step" | "fly" | "threes";
   /** Air pose for flying entries. */
   flyPose?: string;
   phases: SpinPhase[];
@@ -61,7 +61,9 @@ export function spinTimeline(p: SpinParams): Timeline {
     if (time < ENTRY) {
       // arc with centre on -Z, ending at the origin heading +X
       const phi = ((time - ENTRY) * 3.2) / R_ENTRY;
-      return { x: R_ENTRY * Math.sin(phi), y: 0, z: -R_ENTRY + R_ENTRY * Math.cos(phi), yaw: yawTravelIn + phi };
+      // travelling threes: two full body revolutions of turns along the entry curve
+      const threes = p.entry === "threes" ? TWO_PI * 2 * easeInOut(clamp01((time - 0.2) / (ENTRY - 0.3))) : 0;
+      return { x: R_ENTRY * Math.sin(phi), y: 0, z: -R_ENTRY + R_ENTRY * Math.cos(phi), yaw: yawTravelIn + phi + threes };
     }
     if (time < tSpinStart) {
       const u = clamp01((time - ENTRY) / (tSpinStart - ENTRY));
@@ -92,7 +94,7 @@ export function spinTimeline(p: SpinParams): Timeline {
     keys.push({ t: ENTRY + 0.08, pose: POSES.launch, ease: easeOut });
     keys.push({ t: ENTRY + FLY * 0.5, pose: poseOf(p.flyPose ?? "flyCamel"), ease: easeOut });
   }
-  const markers: Marker[] = [{ t: 0, label: "Entry", detail: p.entry === "fly" ? "forward outside edge into a jump: no rotation on the ice before take-off" : "forward outside edge, hooking into the spin" }];
+  const markers: Marker[] = [{ t: 0, label: "Entry", detail: p.entry === "fly" ? "forward outside edge into a jump: no rotation on the ice before take-off" : p.entry === "threes" ? "travelling threes: a difficult entrance if two revolutions are turned without the free foot touching the ice" : "forward outside edge, hooking into the spin" }];
   if (p.entry === "fly") markers.push({ t: ENTRY, label: "Fly", detail: "a clear jump with a defined air position" });
   for (const { phase, from, to } of schedule) {
     const trans = phase.transition ?? 0.45;
@@ -194,6 +196,20 @@ export const SPIN_PRESETS: Record<string, SpinParams> = {
       { pose: "uprightForward", revolutions: 1.5, label: "Any position", detail: "basic or non-basic; only three consecutive revolutions on one foot are required" },
       { pose: "sitBehind", revolutions: 1.5, label: "Change at will", detail: "changes of foot and position are free and can repeat", transition: 0.6 },
       { pose: "layback", revolutions: 2, label: "Matching the music", detail: "judges score it in GOE only; no levels", transition: 0.6 },
+    ],
+  },
+  FCSpToeArabian: { id: "FCSpToeArabian", title: "Toe Arabian into a camel", entry: "fly", flyPose: "toeArabian", phases: [{ pose: "camel", revolutions: 5, label: "Camel position", detail: "the Toe Arabian counts as a difficult variation of the flying entry, or as a change of foot by jump" }] },
+  threes: { id: "threes", title: "Travelling threes into a camel", entry: "threes", phases: [{ pose: "camel", revolutions: 5, label: "Camel position", detail: "entered from travelling three turns" }] },
+  shapes: {
+    id: "shapes",
+    title: "Popular position names",
+    entry: "step",
+    rps: 1.5,
+    phases: [
+      { pose: "pancake", revolutions: 2, label: "Pancake", detail: "a sit variation: free leg folded across, torso flat on top (sit forward or sideways in the rules)" },
+      { pose: "doughnut", revolutions: 2, label: "Doughnut", detail: "a camel with the free foot caught overhead so the body forms a ring (camel sideways or upward)", transition: 0.8 },
+      { pose: "catchFoot", revolutions: 2, label: "Haircutter", detail: "a layback catch-foot where the blade nearly touches the head (upright layback)", transition: 0.8 },
+      { pose: "headless", revolutions: 2, label: "Headless", detail: "an upright variation named in the handbook: the head and neck move back off the axis", transition: 0.7 },
     ],
   },
   windmills: {

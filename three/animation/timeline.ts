@@ -21,6 +21,8 @@ export interface RootState {
   z: number;
   /** Rotation about Y; the skater faces (sin yaw, 0, cos yaw). */
   yaw: number;
+  /** Somersault rotation about the skater's own lateral axis (backflip); 0 when absent. */
+  pitch?: number;
 }
 
 export interface Marker {

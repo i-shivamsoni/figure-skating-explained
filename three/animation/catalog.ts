@@ -1,7 +1,8 @@
 import { JUMP_BY_SLUG } from "@/data/jumps";
 import { jumpTimeline, type RotationCall } from "./jumps";
 import { spinPreset, SPIN_PRESETS } from "./spins";
-import { choreoTimeline, turnTimeline, TURN_SPECS, type ChoreoId, type TurnId } from "./steps";
+import { choreoTimeline, CHOREO, turnTimeline, TURN_SPECS, type ChoreoId, type TurnId } from "./steps";
+import { specialTimeline, SPECIALS, type SpecialId } from "./special";
 import type { Timeline } from "./timeline";
 import { ROTATION_NAMES } from "@/data/jumps";
 import { SPIN_FAMILIES } from "@/data/spins";
@@ -12,7 +13,8 @@ export type ViewerSpec =
   | { kind: "jump"; slug: string; rotations: number; call?: RotationCall }
   | { kind: "spin"; code: string }
   | { kind: "turn"; id: TurnId }
-  | { kind: "choreo"; id: ChoreoId };
+  | { kind: "choreo"; id: ChoreoId }
+  | { kind: "special"; id: SpecialId };
 
 export function buildTimeline(spec: ViewerSpec): Timeline {
   switch (spec.kind) {
@@ -26,7 +28,9 @@ export function buildTimeline(spec: ViewerSpec): Timeline {
     case "turn":
       return turnTimeline(spec.id in TURN_SPECS ? spec.id : "three-turn");
     case "choreo":
-      return choreoTimeline(spec.id);
+      return choreoTimeline(spec.id in CHOREO ? spec.id : "spiral");
+    case "special":
+      return specialTimeline(spec.id in SPECIALS ? spec.id : "walley");
   }
 }
 
@@ -56,6 +60,8 @@ export function captionFor(spec: ViewerSpec): { caption: string; value?: number 
     case "turn":
       return { caption: TURN_SPECS[spec.id]?.label ?? spec.id };
     case "choreo":
-      return { caption: spec.id.replace("-", " ").replace(/\b\w/g, (c) => c.toUpperCase()) };
+      return { caption: CHOREO[spec.id]?.label ?? spec.id };
+    case "special":
+      return { caption: `${SPECIALS[spec.id]?.label ?? spec.id} · no value` };
   }
 }
