@@ -5,11 +5,15 @@ import { airTimeFor, edgeLean, flight, inertiaSchedule, landingDip, landingSkid,
 import { clamp01, easeInOut, easeOut, headingOf, linear, TWO_PI, type IceArrow, type RootState, type Timeline, type TraceSample } from "./timeline";
 
 export type RotationCall = "" | "q" | "<" | "<<";
+/** Edge calls on Flip and Lutz: "e" = wrong edge (a lip or a flutz), "!" = unclear edge. */
+export type EdgeCallParam = "" | "!" | "e";
 
 export interface JumpParams {
   jump: JumpType;
   rotations: number;
   call?: RotationCall;
+  /** Flip/Lutz take-off edge call; the Wave 2 jumps agent animates it (wrong edge = the other lobe and lean). */
+  edgeCall?: EdgeCallParam;
 }
 
 const SPEED = 4.2; // m/s along the ice at take-off

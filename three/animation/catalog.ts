@@ -1,5 +1,5 @@
 import { JUMP_BY_SLUG } from "@/data/jumps";
-import { jumpTimeline, type RotationCall } from "./jumps";
+import { jumpTimeline, type EdgeCallParam, type RotationCall } from "./jumps";
 import { spinPreset, SPIN_PRESETS } from "./spins";
 import { choreoTimeline, CHOREO, turnTimeline, TURN_SPECS, type ChoreoId, type TurnId } from "./steps";
 import { specialTimeline, SPECIALS, type SpecialId } from "./special";
@@ -11,7 +11,7 @@ import { hasCode, baseValueOf } from "@/lib/scoring/sov";
 
 /** Serialisable description of what to animate, safe to pass from server components. */
 export type ViewerSpec =
-  | { kind: "jump"; slug: string; rotations: number; call?: RotationCall }
+  | { kind: "jump"; slug: string; rotations: number; call?: RotationCall; edge?: EdgeCallParam }
   | { kind: "spin"; code: string }
   | { kind: "turn"; id: TurnId }
   | { kind: "choreo"; id: ChoreoId }
@@ -23,7 +23,7 @@ export function buildTimeline(spec: ViewerSpec): Timeline {
     case "jump": {
       const jump = JUMP_BY_SLUG[spec.slug] ?? JUMP_BY_SLUG.lutz;
       const rotations = jump.rotations.includes(spec.rotations) ? spec.rotations : jump.rotations[jump.rotations.length - 1];
-      return jumpTimeline({ jump, rotations, call: spec.call });
+      return jumpTimeline({ jump, rotations, call: spec.call, edgeCall: spec.edge });
     }
     case "spin":
       return spinPreset(spec.code in SPIN_PRESETS ? spec.code : "CSp");
@@ -52,9 +52,10 @@ export function captionFor(spec: ViewerSpec): { caption: string; value?: number 
   switch (spec.kind) {
     case "jump": {
       const jump = JUMP_BY_SLUG[spec.slug] ?? JUMP_BY_SLUG.lutz;
-      const code = jump.id === "Eu" ? "Eu" : `${spec.rotations}${jump.id}${spec.call ?? ""}`;
+      const code = jump.id === "Eu" ? "Eu" : `${spec.rotations}${jump.id}${spec.edge ?? ""}${spec.call ?? ""}`;
       const name = jump.id === "Eu" ? "Euler" : `${ROTATION_NAMES[spec.rotations] ?? ""} ${jump.name}`;
-      return { caption: `${name}${spec.call ? ` (${spec.call})` : ""}`, value: hasCode(code) ? baseValueOf(code) : undefined };
+      const marks = [spec.edge === "e" ? "wrong edge" : spec.edge === "!" ? "unclear edge" : "", spec.call].filter(Boolean).join(", ");
+      return { caption: `${name}${marks ? ` (${marks})` : ""}`, value: hasCode(code) ? baseValueOf(code) : undefined };
     }
     case "spin": {
       const fam = SPIN_FAMILIES.find((f) => f.code === spec.code);

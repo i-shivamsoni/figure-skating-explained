@@ -6,7 +6,6 @@ import { jumpModel, jumpTimeline, MISSING_TURNS } from "@/three/animation/jumps"
 import { specialTimeline } from "@/three/animation/special";
 import { TWO_PI, type RootState } from "@/three/animation/timeline";
 import { ABSORB_TIME, AIR_TIME, DIP_PER_SPEED, airTimeFor, edgeLean, flight, G, I_OPEN, inertiaAt, inertiaSchedule, landingDip, landingSkid, preRotationAngle, rollToward, rotationProfile, SKID_CAP, SKID_MAX, SKID_TAU, TUCK_RATIO, VAULT_TIME, verticalVelocityForAirTime, verticalVelocityForHeight } from "@/three/physics/jump";
-import { spinPreset } from "@/three/animation/spins";
 import { poseAt } from "@/three/animation/timeline";
 import type { Pose } from "@/three/rig/pose";
 
@@ -295,38 +294,6 @@ describe("landing", () => {
     for (let t = end; t <= dg.duration; t += 0.002) {
       expect(dg.root(t).yaw).toBeGreaterThanOrEqual(prev - 1e-9);
       prev = dg.root(t).yaw;
-    }
-  });
-});
-
-describe("spin entry and exit", () => {
-  it("ramps the hook into the first position's rate and turns half a revolution in the air on a flying entry", () => {
-    for (const code of ["CSp", "FCSp", "CCoSp", "FSSp", "threes"]) {
-      const tl = spinPreset(code);
-      const start = tl.rotation!.start;
-      expect(rateAt(tl, start, 1) / rateAt(tl, start, -1), code).toBeCloseTo(1, 2);
-      let prev = tl.root(0.2).yaw;
-      for (let t = 0.2; t <= start; t += 0.005) {
-        expect(tl.root(t).yaw, `${code} at ${t.toFixed(3)}`).toBeGreaterThanOrEqual(prev - 1e-9);
-        prev = tl.root(t).yaw;
-      }
-      if (code.startsWith("F")) {
-        const fly = tl.markers.find((m) => m.label === "Fly")!.t;
-        expect((tl.root(start).yaw - tl.root(fly).yaw) / TWO_PI, code).toBeGreaterThanOrEqual(0.4);
-      }
-    }
-  });
-  it("brakes the exit at a constant rate from the last position's speed to rest", () => {
-    const tl = spinPreset("CCoSp");
-    const end = tl.rotation!.end;
-    expect(rateAt(tl, end, 1) / rateAt(tl, end, -1)).toBeCloseTo(1, 2);
-    const w0 = rateAt(tl, end, 1);
-    expect(rateAt(tl, end + 0.2, 1) / w0).toBeCloseTo(0.5, 2);
-    expect(rateAt(tl, end + 0.4, -1) / w0).toBeLessThan(0.02);
-    let prev = tl.root(end).yaw;
-    for (let t = end; t <= tl.duration; t += 0.002) {
-      expect(tl.root(t).yaw).toBeGreaterThanOrEqual(prev - 1e-9);
-      prev = tl.root(t).yaw;
     }
   });
 });

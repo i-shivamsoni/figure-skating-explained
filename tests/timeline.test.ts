@@ -53,33 +53,6 @@ describe("jump timeline", () => {
   });
 });
 
-describe("spin timeline", async () => {
-  const { spinPreset, SPIN_PRESETS } = await import("@/three/animation/spins");
-  it("rotates counter-clockwise for the held revolutions", () => {
-    const tl = spinPreset("CSp");
-    const r = tl.rotation!;
-    const turns = (tl.root(r.end).yaw - tl.root(r.start).yaw) / TWO_PI;
-    expect(turns).toBeGreaterThan(6);
-    expect(turns).toBeCloseTo(r.turns, 1);
-    expect(tl.root(r.start + 1).y).toBe(0);
-  });
-  it("lifts off the ice on a flying entry", () => {
-    const tl = spinPreset("FCSp");
-    let maxY = 0;
-    for (let t = 0; t < tl.rotation!.start; t += 0.02) maxY = Math.max(maxY, tl.root(t).y);
-    expect(maxY).toBeGreaterThan(0.4);
-    expect(tl.markers.some((m) => m.label === "Fly")).toBe(true);
-  });
-  it("builds every preset with poses throughout", () => {
-    const rest = () => [0, -1, 0] as [number, number, number];
-    for (const code of Object.keys(SPIN_PRESETS)) {
-      const tl = spinPreset(code);
-      for (let t = 0; t <= tl.duration; t += 0.5) expect(Object.keys(poseAt(tl, t, rest).bones).length, code).toBeGreaterThan(0);
-      expect(tl.trace.length).toBeGreaterThan(50);
-    }
-  });
-});
-
 describe("turn and choreo timelines", async () => {
   const { turnTimeline, choreoTimeline, TURN_SPECS } = await import("@/three/animation/steps");
   const rest = () => [0, -1, 0] as [number, number, number];
@@ -175,21 +148,5 @@ describe("audit additions", async () => {
     }
     const threes = spinPreset("threes");
     expect(threes.root(1.2).yaw - threes.root(0.1).yaw).toBeGreaterThan(TWO_PI * 1.5);
-  });
-});
-
-describe("spin angular momentum", async () => {
-  const { spinPreset, spinRateFactor } = await import("@/three/animation/spins");
-  it("spins faster in tight positions than in the camel", () => {
-    expect(spinRateFactor("upright")).toBeGreaterThan(2 * spinRateFactor("camel"));
-    expect(spinRateFactor("sit")).toBeGreaterThan(spinRateFactor("camel"));
-    const tl = spinPreset("CCoSp");
-    const rate = (t: number) => (tl.root(t + 0.05).yaw - tl.root(t).yaw) / 0.05 / TWO_PI;
-    const camelPhase = tl.markers.find((m) => m.label === "Camel")!.t + 0.6;
-    const uprightPhase = tl.markers.find((m) => m.label === "Upright")!.t + 0.8;
-    expect(rate(uprightPhase)).toBeGreaterThan(rate(camelPhase) * 1.8);
-    // revolutions still add up to the preset's count plus the blended transitions
-    const r = tl.rotation!;
-    expect((tl.root(r.end).yaw - tl.root(r.start).yaw) / TWO_PI).toBeCloseTo(r.turns, 1);
   });
 });

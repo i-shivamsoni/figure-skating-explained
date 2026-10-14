@@ -5,5 +5,7 @@
  * New pose files (three/rig/poses-jumps.ts, poses-spins.ts, …) must be added to the imports below.
  */
 import "./poses";
+import "./poses-jumps";
+import "./poses-spins";
 
 export { POSES, poseNames, mirrorPose } from "./poses";
