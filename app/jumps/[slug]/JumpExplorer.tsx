@@ -72,7 +72,7 @@ export function JumpExplorer({ slug, defaultRotation }: { slug: string; defaultR
         </div>
         <ElementViewer spec={spec} height={480} camera={camera} />
         <div className="mt-2 flex flex-wrap gap-2 text-xs">
-          {(["follow", "side", "front", "overhead", "orbit"] as CameraMode[]).map((c) => (
+          {(["follow", "side", "front", "overhead", "free"] as CameraMode[]).map((c) => (
             <button key={c} type="button" onClick={() => setCamera(c)} className={`rounded-full border px-2.5 py-1 ${c === camera ? "border-accent bg-accent-soft text-accent-strong" : "border-border bg-surface"}`}>
               {c}
             </button>

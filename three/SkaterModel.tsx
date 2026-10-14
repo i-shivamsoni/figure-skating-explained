@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useImperativeHandle, useMemo, type Ref } from "react";
-import { Color, Group, Material, Mesh, MeshStandardMaterial } from "three";
+import { Group, Material, Mesh, MeshStandardMaterial, type Object3D } from "three";
 import { useGLTF } from "@react-three/drei";
 import { SkeletonUtils } from "three/examples/jsm/Addons.js";
 import { SkaterRig } from "./rig/rig";
 import type { Pose } from "./rig/pose";
-import { costumeFor, skaterUrl, useSkaterStore, type CostumeChoice, type SkaterVariant } from "./skaterStore";
+import { skaterUrl, useSkaterStore, type SkaterVariant } from "./skaterStore";
+import { appearanceSignature, applyAppearance, type Wardrobe } from "./appearance";
 
 export interface SkaterHandle {
   rig: SkaterRig;
@@ -22,21 +23,16 @@ export interface SkaterModelProps {
   onReady?: (h: SkaterHandle) => void;
 }
 
-/** A model instance's materials by GLB material name, with the colours they were built with. */
-interface Wardrobe {
-  byName: Map<string, MeshStandardMaterial[]>;
-  built: Map<MeshStandardMaterial, Color>;
-}
-
 /**
  * Gives every mesh of a cloned model its own copy of its materials (the loader shares them between
- * clones) and indexes them by name, so each instance can be recoloured on its own.
+ * clones) and indexes them and the named nodes, so each instance can be dressed on its own.
  */
-function cloneMaterials(root: Group): Wardrobe {
-  const byName = new Map<string, MeshStandardMaterial[]>();
-  const built = new Map<MeshStandardMaterial, Color>();
+function buildWardrobe(root: Group): Wardrobe {
+  const materials = new Map<string, MeshStandardMaterial["color"][]>();
+  const nodes = new Map<string, Object3D>();
   const cloned = new Map<Material, Material>();
   root.traverse((o) => {
+    if (o.name) nodes.set(o.name, o);
     const mesh = o as Mesh;
     if (!mesh.isMesh) return;
     const own = (m: Material) => {
@@ -46,35 +42,23 @@ function cloneMaterials(root: Group): Wardrobe {
         cloned.set(m, c);
         if ((c as MeshStandardMaterial).isMeshStandardMaterial) {
           const std = c as MeshStandardMaterial;
-          built.set(std, std.color.clone());
-          const list = byName.get(std.name) ?? [];
-          list.push(std);
-          byName.set(std.name, list);
+          const list = materials.get(std.name) ?? [];
+          list.push(std.color);
+          materials.set(std.name, list);
         }
       }
       return c;
     };
     mesh.material = Array.isArray(mesh.material) ? mesh.material.map(own) : own(mesh.material);
   });
-  return { byName, built };
-}
-
-/** Recolours the costume materials by name; materials the preset leaves out go back to the GLB colour. */
-export function applyCostume(wardrobe: Wardrobe, costume: CostumeChoice) {
-  for (const [name, mats] of wardrobe.byName) {
-    const hex = costume.colours[name as keyof CostumeChoice["colours"]];
-    for (const m of mats) {
-      if (hex) m.color.set(hex);
-      else m.color.copy(wardrobe.built.get(m)!);
-    }
-  }
+  return { materials, nodes };
 }
 
 /** The rigged skater. Faces +Z with its blades on y = 0. */
 export function SkaterModel({ pose, variant, ref, onReady }: SkaterModelProps) {
   const global = useSkaterStore((s) => s.variant);
   const chosen = variant ?? global;
-  const costumeId = useSkaterStore((s) => s.costume[chosen]);
+  const appearance = useSkaterStore((s) => s.appearance[chosen]);
   const url = skaterUrl(chosen);
   const gltf = useGLTF(url);
   const { group, rig, wardrobe } = useMemo(() => {
@@ -86,11 +70,12 @@ export function SkaterModel({ pose, variant, ref, onReady }: SkaterModelProps) {
         o.frustumCulled = false;
       }
     });
-    return { group: clone, rig: new SkaterRig(clone), wardrobe: cloneMaterials(clone) };
+    return { group: clone, rig: new SkaterRig(clone), wardrobe: buildWardrobe(clone) };
   }, [gltf.scene]);
   useEffect(() => {
-    applyCostume(wardrobe, costumeFor(chosen, costumeId));
-  }, [wardrobe, chosen, costumeId]);
+    applyAppearance(wardrobe, appearance, chosen);
+    if (!variant && typeof document !== "undefined") document.body.dataset.appearance = appearanceSignature(appearance);
+  }, [wardrobe, chosen, appearance, variant]);
   const handle = useMemo(() => ({ rig, group }), [rig, group]);
   useImperativeHandle(ref, () => handle, [handle]);
   useEffect(() => {

@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: light;
   --background: #f5f9fc;
   --surface: #ffffff;
   --surface-2: #e8f1f8;
@@ -13,10 +14,14 @@
   --highlight: #e0532f;
   --ok: #1f8a4c;
   --warn: #b7791f;
+  --ice: #eaf3fa;
+  --radius: 0.75rem;
+  --control: 2.25rem;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --background: #07111c;
     --surface: #0e1b2b;
     --surface-2: #142639;
@@ -29,7 +34,25 @@
     --highlight: #ff8a66;
     --ok: #4cc17a;
     --warn: #e2b35a;
+    --ice: #10202f;
   }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #07111c;
+  --surface: #0e1b2b;
+  --surface-2: #142639;
+  --foreground: #e9f1f8;
+  --muted: #9fb3c8;
+  --border: #23384f;
+  --accent: #5db2ef;
+  --accent-strong: #8fcbf5;
+  --accent-soft: #163a5a;
+  --highlight: #ff8a66;
+  --ok: #4cc17a;
+  --warn: #e2b35a;
+  --ice: #10202f;
 }
 
 @theme inline {
@@ -45,8 +68,18 @@
   --color-highlight: var(--highlight);
   --color-ok: var(--ok);
   --color-warn: var(--warn);
+  --color-ice: var(--ice);
+  --radius-ui: var(--radius);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+/* Keyboard focus ring on any control. */
+@utility focus-ring {
+  outline: none;
+  &:focus-visible {
+    box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--accent);
+  }
 }
 
 html {
@@ -57,6 +90,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .prose-tight p + p {
@@ -70,4 +104,10 @@ code.sig {
   border-radius: 0.375rem;
   padding: 0.05rem 0.4rem;
   font-size: 0.9em;
+}
+
+/* Range inputs (the scrubber) in the accent colour, with a bigger thumb for touch. */
+input[type="range"] {
+  accent-color: var(--accent);
+  height: var(--control);
 }

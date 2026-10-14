@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SiteNav } from "@/components/SiteNav";
 import { SiteFooter } from "@/components/SiteFooter";
+import { SkaterDrawer } from "@/components/SkaterDrawer";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -14,13 +15,20 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://figure-skating-explained.vercel.app"),
 };
 
+/** Applies the saved theme before the first paint so a dark-theme visitor never sees a light flash. */
+const THEME_SCRIPT = "try{var t=localStorage.getItem('fse-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}";
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
+      <body className="flex min-h-full flex-col">
         <SiteNav />
         <main className="flex-1">{children}</main>
         <SiteFooter />
+        <SkaterDrawer />
       </body>
     </html>
   );

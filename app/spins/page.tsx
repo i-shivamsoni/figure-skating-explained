@@ -58,7 +58,7 @@ export default function SpinsPage() {
         <p className="mt-2 text-sm text-muted">Choose any of the twenty families, a level and the features that change what you see: a flying entry and its difficult variation, a change of foot by step or by jump, a clear change of edge (the lean and the trace colour flip), a difficult variation in each position, eight revolutions, travelling threes, windmills. The protocol code, its base value and the features the technical panel would count follow along.</p>
       </Section>
       <Section title="The positions and their difficult variations">
-        <ElementViewer spec={{ kind: "spin", code: "variations" }} height={460} camera="orbit" />
+        <ElementViewer spec={{ kind: "spin", code: "variations" }} height={460} camera="free" />
         <p className="mt-2 text-sm text-muted">One continuous spin cycling through the ten variation categories, seen from an orbiting camera so every position is read side-on at some point. Real spins hold each for at least two revolutions; only two difficult variations count toward the level in any one spin. The stills below show each position from a fixed angle.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {SPIN_POSITIONS.filter((p) => POSE_IMAGE[p.id]).map((p) => (

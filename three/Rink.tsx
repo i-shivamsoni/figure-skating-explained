@@ -3,7 +3,9 @@
 import { useMemo } from "react";
 import { Line } from "@react-three/drei";
 
-export const RINK = { length: 60, width: 30, radius: 8.5 };
+import { RINK } from "./animation/rinkSize";
+
+export { RINK };
 
 function rinkOutline(): [number, number, number][] {
   const { length: L, width: W, radius: r } = RINK;
