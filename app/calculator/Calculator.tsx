@@ -30,7 +30,7 @@ const EXAMPLES: Record<string, { segment: Segment; category: Category; rows: () 
       row({ kind: "spin", family: "FCSp", level: 4 }, 3),
       row({ kind: "jump", jumps: [j("T", 4), j("T", 3)] }, 2, true),
       row({ kind: "jump", jumps: [j("A", 3), j("Eu", 1), j("S", 3)] }, 2, true),
-      row({ kind: "jump", jumps: [j("Lz", 3), j("Lo", 3)] }, 1, true),
+      row({ kind: "jump", jumps: [j("Lz", 3)] }, 1, true),
       row({ kind: "step", level: 4 }, 3),
       row({ kind: "spin", family: "CCoSp", level: 4 }, 3),
       row({ kind: "choreoSequence" }, 4),
@@ -237,7 +237,7 @@ export function Calculator() {
               </div>
               <div className="flex justify-between">
                 <dt>Deductions</dt>
-                <dd className="font-mono">−{result.deductions.total.toFixed(2)}</dd>
+                <dd className="font-mono">{result.deductions.total > 0 ? `−${result.deductions.total.toFixed(2)}` : "0.00"}</dd>
               </div>
               <div className="mt-2 flex justify-between border-t border-border pt-2 text-lg font-semibold">
                 <dt>Total segment score</dt>
