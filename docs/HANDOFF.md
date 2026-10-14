@@ -20,9 +20,9 @@ Vercel project `figure-skating-explained` (team `<vercel team>`), linked via `.v
 Deploy with `vercel deploy --prod --yes` (preview: `vercel deploy --yes`; previews sit behind
 Vercel auth, production is public). The Vercel CLI is 54.x and nags to upgrade; ignore it.
 
-State at the time of writing: `main` clean at `8584ec2`, 234 vitest tests green, typecheck and
-lint clean, `pnpm build` 60 static pages, production deploy `lwkmyxx9c` (= `f834049` plus the
-dev-only config commit `8584ec2`, which does not need a redeploy).
+State at the time of writing (updated 15 Oct 01:20 IST): see §10 for the overhaul; 269 vitest
+tests green plus the six GLB-contract tests that fail until the model variants are built, 21
+Playwright tests green, typecheck and lint clean, production redeployed after commit `e2b40dc`.
 
 ## 2. The user and the working agreement
 
@@ -289,16 +289,53 @@ elements, commit, `pnpm build`, `vercel deploy --prod --yes`, and report to the 
   revisited by the Wave 3 review.
 - Deferred by the user: quiz mode, Ice Dance, localisation, program replay with running score.
 
-## 10. In progress: the overhaul (15 Oct 2026)
+## 10. The overhaul (15 Oct 2026, written at 01:20 IST before a scheduled shutdown)
 
-The user approved `docs/OVERHAUL-PLAN.md` (simpler UI, a freeplay rink at `/rink`, a free camera,
-a skater appearance editor), run as orchestrated waves under the §2 rules. **Wave 0 landed in
-`b67ce06`:** the appearance contract (`three/skaterStore.ts` v2 with looks, `three/appearance.ts`
-pure mapping, GLB material/variant-node naming asserted by `tests/glb.test.ts`, which fails by
-design until the model agent rebuilds the GLBs), the placement contract
-(`three/animation/place.ts`: `placeTimeline`, `placementAfter`, `startOf`/`endOf`, `linkTimeline`,
-`keepInRink`; `three/animation/rinkSize.ts`), camera presets with a `track` flag in
-`three/animation/store.ts` ("orbit" is now "free"), `components/ui/*` primitives, tokens and a
-forced-theme override in `app/globals.css`, the grouped nav, the "Your skater" drawer
-(`components/SkaterDrawer.tsx`, first version), the theme toggle and a `/rink` placeholder.
-Next: Wave 1 (model agent 1A, player agent 1B) once the Wave 3 review (§8) has landed.
+The user approved `docs/OVERHAUL-PLAN.md` (simpler UI, a freeplay rink, a free camera, a skater
+appearance editor). The usage-hook snapshot went stale during the night, so after Wave 0 the
+orchestrator did the next chunks inline instead of with agents. State of each plan item:
+
+- **Wave 0 contracts (b67ce06, done):** `three/skaterStore.ts` v2 (`Appearance`, looks, v1 id
+  migration, GLB material/variant-node naming), `three/appearance.ts` (pure mapping used by
+  `SkaterModel`), `three/animation/place.ts` + `rinkSize.ts`, camera presets with `track`,
+  `components/ui/*`, tokens + forced theme, grouped nav + phone sheet, `SkaterDrawer` (first
+  version: body, looks, skin, hair and dress colours), theme toggle, `tests/{place,appearance,
+  glb}.test.ts`. **`tests/glb.test.ts` fails by design** until the GLBs carry the variant nodes.
+- **1B player (658ec77, done inline):** orbit always on with tracking, presets as starting
+  points (`CameraRig` in `three/ElementPlayer.tsx`), one-row toolbar with the camera menu,
+  compact HUD, full screen, keyboard F/C/T, `Actor/Trace/IceArrows/CameraRig/Hud/PlayerControls`
+  exported; duplicate camera chips removed; e2e camera/drawer/nav tests.
+- **2A rink (0c13913, done inline):** `/rink` = `app/rink/{page,RinkApp,Palette,Protocol}.tsx`,
+  `three/RinkPlayer.tsx`, `three/Arena.tsx`, `three/animation/program.ts` (queue, links that
+  turn to stay on the ice via `keepInRink` + `safeLink`, idle wander homing to centre ice,
+  `marks`, protocol with `programWarnings`), arrow-key steering (`setSteer`), hotkeys, deep links
+  `?perform=4Lz,CCoSp4`, panels inside the player (kept in full screen, fold away on a phone),
+  `tests/program.test.ts`. Verified by screenshots (desktop, phone, hotkey jump, steering).
+- **Ground clamp (0c13913):** `SkaterRig.applyPose(pose, ground)` pins the lowest blade point to
+  the ice (`bladePoints`, `lowestBladeY`, `groundShift`), fading in flight (Actor passes
+  `1 − root.y/0.25`) and for lifted hips (`LIFT_FADE_*`); the landing dip no longer moves the
+  root. The user had reported blades sinking; the old poses sank 2–9 cm.
+- **Wave 3 review (e2b40dc):** `docs/wave3-review-result.json` holds the 12 findings, 7
+  confirmed; six fixed (blended twists in `lerpPose`, booted ankle cone 110 + standing feet aimed
+  flat, flying camel on the right foot, stale difficult-entrance guard + explorer resets,
+  eight-revolution marker guard, two-features-per-foot cap). **Not applied:** finding [2]
+  (derive a pelvis twist from authored spine/chest twists in `resolve()`, add `twist` limits for
+  spine 15 / chest 45 and check twists in `validatePose`); the `sitStand` shin/`SIT_HIPS` retune
+  mentioned in finding [0] was also skipped.
+- **Pending, in priority order (the user asked for all of these explicitly):**
+  1. **Hair and outfit styles (plan agent 1A + 2B):** build the variant hair meshes, both skirts
+     and the `sleeve_upper/sleeve_lower` regions into the GLBs with `tools/blender/build_skater.py`
+     per the contract in `three/skaterStore.ts` (names in `variantNodes()`), make
+     `tests/glb.test.ts` green, then extend `components/SkaterDrawer.tsx` with hair style/length,
+     sleeves, skirt, gloves and a live preview. `three/appearance.ts` already maps everything.
+  2. Content pages onto the new primitives (plan Wave 3, agents 3A/3B); Compare and
+     FlipVsLutz still carry their own camera selects.
+  3. Review finding [2] above; `sitStand` retune.
+  4. Regenerate `public/poses/*.png` (the clamp and the flat feet change several stills).
+- **User feedback during the night, verbatim themes:** "blades sink in the ice" (fixed),
+  "horrible ui" on the rink (panels/fullscreen/phone rebuilt), "give arrow keys for direction"
+  (done), colours "dull out" sometimes (the arena glass was tinted and the follow camera often
+  sits outside the boards; glass now 3 % opacity, to be confirmed by the user), "no different
+  cloth styles and hair styles" (pending item 1).
+- Agents: the hook needs a fresh `usage.json` (user runs `fetch-usage.sh`) before any Agent or
+  Workflow call; two at a time, 75 % cap.
