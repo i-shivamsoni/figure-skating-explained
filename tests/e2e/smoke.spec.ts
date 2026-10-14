@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const ROUTES = ["/", "/jumps", "/jumps/lutz", "/jumps/axel", "/spins", "/spins/CCoSp", "/steps", "/choreo", "/scoring", "/calculator", "/compare", "/decoder", "/sources"];
+const ROUTES = ["/", "/jumps", "/jumps/lutz", "/jumps/axel", "/spins", "/spins/CCoSp", "/steps", "/choreo", "/pairs", "/scoring", "/calculator", "/compare", "/decoder", "/sources", "/rink"];
 
 for (const route of ROUTES) {
   test(`renders ${route}`, async ({ page }) => {
@@ -46,4 +46,50 @@ test("the calculator warns about a repetition violation", async ({ page }) => {
   await page.getByLabel("Jump").first().selectOption("Lz");
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByText(/quad Lutz may be attempted at most twice/)).toBeVisible();
+});
+
+test("the camera orbits and zooms from any preset and the presets come back", async ({ page }) => {
+  await page.goto("/jumps/lutz");
+  await page.waitForSelector('body[data-skater-ready="1"]', { timeout: 30_000 });
+  const player = page.locator("[data-camera]").first();
+  await expect(player).toHaveAttribute("data-camera", /^follow track/);
+  const box = (await player.boundingBox())!;
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx + 140, cy + 10, { steps: 10 });
+  await page.mouse.up();
+  await expect(player).toHaveAttribute("data-camera", /^free track/);
+  const before = (await player.getAttribute("data-camera"))!;
+  await page.mouse.wheel(0, -800);
+  await expect.poll(async () => player.getAttribute("data-camera"), { timeout: 5_000 }).not.toBe(before);
+  await page.getByRole("button", { name: /^Camera:/ }).first().click();
+  await page.getByRole("button", { name: "Overhead" }).click();
+  await expect(player).toHaveAttribute("data-camera", /^overhead track/);
+  await page.getByRole("checkbox", { name: "Follow the skater" }).uncheck();
+  await expect(player).toHaveAttribute("data-camera", /^overhead fixed/);
+});
+
+test("the skater drawer changes the look and the choice survives a reload", async ({ page }) => {
+  await page.goto("/jumps/axel");
+  await page.waitForSelector('body[data-skater-ready="1"]', { timeout: 30_000 });
+  const before = await page.evaluate(() => document.body.dataset.appearance);
+  await page.getByRole("button", { name: "Your skater" }).first().click();
+  await page.locator("button", { hasText: "Ruby" }).first().click();
+  await expect.poll(() => page.evaluate(() => document.body.dataset.appearance)).not.toBe(before);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Your skater" })).toHaveCount(0);
+  await page.reload();
+  await page.waitForSelector('body[data-skater-ready="1"]', { timeout: 30_000 });
+  await expect.poll(() => page.evaluate(() => document.body.dataset.appearance)).toContain("#8f1230");
+});
+
+test("the grouped nav opens its menus on desktop and its sheet on a phone", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Elements" }).click();
+  await expect(page.getByRole("menuitem", { name: /Spins/ })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await expect(page.locator("#mobile-nav").getByRole("link", { name: /Calculator/ })).toBeVisible();
 });

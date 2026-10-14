@@ -6,7 +6,6 @@ import { ElementViewer } from "@/components/ElementViewer";
 import { JUMP_BY_SLUG, JUMP_SIGNS, ROTATION_NAMES } from "@/data/jumps";
 import { jumpSovCode, type EdgeCall, type RotationCall } from "@/lib/scoring/elements";
 import { SOV } from "@/lib/scoring/sov";
-import type { CameraMode } from "@/three/animation/store";
 
 const CALLS: { id: RotationCall; label: string }[] = [
   { id: "", label: "Clean" },
@@ -25,8 +24,7 @@ export function JumpExplorer({ slug, defaultRotation }: { slug: string; defaultR
   const [rotations, setRotations] = useState(defaultRotation);
   const [call, setCall] = useState<RotationCall>("");
   const [edge, setEdge] = useState<EdgeCall>("");
-  const [camera, setCamera] = useState<CameraMode>("follow");
-  const edgeJump = jump.id === "F" || jump.id === "Lz";
+    const edgeJump = jump.id === "F" || jump.id === "Lz";
   // the edge call reaches the animation: "e" rolls the take-off edge the wrong way (a lip or a flutz), "!" rides a flat
   const spec = useMemo(() => ({ kind: "jump" as const, slug, rotations, call, edge: edgeJump ? edge : undefined }), [slug, rotations, call, edge, edgeJump]);
   const code = jumpSovCode({ jump: jump.id, rotations, rotationCall: call, edgeCall: edge });
@@ -70,14 +68,7 @@ export function JumpExplorer({ slug, defaultRotation }: { slug: string; defaultR
             </label>
           )}
         </div>
-        <ElementViewer spec={spec} height={480} camera={camera} />
-        <div className="mt-2 flex flex-wrap gap-2 text-xs">
-          {(["follow", "side", "front", "overhead", "free"] as CameraMode[]).map((c) => (
-            <button key={c} type="button" onClick={() => setCamera(c)} className={`rounded-full border px-2.5 py-1 ${c === camera ? "border-accent bg-accent-soft text-accent-strong" : "border-border bg-surface"}`}>
-              {c}
-            </button>
-          ))}
-        </div>
+        <ElementViewer spec={spec} height={480} />
       </div>
       <aside className="space-y-3">
         <div className="rounded-xl border border-border bg-surface p-4">

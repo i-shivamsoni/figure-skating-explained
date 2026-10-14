@@ -5,7 +5,6 @@ import { ElementViewer } from "@/components/ElementViewer";
 import { SPIN_FAMILIES } from "@/data/spins";
 import { SOV, hasCode } from "@/lib/scoring/sov";
 import { spinCode, spinFeatureNotes, spinFromSpec, spinPositions, spinRevolutions, VARIATION_POSE, VARIATIONS_FOR, type BasicPosition, type SpinFeatures, type SpinLevel } from "@/three/animation/spins";
-import type { CameraMode } from "@/three/animation/store";
 
 const LEVELS: SpinLevel[] = ["B", 1, 2, 3, 4];
 const POSITION_NAMES: Record<BasicPosition, string> = { camel: "Camel", sit: "Sit", upright: "Upright", layback: "Layback" };
@@ -35,7 +34,6 @@ export function SpinExplorer({ family: initialFamily, defaultLevel = 4 }: { fami
   const [eightRevolutions, setEightRevolutions] = useState(false);
   const [difficultEntrance, setDifficultEntrance] = useState(false);
   const [windmills, setWindmills] = useState(false);
-  const [camera, setCamera] = useState<CameraMode>("side");
   const fam = SPIN_FAMILIES.find((f) => f.code === family) ?? SPIN_FAMILIES[0];
   const variationsKey = JSON.stringify(variations);
   const features = useMemo<SpinFeatures>(
@@ -100,14 +98,7 @@ export function SpinExplorer({ family: initialFamily, defaultLevel = 4 }: { fami
             </label>
           ))}
         </div>
-        <ElementViewer spec={spec} height={480} camera={camera} />
-        <div className="mt-2 flex flex-wrap gap-2 text-xs">
-          {(["follow", "side", "front", "overhead", "free"] as CameraMode[]).map((c) => (
-            <button key={c} type="button" onClick={() => setCamera(c)} className={`rounded-full border px-2.5 py-1 ${c === camera ? "border-accent bg-accent-soft text-accent-strong" : "border-border bg-surface"}`}>
-              {c}
-            </button>
-          ))}
-        </div>
+        <ElementViewer spec={spec} height={480} camera="side" />
       </div>
       <aside className="space-y-3">
         <div className="rounded-xl border border-border bg-surface p-4">

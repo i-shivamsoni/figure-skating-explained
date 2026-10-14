@@ -5,16 +5,26 @@ import { Canvas } from "@react-three/fiber";
 import { Environment, Lightformer, OrbitControls } from "@react-three/drei";
 import { Rink } from "./Rink";
 
+export interface OrbitOptions {
+  /** Fired when the viewer starts dragging or zooming. */
+  onStart?: () => void;
+  minDistance?: number;
+  maxDistance?: number;
+  /** Radians from straight up; above π/2 lets the camera dip below the target (the player clamps it above the ice). */
+  maxPolarAngle?: number;
+}
+
 export interface StageProps {
   children: ReactNode;
   camera?: { position: [number, number, number]; target?: [number, number, number]; fov?: number };
   controls?: boolean;
+  orbit?: OrbitOptions;
   className?: string;
   frameloop?: "always" | "demand";
 }
 
-/** Shared canvas: ice, lights, shadows and orbit controls. */
-export function Stage({ children, camera, controls = true, className = "", frameloop = "always" }: StageProps) {
+/** Shared canvas: ice, lights, shadows and orbit controls (drag rotates, wheel or pinch zooms, no panning). */
+export function Stage({ children, camera, controls = true, orbit, className = "", frameloop = "always" }: StageProps) {
   const pos = camera?.position ?? [3.2, 1.7, 4.2];
   const target = camera?.target ?? [0, 0.9, 0];
   return (
@@ -52,7 +62,19 @@ export function Stage({ children, camera, controls = true, className = "", frame
         <Rink />
         {children}
       </Suspense>
-      {controls && <OrbitControls makeDefault target={target} enableDamping dampingFactor={0.1} minDistance={1.2} maxDistance={40} maxPolarAngle={Math.PI / 2 - 0.02} />}
+      {controls && (
+        <OrbitControls
+          makeDefault
+          target={target}
+          enableDamping
+          dampingFactor={0.12}
+          enablePan={false}
+          minDistance={orbit?.minDistance ?? 1.2}
+          maxDistance={orbit?.maxDistance ?? 60}
+          maxPolarAngle={orbit?.maxPolarAngle ?? Math.PI / 2 - 0.02}
+          onStart={orbit?.onStart}
+        />
+      )}
     </Canvas>
   );
 }

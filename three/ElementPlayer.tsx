@@ -1,15 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
+import { Camera as CameraIcon, Maximize2, Minimize2, Pause, Play, Repeat, UserRound } from "lucide-react";
 import { Euler, Group, Vector3 } from "three";
 import { useStore } from "zustand";
 import { Stage } from "./Stage";
 import { SkaterModel, type SkaterHandle } from "./SkaterModel";
 import { markerAt, poseAt, TWO_PI, type IceArrow, type Timeline } from "./animation/timeline";
-import { createPlayerStore, type CameraMode, type PlayerStore } from "./animation/store";
+import { CAMERA_PRESETS, createPlayerStore, type CameraPreset, type PlayerStore } from "./animation/store";
 import { useUiStore } from "@/lib/uiStore";
+import { IconButton } from "@/components/ui/IconButton";
+import { Segmented } from "@/components/ui/Segmented";
+import { cn } from "@/components/ui/cn";
 
 const EDGE_COLOR: Record<string, string> = { outside: "#1f6fd6", inside: "#e0532f", flat: "#888", toe: "#222" };
 
@@ -17,7 +21,7 @@ export interface ElementPlayerProps {
   timeline: Timeline;
   autoplay?: boolean;
   initialTime?: number;
-  camera?: CameraMode;
+  camera?: CameraPreset;
   speed?: number;
   height?: number | string;
   className?: string;
@@ -30,9 +34,14 @@ export interface ElementPlayerProps {
   caption?: string;
   /** Base value that pops up once the element is complete. */
   value?: number;
+  /** Called once when playback reaches the end with looping off. */
+  onEnd?: () => void;
 }
 
-export function ElementPlayer({ timeline, autoplay = true, initialTime = 0, camera = "follow", speed = 1, height = 480, className = "", hud, showControls = true, onStore, caption, value }: ElementPlayerProps) {
+/** Presets that the C key cycles through. */
+const CYCLE: CameraPreset[] = ["follow", "side", "front", "overhead", "low", "close"];
+
+export function ElementPlayer({ timeline, autoplay = true, initialTime = 0, camera = "follow", speed = 1, height = 480, className = "", hud, showControls = true, onStore, caption, value, onEnd }: ElementPlayerProps) {
   const store = useMemo(() => createPlayerStore({ duration: timeline.duration, playing: autoplay, time: initialTime, camera, speed }), [timeline.duration, autoplay, initialTime, camera, speed]);
   useEffect(() => {
     onStore?.(store);
@@ -43,34 +52,58 @@ export function ElementPlayer({ timeline, autoplay = true, initialTime = 0, came
     if (reducedMotion) store.getState().pause();
   }, [reducedMotion, store]);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  useEffect(() => {
+    const onChange = () => setFullscreen(document.fullscreenElement === containerRef.current);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+  const toggleFullscreen = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (document.fullscreenElement === el) void document.exitFullscreen();
+    else void el.requestFullscreen?.();
+  }, []);
   const onKey = useCallback(
     (e: React.KeyboardEvent) => {
+      if ((e.target as HTMLElement).tagName === "INPUT" && e.key !== " ") return;
       const s = store.getState();
       if (e.key === " ") {
         e.preventDefault();
         s.toggle();
       } else if (e.key === "ArrowRight") s.setTime(Math.min(s.duration, s.time + 0.05));
       else if (e.key === "ArrowLeft") s.setTime(Math.max(0, s.time - 0.05));
+      else if (e.key === "f" || e.key === "F") toggleFullscreen();
+      else if (e.key === "c" || e.key === "C") s.setPreset(CYCLE[(CYCLE.indexOf(s.preset) + 1) % CYCLE.length]);
+      else if (e.key === "t" || e.key === "T") s.setTrack(!s.track);
     },
-    [store],
+    [store, toggleFullscreen],
   );
+  const onOrbitStart = useCallback(() => store.getState().setPreset("free"), [store]);
   return (
-    <div ref={containerRef} tabIndex={0} onKeyDown={onKey} className={`relative overflow-hidden rounded-xl border border-border bg-[#eaf3fa] outline-none focus-visible:ring-2 focus-visible:ring-accent ${className}`} style={{ height }}>
-      <Stage controls={false} camera={{ position: [timeline.focus.x + 3, 1.6, timeline.focus.z + 5], target: [timeline.focus.x, 0.9, timeline.focus.z] }}>
-        <Actor timeline={timeline} store={store} />
+    <div
+      ref={containerRef}
+      tabIndex={0}
+      onKeyDown={onKey}
+      className={cn("relative overflow-hidden rounded-xl border border-border bg-[#eaf3fa] outline-none focus-visible:ring-2 focus-visible:ring-accent [&:fullscreen]:h-screen! [&:fullscreen]:rounded-none", className)}
+      style={{ height }}
+    >
+      <Stage orbit={{ onStart: onOrbitStart, maxPolarAngle: Math.PI / 2 + 0.3 }} camera={{ position: [timeline.focus.x + 2.8, 2.4, timeline.focus.z + 4.5], target: [timeline.focus.x, 0.9, timeline.focus.z] }}>
+        <Actor timeline={timeline} store={store} onEnd={onEnd} />
         {timeline.partner && <Actor timeline={timeline} store={store} partner />}
         <Trace timeline={timeline} />
         {timeline.arrows && <IceArrows arrows={timeline.arrows} store={store} />}
-        <CameraRig timeline={timeline} store={store} />
+        <CameraRig timeline={timeline} store={store} container={containerRef} />
       </Stage>
-      <Hud timeline={timeline} store={store} extra={hud} caption={caption} value={value} />
-      {reducedMotion && <p className="pointer-events-none absolute left-3 bottom-14 rounded-md bg-surface/90 px-2 py-1 text-xs text-muted">Autoplay off (reduced motion). Use Play or the slider.</p>}
-      {showControls && <Controls store={store} />}
+      <Hud timeline={timeline} store={store} extra={hud} caption={caption} value={value} controls={showControls} />
+      {reducedMotion && <p className="pointer-events-none absolute bottom-14 left-3 rounded-md bg-surface/90 px-2 py-1 text-xs text-muted">Autoplay off (reduced motion). Use Play or the slider.</p>}
+      {showControls && <PlayerControls store={store} fullscreen={fullscreen} onFullscreen={toggleFullscreen} />}
     </div>
   );
 }
 
-function Actor({ timeline, store, partner = false }: { timeline: Timeline; store: PlayerStore; partner?: boolean }) {
+/** The skater (or the pair partner) driven by the store's clock. */
+export function Actor({ timeline, store, partner = false, onEnd }: { timeline: Timeline; store: PlayerStore; partner?: boolean; onEnd?: () => void }) {
   const handleRef = useRef<SkaterHandle | null>(null);
   const groupRef = useRef<Group>(null);
   const track = partner ? timeline.partner : undefined;
@@ -86,9 +119,16 @@ function Actor({ timeline, store, partner = false }: { timeline: Timeline; store
   useFrame((_, delta) => {
     const s = store.getState();
     let t = s.time;
-    if (s.playing) {
+    if (s.playing && !partner) {
       t += delta * s.speed;
-      if (t > s.duration) t = s.loop ? t % s.duration : s.duration;
+      if (t > s.duration) {
+        if (s.loop) t = t % s.duration;
+        else {
+          t = s.duration;
+          s.pause();
+          onEnd?.();
+        }
+      }
       s.setTime(t);
     }
     const h = handleRef.current;
@@ -109,7 +149,7 @@ function Actor({ timeline, store, partner = false }: { timeline: Timeline; store
 }
 
 /** Curved arrows on the ice (the sense of an edge's curve, of a rotation), shown while their time window is active. */
-function IceArrows({ arrows, store }: { arrows: IceArrow[]; store: PlayerStore }) {
+export function IceArrows({ arrows, store }: { arrows: IceArrow[]; store: PlayerStore }) {
   const groups = useRef<(Group | null)[]>([]);
   useFrame(() => {
     const t = store.getState().time;
@@ -156,7 +196,8 @@ function IceArrows({ arrows, store }: { arrows: IceArrow[]; store: PlayerStore }
   );
 }
 
-function Trace({ timeline }: { timeline: Timeline }) {
+/** The blade trace, coloured by edge, with the dashed flight path and the toe-pick mark. */
+export function Trace({ timeline, opacity = 1 }: { timeline: Timeline; opacity?: number }) {
   const segments = useMemo(() => {
     const out: { color: string; points: [number, number, number][]; dashed?: boolean; partner?: boolean }[] = [];
     let cur: (typeof out)[number] | null = null;
@@ -188,54 +229,89 @@ function Trace({ timeline }: { timeline: Timeline }) {
   return (
     <group>
       {segments.map((s, i) => (
-        <Line key={i} points={s.points} color={s.color} lineWidth={s.dashed ? 1.2 : s.partner ? 1.6 : 2.5} dashed={s.dashed} dashSize={0.15} gapSize={0.1} />
+        <Line key={i} points={s.points} color={s.color} lineWidth={s.dashed ? 1.2 : s.partner ? 1.6 : 2.5} dashed={s.dashed} dashSize={0.15} gapSize={0.1} transparent={opacity < 1} opacity={opacity} />
       ))}
       {toe && (
         <mesh position={[toe.x, 0.01, toe.z]}>
           <sphereGeometry args={[0.05, 12, 12]} />
-          <meshStandardMaterial color="#222" />
+          <meshStandardMaterial color="#222" transparent={opacity < 1} opacity={opacity} />
         </mesh>
       )}
     </group>
   );
 }
 
-const _target = new Vector3();
-const _pos = new Vector3();
+/** Camera position relative to the point of interest (the skater's hips) for each preset. */
+const PRESET_OFFSET: Partial<Record<CameraPreset, [number, number, number]>> = {
+  follow: [2.8, 1.5, 4.5],
+  side: [0, 0.4, 6.5],
+  front: [6, 0.5, 0.8],
+  overhead: [0.01, 9, 0.01],
+  low: [2.6, -0.6, 3.4],
+  close: [1.3, 0.35, 1.7],
+};
+const ARENA_POSITION = new Vector3(0, 18, 30);
+const MIN_CAMERA_HEIGHT = 0.12;
 
-function CameraRig({ timeline, store }: { timeline: Timeline; store: PlayerStore }) {
-  const offset = useRef(new Vector3(2.8, 1.5, 4.5));
-  useFrame((state) => {
+interface OrbitControlsLike {
+  target: Vector3;
+  update: () => void;
+}
+
+const _target = new Vector3();
+const _goal = new Vector3();
+const _delta = new Vector3();
+
+/**
+ * Keeps the orbit controls centred on the skater (when tracking) and glides the camera to a preset
+ * when one is chosen; the viewer can drag and zoom from any preset, which turns it into "free".
+ * Writes `data-camera="<preset> <track|fixed> <distance>"` on the container for tests.
+ */
+export function CameraRig({ timeline, store, container, focus }: { timeline: Timeline; store: PlayerStore; container?: RefObject<HTMLDivElement | null>; focus?: (t: number) => { x: number; y: number; z: number } }) {
+  const settled = useRef<CameraPreset | null>(null);
+  const lastAttr = useRef("");
+  useFrame((state, delta) => {
     const s = store.getState();
-    const root = timeline.root(s.time);
-    const mode: CameraMode = s.camera;
-    const controls = state.controls as { enabled: boolean; update: () => void } | null;
+    const controls = state.controls as unknown as OrbitControlsLike | null;
     const camera = state.camera;
-    _target.set(root.x, 0.9 + root.y * 0.5, root.z);
-    if (mode === "free") {
-      if (controls) {
-        controls.enabled = true;
-        controls.update();
+    if (s.preset === "arena") _target.set(0, 0, 0);
+    else {
+      const r = focus ? focus(s.time) : timeline.root(s.time);
+      _target.set(r.x, 0.9 + r.y * 0.5, r.z);
+    }
+    if (controls && (s.track || s.preset === "arena")) {
+      _delta.copy(_target).sub(controls.target);
+      if (s.preset !== "arena") camera.position.add(_delta);
+      controls.target.copy(_target);
+    }
+    if (s.preset === "free") settled.current = "free";
+    else if (settled.current !== s.preset) {
+      if (s.preset === "arena") _goal.copy(ARENA_POSITION);
+      else {
+        const off = PRESET_OFFSET[s.preset] ?? PRESET_OFFSET.follow!;
+        _goal.set(_target.x + off[0], _target.y + off[1], _target.z + off[2]);
       }
-      return;
+      // time-based glide (about half a second), so a slow frame rate does not stretch it
+      camera.position.lerp(_goal, 1 - Math.exp(-8 * Math.min(delta, 0.1)));
+      if (camera.position.distanceTo(_goal) < 0.02) {
+        camera.position.copy(_goal);
+        settled.current = s.preset;
+      }
     }
-    if (controls) controls.enabled = false;
-    if (mode === "follow") {
-      _pos.copy(_target).add(offset.current);
-    } else if (mode === "side") {
-      _pos.set(root.x, 1.3, root.z + 6.5);
-    } else if (mode === "front") {
-      _pos.set(root.x + 6, 1.4, root.z + 0.8);
-    } else {
-      _pos.set(root.x, 9, root.z + 0.01);
+    if (camera.position.y < MIN_CAMERA_HEIGHT) camera.position.y = MIN_CAMERA_HEIGHT;
+    if (controls) controls.update();
+    else camera.lookAt(_target);
+    const attr = `${s.preset} ${s.track ? "track" : "fixed"} ${camera.position.distanceTo(controls ? controls.target : _target).toFixed(1)}`;
+    if (attr !== lastAttr.current) {
+      lastAttr.current = attr;
+      container?.current?.setAttribute("data-camera", attr);
     }
-    camera.position.lerp(_pos, mode === "follow" ? 0.12 : 0.2);
-    camera.lookAt(_target);
   });
   return null;
 }
 
-function Hud({ timeline, store, extra, caption, value }: { timeline: Timeline; store: PlayerStore; extra?: ReactNode; caption?: string; value?: number }) {
+/** Marker, rotation counter, value pop, arrow legend and caption over the canvas. */
+export function Hud({ timeline, store, extra, caption, value, controls = true }: { timeline: Timeline; store: PlayerStore; extra?: ReactNode; caption?: string; value?: number; controls?: boolean }) {
   const time = useStore(store, (s) => s.time);
   const ready = useStore(store, (s) => s.ready);
   const marker = markerAt(timeline, time);
@@ -253,111 +329,131 @@ function Hud({ timeline, store, extra, caption, value }: { timeline: Timeline; s
   }
   const activeArrows = (timeline.arrows ?? []).filter((a) => time >= a.from && time <= a.to);
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3 text-sm">
-      <div className="flex max-w-xs flex-col items-start gap-2">
-        <div className="rounded-lg bg-surface/85 px-3 py-2 shadow backdrop-blur">
+    <div className="pointer-events-none absolute inset-0 text-sm">
+      <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2 sm:p-3">
+        <div className="max-w-[62%] rounded-lg bg-surface/85 px-3 py-1.5 shadow backdrop-blur">
           {!ready && <p className="text-muted">Loading skater…</p>}
           {ready && marker && (
             <>
-              <p className="font-semibold">{marker.label}</p>
-              {marker.detail && <p className="text-xs text-muted">{marker.detail}</p>}
+              <p className="leading-tight font-semibold">{marker.label}</p>
+              {marker.detail && <p className="text-xs text-muted max-sm:hidden">{marker.detail}</p>}
             </>
           )}
         </div>
-        {ready && activeArrows.length > 0 && (
-          <ul className="rounded-lg bg-surface/85 px-3 py-1.5 text-xs shadow backdrop-blur">
-            {activeArrows.map((a) => (
-              <li key={a.label} className="flex items-center gap-2">
-                <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: a.color }} />
+        <div className="flex flex-col items-end gap-2">
+          {counter && <div className="rounded-lg bg-surface/85 px-3 py-1.5 font-mono text-base font-semibold shadow backdrop-blur tabular-nums">{counter}</div>}
+          {value !== undefined && complete && (
+            <div className="rounded-lg bg-accent px-3 py-1 font-mono text-lg font-semibold text-white shadow" style={{ transform: `scale(${0.8 + 0.2 * popIn})`, opacity: popIn }}>
+              {value.toFixed(2)}
+            </div>
+          )}
+          {extra}
+        </div>
+      </div>
+      <div className={cn("absolute inset-x-0 grid grid-cols-[1fr_auto_1fr] items-end gap-2 px-2 sm:px-3", controls ? "bottom-12 max-sm:bottom-[5.6rem]" : "bottom-2")}>
+        <ul className="flex flex-col items-start gap-1">
+          {ready &&
+            activeArrows.map((a) => (
+              <li key={a.label} className="flex items-center gap-1.5 rounded-full bg-surface/85 px-2 py-0.5 text-[11px] shadow backdrop-blur">
+                <span className="inline-block h-2 w-2 rounded-full" style={{ background: a.color }} />
                 {a.label}
               </li>
             ))}
-          </ul>
-        )}
+        </ul>
+        {caption ? <span className="rounded-full bg-foreground/80 px-3 py-1 text-center text-xs font-semibold text-background shadow sm:text-sm">{caption}</span> : <span />}
+        <span />
       </div>
-      <div className="flex flex-col items-end gap-2">
-        {counter && <div className="rounded-lg bg-surface/85 px-3 py-2 font-mono text-base font-semibold shadow backdrop-blur">{counter}</div>}
-        {value !== undefined && complete && (
-          <div className="rounded-lg bg-accent px-3 py-1.5 font-mono text-lg font-semibold text-white shadow" style={{ transform: `scale(${0.8 + 0.2 * popIn})`, opacity: popIn }}>
-            {value.toFixed(2)}
-          </div>
-        )}
-        {extra}
-      </div>
-      {caption && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-12 flex justify-center">
-          <span className="rounded-full bg-foreground/80 px-4 py-1.5 text-sm font-semibold text-background shadow">{caption}</span>
-        </div>
-      )}
     </div>
   );
 }
 
 const SPEEDS = [0.25, 0.5, 1];
-const CAMERAS: { id: CameraMode; label: string }[] = [
-  { id: "follow", label: "Follow" },
-  { id: "side", label: "Side" },
-  { id: "front", label: "Front" },
-  { id: "overhead", label: "Overhead" },
-  { id: "free", label: "Free" },
-];
+const SPEED_LABEL: Record<number, string> = { 0.25: "¼×", 0.5: "½×", 1: "1×" };
 
-function Controls({ store }: { store: PlayerStore }) {
+/** Play, scrub, speed, camera menu, loop, full screen and the appearance drawer, in one row. */
+export function PlayerControls({ store, fullscreen, onFullscreen }: { store: PlayerStore; fullscreen?: boolean; onFullscreen?: () => void }) {
   const time = useStore(store, (s) => s.time);
   const duration = useStore(store, (s) => s.duration);
   const playing = useStore(store, (s) => s.playing);
   const speed = useStore(store, (s) => s.speed);
-  const camera = useStore(store, (s) => s.camera);
   const loop = useStore(store, (s) => s.loop);
+  const preset = useStore(store, (s) => s.preset);
+  const track = useStore(store, (s) => s.track);
   const openSkater = useUiStore((s) => s.openSkaterDrawer);
   const api = store.getState();
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!cameraOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setCameraOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCameraOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [cameraOpen]);
+  const presetLabel = CAMERA_PRESETS.find((c) => c.id === preset)?.label ?? preset;
+  const nextSpeed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length] ?? 1;
   return (
-    <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-center gap-2 bg-surface/90 px-3 py-2 text-xs backdrop-blur">
-      <button type="button" onClick={api.toggle} aria-label={playing ? "Pause" : "Play"} className="rounded-md bg-accent px-3 py-1.5 font-medium text-white hover:bg-accent-strong">
-        {playing ? "Pause" : "Play"}
-      </button>
-      <input
-        type="range"
-        aria-label="Time"
-        min={0}
-        max={duration}
-        step={0.01}
-        value={time}
-        onChange={(e) => {
-          api.pause();
-          api.setTime(Number(e.target.value));
-        }}
-        className="min-w-32 flex-1 accent-accent"
-      />
-      <span className="w-20 font-mono text-muted">
-        {time.toFixed(2)} / {duration.toFixed(2)} s
-      </span>
-      <label className="flex items-center gap-1">
-        Speed
-        <select value={speed} onChange={(e) => api.setSpeed(Number(e.target.value))} className="rounded border border-border bg-surface px-1 py-0.5">
-          {SPEEDS.map((s) => (
-            <option key={s} value={s}>
-              {s}×
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="flex items-center gap-1">
-        Camera
-        <select value={camera} onChange={(e) => api.setCamera(e.target.value as CameraMode)} className="rounded border border-border bg-surface px-1 py-0.5">
-          {CAMERAS.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="flex items-center gap-1">
-        <input type="checkbox" checked={loop} onChange={(e) => api.setLoop(e.target.checked)} /> Loop
-      </label>
-      <button type="button" onClick={openSkater} className="ml-auto rounded-md border border-border bg-surface px-2 py-1 hover:bg-surface-2">
-        Your skater
-      </button>
+    <div role="toolbar" aria-label="Playback" className="absolute inset-x-0 bottom-0 flex flex-wrap items-center gap-x-1.5 gap-y-1 bg-surface/90 px-2 py-1.5 text-xs backdrop-blur">
+      <div className="flex min-w-0 flex-1 basis-60 items-center gap-1.5">
+        <IconButton size="sm" label={playing ? "Pause" : "Play"} onClick={api.toggle} className="bg-accent text-white hover:bg-accent-strong hover:text-white">
+          {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+        </IconButton>
+        <input
+          type="range"
+          aria-label="Time"
+          min={0}
+          max={duration}
+          step={0.01}
+          value={time}
+          onChange={(e) => {
+            api.pause();
+            api.setTime(Number(e.target.value));
+          }}
+          className="min-w-0 flex-1"
+        />
+        <span className="shrink-0 font-mono whitespace-nowrap text-muted tabular-nums">
+          {time.toFixed(2)} / {duration.toFixed(2)} s
+        </span>
+      </div>
+      <div className="flex items-center gap-0.5">
+        <button type="button" onClick={() => api.setSpeed(nextSpeed)} aria-label={`Speed ${SPEED_LABEL[speed] ?? speed}, change`} title="Speed" className="focus-ring h-8 min-w-9 rounded-lg px-1.5 font-mono font-medium text-muted hover:bg-surface-2 hover:text-foreground">
+          {SPEED_LABEL[speed] ?? `${speed}×`}
+        </button>
+        <div ref={menuRef} className="relative">
+          <button type="button" aria-expanded={cameraOpen} aria-haspopup="dialog" aria-label={`Camera: ${presetLabel}`} onClick={() => setCameraOpen((o) => !o)} title="Camera" className="focus-ring inline-flex h-8 items-center gap-1 rounded-lg px-2 font-medium text-muted hover:bg-surface-2 hover:text-foreground">
+            <CameraIcon className="h-4 w-4" />
+            <span>{presetLabel}</span>
+          </button>
+          {cameraOpen && (
+            <div role="dialog" aria-label="Camera" className="absolute right-0 bottom-full z-10 mb-1 w-72 rounded-xl border border-border bg-surface p-2 shadow-lg">
+              <Segmented<CameraPreset> size="sm" label="Camera preset" value={preset} onChange={(p) => api.setPreset(p)} options={CAMERA_PRESETS.map((c) => ({ id: c.id, label: c.label, hint: c.hint }))} />
+              <label className="mt-2 flex items-center gap-2 px-1">
+                <input type="checkbox" checked={track} onChange={(e) => api.setTrack(e.target.checked)} /> Follow the skater
+              </label>
+              <p className="mt-1 px-1 text-[11px] text-muted">Drag to look around, scroll or pinch to zoom. Every preset is a starting point.</p>
+            </div>
+          )}
+        </div>
+        <IconButton size="sm" label={loop ? "Loop on" : "Loop off"} active={loop} onClick={() => api.setLoop(!loop)}>
+          <Repeat className="h-4 w-4" />
+        </IconButton>
+        {onFullscreen && (
+          <IconButton size="sm" label={fullscreen ? "Exit full screen" : "Full screen"} onClick={onFullscreen}>
+            {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </IconButton>
+        )}
+        <IconButton size="sm" label="Your skater" onClick={openSkater}>
+          <UserRound className="h-4 w-4" />
+        </IconButton>
+      </div>
     </div>
   );
 }
