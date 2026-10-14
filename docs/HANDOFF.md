@@ -125,7 +125,7 @@ are behind Vercel auth, production is public). The Vercel CLI is 54.x and nags t
 
 ```bash
 pnpm dev            # dev server (usually already running on :3000)
-pnpm test           # vitest: 91 tests (sov, scoring incl. pairs, rig, timeline, physics, pairs-data, pairs)
+pnpm test           # vitest: 234 tests (sov, scoring incl. pairs, rig, poses, timeline, physics, spins, pairs-data, pairs, costume)
 pnpm typecheck && pnpm lint
 pnpm build          # static routes incl. /pairs/[id]
 pnpm test:e2e       # Playwright smoke suite (uses the running dev server)
@@ -147,6 +147,40 @@ Screenshots and Blender previews go to the session scratchpad; view them with th
   `kind: "pair"`.
 - Tests pin ISU numbers (4T 9.50, 3A 8.00, 4A 12.50, 3Lz< 4.72, CCoSp4V 3.15, factors
   1.67/3.33 and 1.33/2.67).
+
+## Waves 0–2 (orchestrated, 14–15 Oct 2026)
+
+Run as waves of two worktree agents (`isolation: "worktree"`, dev servers on :3001/:3002, Blender
+assets symlinked from the main checkout), each verified by the orchestrator with its own
+screenshots and `pnpm test` before merging into `main`:
+
+- **Wave 0 contracts.** `three/rig/limits.ts`: range-of-motion table (`LIMITS`), `validatePose`,
+  `poseFrames`, `resolvePose`; `tests/poses.test.ts` walks every registered pose, its mirror and
+  the blend midpoints of timeline-adjacent poses; costume contract in `three/skaterStore.ts`
+  (`COSTUME_MATERIALS` the GLB keeps: top, skirt, legs, glove, boot, hair; `COSTUME_PRESETS`);
+  `poseNames()` + `three/rig/allPoses.ts` barrel (every pose module must be imported there).
+- **Wave 1 rig (section A).** `resolvePose` derives the pelvis tilt (`derivePelvisTilt`, convex
+  solve on pitch/roll from trunk and legs), limb twists (upper arm/thigh from the hinge child,
+  forearm from the hand, shin from the foot), projects knees and elbows into their hinge planes,
+  clamps posed feet to the booted ankle range (≥45° from the shin line, ±25° sideways), and is
+  what both the rig and the validator use. `lerpPose` blends skeleton-wise in the parent's
+  frame. The pelvis tilt pivots about the hip sockets so the blade stays on the ice.
+- **Wave 1 model (sections B, C).** Real dress shell (offset copy of the torso, solidified rim),
+  skirt rings on the measured pelvis outline weighted hips + nearer thigh, boots with cuff,
+  tongue, crossed laces and hooks, relaxed hands, boots centred on the measured shin and weighted
+  foot→shin across the ankle; CLI `--sleeves --skirt --neckline --palette`; runtime recolouring
+  by material name in `three/SkaterModel.tsx` and a Costume select in the player controls.
+- **Wave 2 jumps (section D).** `three/rig/poses-jumps.ts` (12 entry poses), entries built as
+  path segments (`EntrySegment`, `EDGE_ROLL_TIME`, `FLAT_TIME`), edge calls animated (lip,
+  flutz, unclear-edge flat) through `JumpParams.edgeCall` / the viewer spec's `edge`,
+  `app/jumps/FlipVsLutz.tsx` on one clock, tests pinning every difference.
+- **Wave 2 spins (section E).** `app/spins/SpinExplorer.tsx` (family, level, V, feature toggles,
+  variations; code + value + "what counts for the level"), spec `{ kind: "spin", code,
+  features }` → `spinFromSpec`; `three/rig/poses-spins.ts` overrides camel/sit/variations per
+  the handbook; `spinTimeline` animates change of edge (lean + trace), change of foot by jump,
+  flying entries per family, 8 revolutions, travelling threes; `tests/spins.test.ts`.
+- Stills: regenerate the 13 files in `public/poses` (incl. `camelForward`) after model or pose
+  changes (command in the pipeline section).
 
 ## Done since the first handoff (all committed)
 
