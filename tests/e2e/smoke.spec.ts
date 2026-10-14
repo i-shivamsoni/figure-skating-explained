@@ -18,7 +18,7 @@ test("the 3D viewer mounts and the rotation counter moves", async ({ page }) => 
   await expect(page.locator("canvas").first()).toBeVisible();
   await page.waitForSelector('body[data-skater-ready="1"]', { timeout: 30_000 });
   const slider = page.getByLabel("Time").first();
-  await slider.fill("2.1");
+  await slider.fill("2.8"); // mid-flight: the quad Lutz rotates from 2.40 s to 3.12 s
   await expect(page.getByText(/\/ 4 rev/)).toBeVisible();
   await page.getByRole("button", { name: "3 triple" }).click();
   await page.waitForSelector('body[data-skater-ready="1"]');
