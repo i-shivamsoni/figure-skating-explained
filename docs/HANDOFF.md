@@ -288,3 +288,17 @@ elements, commit, `pnpm build`, `vercel deploy --prod --yes`, and report to the 
 - The `rotation.turns` HUD semantics and the Biellmann/layback judgement calls above may be
   revisited by the Wave 3 review.
 - Deferred by the user: quiz mode, Ice Dance, localisation, program replay with running score.
+
+## 10. In progress: the overhaul (15 Oct 2026)
+
+The user approved `docs/OVERHAUL-PLAN.md` (simpler UI, a freeplay rink at `/rink`, a free camera,
+a skater appearance editor), run as orchestrated waves under the §2 rules. **Wave 0 landed in
+`b67ce06`:** the appearance contract (`three/skaterStore.ts` v2 with looks, `three/appearance.ts`
+pure mapping, GLB material/variant-node naming asserted by `tests/glb.test.ts`, which fails by
+design until the model agent rebuilds the GLBs), the placement contract
+(`three/animation/place.ts`: `placeTimeline`, `placementAfter`, `startOf`/`endOf`, `linkTimeline`,
+`keepInRink`; `three/animation/rinkSize.ts`), camera presets with a `track` flag in
+`three/animation/store.ts` ("orbit" is now "free"), `components/ui/*` primitives, tokens and a
+forced-theme override in `app/globals.css`, the grouped nav, the "Your skater" drawer
+(`components/SkaterDrawer.tsx`, first version), the theme toggle and a `/rink` placeholder.
+Next: Wave 1 (model agent 1A, player agent 1B) once the Wave 3 review (§8) has landed.
