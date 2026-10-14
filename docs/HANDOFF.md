@@ -1,205 +1,290 @@
 # Handoff: Figure Skating Explained
 
-Written 14 Oct 2026 (evening) so work can continue after a context reset; updated the same night
-after the physics review, the dress rebuild, the per-jump entries and Pair Skating landed.
+Last rewritten 15 Oct 2026 (early morning IST) at commit `8584ec2`, after the orchestrated
+Waves 0–2 landed and while the Wave 3 review workflow was running. Read this first after a
+context reset; it is the single entry point. The memory directory of the Claude Code project
+points here.
 
-## What this is
+## 1. What this is
 
 A public Next.js 16 site, **https://figure-skating-explained.vercel.app**, that explains the
-components of figure skating from the official ISU 2026-27 documents: six jumps (single to
-quint), spins, step sequences, choreographic elements, field moves, non-listed jumps, the ISU
-Judging System, with a 3D rigged skater performing every element, a program score calculator
-(singles and pairs), a side-by-side compare mode and a protocol-code decoder. Single Skating
-and Pair Skating (rules pages, animated lifts/twist/throw/death spirals/pair spin, calculator
-categories) are both live.
+components of figure skating from the official ISU 2026-27 documents: the six jumps (single to
+quint) with their calls (q, <, <<, e, !), spins (positions, ten difficult variations, level
+features), step sequences, choreographic elements, field moves, non-listed jumps, Pair Skating
+(lifts, twist, throws, death spirals, pair spins), and the ISU Judging System. A 3D rigged
+skater (woman or man, with selectable costumes) performs every element; there is a program
+score calculator (singles and pairs), a side-by-side compare mode, a Flip-vs-Lutz block on one
+clock, an interactive spin builder, and a protocol-code decoder.
 
-Vercel project `figure-skating-explained` (team `<vercel team>`), linked via
-`.vercel/`. Deploy with `vercel deploy --prod --yes` (preview: `vercel deploy --yes`; previews
-are behind Vercel auth, production is public). The Vercel CLI is 54.x and nags to upgrade.
+Vercel project `figure-skating-explained` (team `<vercel team>`), linked via `.vercel/`.
+Deploy with `vercel deploy --prod --yes` (preview: `vercel deploy --yes`; previews sit behind
+Vercel auth, production is public). The Vercel CLI is 54.x and nags to upgrade; ignore it.
 
-## User and working agreement
+State at the time of writing: `main` clean at `8584ec2`, 234 vitest tests green, typecheck and
+lint clean, `pnpm build` 60 static pages, production deploy `lwkmyxx9c` (= `f834049` plus the
+dev-only config commit `8584ec2`, which does not need a redeploy).
 
-- The user (the maintainer) wants an implement → test → fix → commit loop with frequent commits, and
-  everything implemented end to end (no scope trimming). Commit messages end with
+## 2. The user and the working agreement
+
+- The user wants an implement → test → fix → commit loop with frequent
+  commits and everything implemented end to end (no scope trimming). Commits end with
   `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`.
-- Sub-agents and the Workflow tool are allowed ("ultracode" on) but the user caps usage at 70%
-  of the 5-hour window. A PreToolUse hook (`<usage hook>`)
-  blocks Agent/Workflow when its usage snapshot is older than 5 minutes; only the user can
-  refresh it (`fetch-usage.sh`). If blocked, do the work inline and tell the user.
-- The user cares a lot about the models looking **elegant and like the reference art** in
-  `videos/` and `videos/photos/` (gitignored): black sleeveless dress with flared skirt, black
-  gloves, auburn low bun with a fringe, white lace-up skates for the woman; charcoal fitted
-  shirt with rolled sleeves, slim black trousers, belt, gloves, dark quiff, black skates for
-  the man; proper boots with heel, laces, eyelets, mounting plates and a toe-pick runner.
-- Next big ideas from the user: realistic physics (first version shipped), Pair Skating.
+- The user judges the site by how **human and elegant** the skaters look (reference art in the
+  gitignored `videos/` and `videos/photos/`: black sleeveless dress with a short flared skirt,
+  black gloves, auburn low bun with a fringe, white lace-up skates for the woman; charcoal
+  fitted shirt with rolled sleeves, slim black trousers, belt, gloves, dark quiff, black skates
+  for the man) and by whether the elements are **distinguishable and anatomically right**
+  ("Flip and Lutz look the same", "legs going outside the shoes", "no interactive menu for
+  spins" were the complaints that drove the last rounds).
+- **Agents.** "ultracode" is on. The user allows up to **75 % of the 5-hour usage window**
+  (raised from 70 %). A PreToolUse hook (`<usage hook>`)
+  blocks Agent/Workflow calls when its usage snapshot is older than 5 minutes; only the user
+  may refresh it (`<refresh script>`). The standing rule from
+  the user: **if the hook blocks, stop and ask them to refresh; do not work around it.**
+- **Orchestration rules the user set** (Waves 0–3): the main session is the orchestrator and
+  verifies every agent claim with its own screenshots and `pnpm test` before committing; at
+  most two agents run at once; every agent gets `isolation: "worktree"`, its own dev server
+  (`pnpm dev --port 3001` / `3002` inside the worktree), builds GLBs in its worktree, and a
+  brief that states the goal, the files it owns, the files it must not touch, the contract it
+  codes against, how to verify (which `/dev/pose` and element screenshots), and that its report
+  must split **what it verified** from **what it only believes**. The orchestrator merges the
+  worktree branches into `main`, rebuilds, runs the full suite, takes definition-of-done
+  screenshots, commits, and reports to the user between waves (screenshots, what each agent
+  verified, anything redone).
 
-## Sources
+## 3. Sources
 
 - `links.md` lists the ISU URLs; `docs/isu/pdf/` and `docs/isu/text/` hold the 12 documents
-  (rules, singles and pairs technical panel handbooks, referees' handbook, component charts,
-  deductions chart, RTD guidelines, Communication 2786 Scale of Values, Communication 2788
-  Levels and GOE). `docs/isu/README.md` indexes them. These are copyrighted; the site
-  paraphrases and cites, numbers are exact.
-- `docs/PLAN.md` is the original approved plan.
+  (Special Regulations & Technical Rules, singles and pairs Technical Panel handbooks, referees'
+  handbook, component charts, deductions chart, RTD guidelines, Communication 2786 Scale of
+  Values, Communication 2788 Levels and GOE). `docs/isu/README.md` indexes them. They are
+  copyrighted: the site paraphrases and cites; numbers are exact.
+- `docs/PLAN.md` is the original approved plan. `docs/pose-violations-wave0.txt` is the list of
+  pose/joint violations the Wave 0 validator found before section A fixed them (historical).
 
-## Architecture (all paths from the repo root)
+## 4. Architecture (paths from the repo root)
 
+### Content and scoring
 - `data/sov-2026-27.json` is generated by `pnpm data:sov` (`scripts/parse-sov.mts`) from the
-  Communication 2786 text: every element code → base value + eleven GOE values + section.
-- `data/*.ts`: hand-written, paraphrased content with `SourceRef`s: jumps (incl.
-  `JUMP_SIGNS`, `JUMP_CALLING_RULES`), spins (positions, 10 variation categories, 15 level
-  features, families, requirements, `SPIN_CLARIFICATIONS`), steps, choreo, programs (SP
-  requirements per category, FS rules, repetition rules, second-half bonus), goe, pcs,
-  deductions, glossary, sources (`SOURCES`, `CHANGES_2026_27`). `data/types.ts` has the types.
-- `lib/scoring/`: pure engine. `sov.ts` lookups; `elements.ts` element specs and protocol
-  codes; `value.ts` element scoring (combos sum base values, GOE from the hardest jump, +REP
-  80%, second-half ×1.1); `panel.ts` trimmed mean; `program.ts` TES/PCS/deductions (fall
-  escalation for Senior singles); `validate.ts` Short Program and well-balanced/Zayak checks.
-  `lib/decoder/parse.ts` parses codes like `4Lz+3T`, `3F!q`, `FCCoSp4V`, `2A+1Eu+3S`.
-- `three/rig/`: `bones.ts` (25-bone FK rig names), `rig.ts` (`SkaterRig`: captures the bind
-  pose, applies poses by *direction*: each bone gets a target direction in skater space, +X =
-  skater's left, +Y up, +Z forward, plus optional twist; children follow FK), `pose.ts`
-  (helpers `limb(fwdDeg, sideDeg)`, `vec`, `lerpPose`, `mirrorPose`), `poses.ts` (all named
-  poses: glides, jump phases, spin positions and variations, steps, field moves, pair poses
-  are being added).
-- `three/animation/`: `timeline.ts` (PoseKey timeline + `root(t)` → {x,y,z,yaw,pitch?,roll?},
-  markers, trace samples with foot/edge, rotation info, optional `partner` track);
-  `jumps.ts` (`jumpTimeline`: any listed jump at 1-5 rotations with q/</<< calls; uses the
-  physics module); `special.ts` (Walley, split jump, inside Axel, backflip); `spins.ts`
-  (`spinTimeline` with phases, flying/threes entries, presets incl. CCoSp, LSp with
-  catch-foot, variations, shapes, windmills, ChSp; rates from `spinRateFactor` inertia);
-  `steps.ts` (turns, basic steps, `CHOREO` field moves); `catalog.ts` (`ViewerSpec` →
-  `buildTimeline`, `captionFor`); `store.ts` (zustand player store).
-- `three/physics/jump.ts`: ballistics from calibrated air times, angular momentum with a
-  tuck inertia schedule (`TUCK_RATIO` 0.4), edge lean `atan(v²/gR)` → `roll`, landing dip.
-  The counted rotation = on-ice vault (`preRotationAngle`, a smoothstep rate ramp over
-  `VAULT_TIME` axel/toe/edge) + air turns + a finite blade skid (`landingSkid`, cubic Hermite,
-  at most `SKID_MAX`; clean landings skid `omegaLanding·SKID_TAU` capped at `SKID_CAP`).
-  `jumpModel` settles these with a fixed-point loop and exposes `airTurns`, `skid`,
-  `vaultTime`, `omegaIce`. `RotationInfo.yawStart` is the facing before the vault; the HUD
-  counts from it. Knee absorption is the `POSES.landDeep` key in `jumps.ts`.
-- Entries (`jumps.ts` `ENTRY_KIND`): Flip, Salchow and toe loop turn a forward three onto
-  the take-off edge (cusp on the trace), the Axel steps forward from the right back outside
-  edge (a clockwise half turn), the Lutz rides a 13 m back outside edge against its rotation
-  with a counter arm line and the head turned. Every jump timeline carries two `IceArrow`s
-  (edge curve direction, rotation direction) drawn by `IceArrows` in the player with a HUD
-  legend: for the Lutz they bend opposite ways.
-- Pairs: `three/animation/pairs.ts` (`PAIR_PRESETS` 3Li, 4Li, 5RLi, 3Tw, 3LzTh, FiDs,
-  BoDs, PCoSp, 3T+3T; the Woman is the primary track, the Man the `partner` track; lift
-  positions hang her hips from his measured palm points), `components/PairExplorer.tsx`
-  (preset buttons + viewer) used on `/pairs` and `/pairs/[id]`, dev lab `/dev/pair`.
-- Scoring for pairs: `ElementSpec` kind `"code"` (any SOV code: lifts, twists, throws, death
-  spirals, pair spins, ChPLi1/ChPSp1), `ScoringCategory = Category | PairCategory`, pairs PCS
-  factors 1.33/2.67, pair falls (−1 one partner, −2 both, `fallsBoth`), throws take the
-  second-half factor, `lib/scoring/validatePairs.ts` checks the SP boxes and FS limits.
-- `three/ElementPlayer.tsx`: canvas player (Actor applies root motion with Euler "YXZ"
-  (pitch, yaw, roll) and poses; second Actor for `timeline.partner`), edge-coloured `Trace`,
-  camera modes follow/side/front/overhead/orbit, HUD (phase marker, rotation counter, caption
-  pill, base-value pop-up), controls (play, scrub, speed, camera, loop, skater toggle).
-  `three/Stage.tsx` lights + procedural Environment; `three/Rink.tsx` 60×30 m ice;
-  `three/SkaterModel.tsx` loads `/models/skater-{female|male}.glb`; `three/skaterStore.ts`
-  persists the chosen skater (localStorage key `fse-skater`).
-- `components/ElementViewer.tsx` is the server-safe wrapper (dynamic import, ssr:false)
-  taking a serialisable spec. Pages: `/`, `/jumps`, `/jumps/[slug]`, `/spins`,
-  `/spins/[code]`, `/steps`, `/choreo`, `/scoring`, `/calculator`, `/compare`, `/decoder`,
-  `/sources`; dev labs `/dev/pose|jump|spin|step` (404 in production unless
-  `SHOW_DEV_LABS=1`); `app/opengraph-image.tsx`.
-- `tools/blender/build_skater.py` builds the GLBs headlessly with Blender 5.1.2 at
-  `~/Work/trash/blender-5.1.2-linux-x64/blender` from the CC0 Blender Studio Human Base
-  Meshes (`tools/blender/fetch-assets.sh` downloads them to the gitignored
-  `tools/blender/assets/`): `--body female|male`, `--preview DIR` (body renders),
-  `--boot-preview DIR` (skate close-ups). Builds take ~2 s each; GLBs are ~1.25 MB.
-  The dress is one garment: the bodice runs to the hip and the skirt is built from elliptical
-  rings measured on the torso (`body_extent`, which must ignore the A-pose arms hanging at hip
-  height) and weighted hips + nearer thigh (`tag_weights`); outfit regions are cut by geometry
-  (`region()`, arm-axis coordinate + height + neckline curves) with boundary faces subdivided
-  twice; fingers are drawn together beyond the wrist. Gotcha: in Blender 5
-  `transform_apply(scale=True)` bakes the object location into the mesh, so rotate parts with
-  `rotate_about()` (mesh transform about the part's centre), never `transform_apply(rotation=True)`.
-- Pose stills for the spins page live in `public/poses/*.png`; regenerate after a model or
-  pose change with the bare pose lab:
-  `CLIP="#bare-stage" node --experimental-strip-types scripts/shot.mts "http://localhost:3000/dev/pose?pose=camel&cam=card&bare=1" public/poses/camel.png 'body[data-skater-ready="1"]' 400 480`
-  (`cam=cardLow` for sit positions; the map of position → pose name is `POSE_IMAGE` in `app/spins/page.tsx`).
+  Communication 2786 text: every element code → base value, eleven GOE values, section.
+- `data/*.ts`: hand-written, paraphrased content with `SourceRef`s: jumps (`JUMP_SIGNS`,
+  `JUMP_CALLING_RULES`), spins (positions, variation categories, 15 level features, families,
+  requirements, clarifications), steps, choreo, programs, goe, pcs, deductions, glossary,
+  sources (`SOURCES`, `CHANGES_2026_27`), `pairs.ts` (families, lift groups/positions/features,
+  twist, throws, death spirals, pair spins, SP 2026-27, FS limits, GOE guidelines, max-level
+  table). `data/types.ts` has the types.
+- `lib/scoring/`: pure engine. `sov.ts` lookups; `elements.ts` element specs and protocol codes
+  (kinds jump, spin, step, choreoSequence, choreoSpin, and `code` for any SOV code such as the
+  pair elements; `isJumpElement` includes throws); `value.ts` scoring (combos sum base values,
+  GOE from the hardest jump, +REP 80 %, second-half ×1.1, throws take the factor); `panel.ts`
+  trimmed mean; `program.ts` TES/PCS/deductions (`ScoringCategory = Category | PairCategory`,
+  pairs PCS factors 1.33/2.67, Senior-singles fall escalation, pairs −1 one partner / −2 both
+  via `fallsBoth`); `validate.ts` singles SP/well-balanced/Zayak checks and
+  `validatePairs.ts` for the pair SP boxes and FS limits. `lib/decoder/parse.ts` parses codes.
 
-## Commands
+### The rig and the joint model (three/rig)
+- `bones.ts`: the 25-bone FK rig exported by Blender (`root, hips, spine, chest, neck, head,
+  shoulder/upper_arm/forearm/hand ×2, thigh/shin/foot ×2` plus `_tip` leaves). Bone names and
+  the bind pose are a hard contract: the Blender script must never change them.
+- `pose.ts`: a `Pose` aims bones by **direction in skater space** (+X skater's left, +Y up,
+  +Z forward) with an optional `twist`; helpers `limb(fwdDeg, sideDeg)`, `vec`, `pointed(shin,
+  deg)` (a foot `deg` degrees off the shin line, default 50 = booted point), `mirrorPose`,
+  `mergePoses`, `lerpPose(a, b, t, rest)` (resolves both ends, then blends each bone along the
+  great circle in its parent's blended frame; unposed bones follow their parent).
+- `limits.ts` (the Wave 0 contract, refined in Wave 1): `LIMITS` range-of-motion table for an
+  elite skater (hip 130/40/70/30, knee hinge 145 with 6° hyperextension and 10° lateral, booted
+  ankle 45°–95° from the shin line and ±25° sideways, lumbar 60/45/30, thoracic 40/35/25, neck
+  50/65/45, shoulder 180 with 60 behind and 50 across, elbow hinge 150/8/25, wrist 70, pelvis
+  cone 130, `twist` ranges); `resolvePose(pose, rest)` returns the fully specified pose the rig
+  renders: derived **pelvic tilt** (`derivePelvisTilt`: 1-D convex solves for pitch and roll
+  from trunk and legs, pivoting about the hip sockets so the blade stays on the ice), derived
+  **twists** (upper arm/thigh from the hinge child, forearm from the hand, shin from the foot,
+  thigh turnout from the foot when the knee is straight), **hinge projection** of posed shins
+  and forearms into their plane, and the **boot clamp** on posed feet; `validatePose` measures
+  the resolved pose in each parent segment's frame and returns `PoseViolation[]`;
+  `poseFrames`, `defaultRest` (measured GLB rest directions), `describeViolations`.
+- `rig.ts`: `SkaterRig` captures the bind pose and applies `resolvePose(pose)` every frame
+  (≈0.08 ms per call). `poses.ts` holds the base catalogue; `poses-jumps.ts` (`JUMP_POSES`,
+  entries) and `poses-spins.ts` (`SPIN_POSES`, handbook spin positions and flying positions,
+  some overriding base names such as camel and sit) register into `POSES` on import;
+  `allPoses.ts` is the barrel that imports every pose module and exposes `poseNames()`
+  (computed on demand; the old frozen constant missed most poses). **New pose files must be
+  added to the barrel.** `tests/poses.test.ts` walks every registered pose, its mirror and the
+  blend midpoints, so every new pose must pass `validatePose`.
+
+### Animation (three/animation)
+- `timeline.ts`: `Timeline = { keys, root(t) → {x,y,z,yaw,pitch?,roll?}, markers, trace
+  (foot/edge/actor samples), rotation (start/end/turns/nominal/yawStart), arrows (`IceArrow`
+  arcs on the ice), partner?, focus, heading }`, `poseAt`, `markerAt`. Treat it as frozen
+  unless a field is essential for everyone.
+- `jumps.ts`: `jumpTimeline({ jump, rotations, call, edgeCall })`. The entry is a list of path
+  segments built backward from the take-off (`EntrySegment { duration, curvature, edge }`):
+  `ENTRY_KIND` three-turn (F, S, T), step-forward (A), long-edge (Lz, 13 m counter lobe), edge
+  (Lo, Eu); edge calls `e` (lip/flutz: the last `EDGE_ROLL_TIME` 0.7 s on the other edge with
+  that lobe and lean) and `!` (`FLAT_TIME` 0.4 s flat, zero roll); the lean follows a smoothed
+  curvature; `jumpModel` returns `{ nominal, turns, missing, T, flight, spin, preRotation,
+  airTurns, skid, vaultTime, omegaIce, lean }` with the drift rate from the take-off segment;
+  each jump carries two `IceArrow`s (edge curve direction, rotation direction) and per-jump
+  entry poses (`entryPosesFor`). `special.ts` (Walley, split jump, inside Axel, backflip)
+  keeps plain edge entries.
+- `three/physics/jump.ts`: ballistics from calibrated air times, angular momentum with a tuck
+  inertia schedule, `preRotationAngle` (smoothstep vault over `VAULT_TIME`), `landingSkid`
+  (finite cubic Hermite, `SKID_MAX`, natural clean skid `omegaLanding·SKID_TAU` ≤ `SKID_CAP`),
+  `edgeLean`, `rollToward`, `landingDip`.
+- `spins.ts`: `spinTimeline(params)` with phases, `spinFromSpec({ code, features })` building
+  any family with features (change of edge with lean and trace flip, change of foot by jump,
+  flying entries per family, 8 revolutions, travelling threes, windmills, variations, V),
+  `spinRevolutions`, `spinFeatureNotes`, `SPIN_PRESETS` (incl. `variations`, `edgeChange`,
+  `jumpChange`), `spinRateFactor` (inertia per position).
+- `steps.ts` (turns, basic steps, `CHOREO` field moves), `pairs.ts` (`PAIR_PRESETS` 3Li, 4Li,
+  5RLi, 3Tw, 3LzTh, FiDs, BoDs, PCoSp, 3T+3T; the Woman is the primary track, the Man the
+  `partner` track; lift positions hang her hips from his measured palm points),
+  `catalog.ts` (`ViewerSpec` kinds jump {slug, rotations, call, edge}, spin {code, features},
+  turn, choreo, special, pair → `buildTimeline`, `captionFor`), `store.ts` (player store).
+
+### Player, pages, components
+- `three/ElementPlayer.tsx`: canvas player (Actor applies root motion with Euler "YXZ" and
+  poses; second Actor for `timeline.partner`), edge-coloured `Trace`, `IceArrows` with a HUD
+  legend, cameras follow/side/front/overhead/orbit, HUD (marker, rotation counter, caption
+  pill, base-value pop-up), controls (play, scrub, speed, camera, loop, Skater, Costume).
+  `three/Stage.tsx`, `three/Rink.tsx`, `three/SkaterModel.tsx` (loads the GLB, clones
+  materials per instance and recolours them by name from the chosen `CostumeChoice`),
+  `three/skaterStore.ts` (variant + costume per variant, persisted as `fse-skater` v1).
+- `components/ElementViewer.tsx` (dynamic, ssr:false, takes a serialisable spec),
+  `PairExplorer.tsx`, `app/jumps/[slug]/JumpExplorer.tsx` (rotations, call, edge),
+  `app/jumps/FlipVsLutz.tsx` (two players on one clock via `onStore`),
+  `app/spins/SpinExplorer.tsx` (family, level, V, feature toggles, variation selects, code and
+  value, "what counts for the level", revolutions counted), `app/calculator/Calculator.tsx`.
+- Pages: `/`, `/jumps`, `/jumps/[slug]`, `/spins`, `/spins/[code]`, `/steps`, `/choreo`,
+  `/pairs`, `/pairs/[id]`, `/scoring`, `/calculator`, `/compare`, `/decoder`, `/sources`;
+  dev labs `/dev/pose|jump|spin|step|pair` (404 in production unless `SHOW_DEV_LABS=1`;
+  `/dev/pose?pose=<name>&cam=iso|front|side|back|head|card|cardLow[&bare=1]`).
+
+### Models (Blender pipeline)
+- `tools/blender/build_skater.py` builds `public/models/skater-{female,male}.glb` headlessly
+  with Blender 5.1.2 at `~/Work/trash/blender-5.1.2-linux-x64/blender` from the CC0 Blender
+  Studio Human Base Meshes (`tools/blender/fetch-assets.sh` downloads them to the gitignored
+  `tools/blender/assets/`; in an agent worktree symlink that directory from the main checkout).
+  `--body female|male`, `--sleeves none|short|long`, `--skirt short|long|none`, `--neckline
+  scoop|high`, `--palette <name>`, `--out`, `--preview DIR`, `--boot-preview DIR`. Builds take
+  ~2 s; GLBs ≈1.26 / 1.15 MB; sizes reproduce byte-for-byte.
+- What it builds: exact outfit cuts (`split_at_boundaries`, `region()`), a real dress shell
+  (offset, solidified copy of the torso with a fabric rim), a skirt of rings on the measured
+  pelvis outline (`torso_profile`; the measurement must ignore the A-pose arms) weighted hips at
+  the waistband and the nearer thigh toward the hem, boots centred on the measured shin
+  (`shin_centre`) with cuff, tongue, crossed laces, eyelets and hooks, weighted **foot → shin
+  across the ankle** (sole/blade/toe box on the foot bone, shaft on the shin, blended between)
+  so a pointed foot never carries the shaft off the leg, relaxed hands (`relax_hand`), hair
+  ellipsoids with a curved hairline, belt (man). Material names the viewer recolours by name
+  and that must be kept: `top, skirt, legs, glove, boot, hair`.
+- Gotcha: in Blender 5 `transform_apply(scale=True)` bakes the object location into the mesh;
+  rotate parts with `rotate_about()`, never `transform_apply(rotation=True)`.
+- Pose stills for the spins page: 13 PNGs in `public/poses/` (camel, camelForward, sit,
+  upright, layback, sidewaysLean, biellmann, camelSideways, camelUpward, sitSideways,
+  sitBehind, uprightForward, crossfoot). Regenerate after any model or pose change:
+  `CLIP="#bare-stage" node --experimental-strip-types scripts/shot.mts
+  "http://localhost:3000/dev/pose?pose=camel&cam=card&bare=1" public/poses/camel.png
+  'body[data-skater-ready="1"]' 400 480` (`cam=cardLow` for sit, sitSideways, sitBehind,
+  crossfoot). The position → file map is `POSE_IMAGE` in `app/spins/page.tsx`.
+
+## 5. Commands and environment gotchas
 
 ```bash
-pnpm dev            # dev server (usually already running on :3000)
-pnpm test           # vitest: 234 tests (sov, scoring incl. pairs, rig, poses, timeline, physics, spins, pairs-data, pairs, costume)
+pnpm dev            # dev server on :3000 (usually already running; config changes restart it)
+pnpm test           # vitest: 234 tests
 pnpm typecheck && pnpm lint
-pnpm build          # static routes incl. /pairs/[id]
-pnpm test:e2e       # Playwright smoke suite (uses the running dev server)
+pnpm build          # 60 static pages
+pnpm test:e2e       # Playwright smoke suite against the running dev server
 node --experimental-strip-types scripts/shot.mts <url> <out.png> ['body[data-skater-ready="1"]'] [w] [h]
-SKATER=male node ... scripts/shot.mts ...   # screenshot with the male model
+SKATER=male node ... scripts/shot.mts ...   # the man
 CLIP="#id" node ... scripts/shot.mts ...    # screenshot one element only
 ```
 
-Screenshots and Blender previews go to the session scratchpad; view them with the Read tool.
+- Screenshots and Blender previews go to the session scratchpad (`/tmp/<session>/...`),
+  which does not survive a machine restart; view PNGs with the Read tool. Playwright scripts
+  that drive the UI (select an Edge call, toggle spin features, set `localStorage.fse-skater`)
+  live there too and are easy to rewrite (10–20 lines).
+- **127.0.0.1 vs localhost:** Next's dev server only trusts `localhost` and the hostname it was
+  started with; `next.config.ts` therefore lists `allowedDevOrigins: ["127.0.0.1",
+  "192.168.*.*", "10.*.*.*"]`. Without it the page renders but every viewer stays at "Loading
+  3D viewer…" (HMR socket and on-demand chunks refused). Dev-only; production is unaffected.
+- `.claude/worktrees/` (agent worktrees) is gitignored and ignored by ESLint
+  (`eslint.config.mjs`); remove worktrees with `git worktree remove --force` after merging.
+- Vitest swallows `console.log` in some reporters; write diagnostics to a scratch file instead.
+- The GLB is served from `public/models` with the same URL across builds: a returning browser
+  may show the previous model until it refetches; the rig works with either.
 
-## Conventions worth remembering
+## 6. Conventions
 
-- Jump geometry: take-off at the origin, travel +X; Lutz and Walley entries curve to +Z
-  (counter-rotated), every other jump to -Z; all land on the right back outside edge;
-  Axel adds half a revolution and takes off forward. Feet are described for a
-  counter-clockwise skater.
-- Spin presets name their phases with the rule language; the HUD counter integrates yaw.
-- Captions/values come from `captionFor` in the catalog; pair elements should set
-  `kind: "pair"`.
-- Tests pin ISU numbers (4T 9.50, 3A 8.00, 4A 12.50, 3Lz< 4.72, CCoSp4V 3.15, factors
-  1.67/3.33 and 1.33/2.67).
+- Jump geometry: take-off at the origin, travel +X; Lutz and Walley lobes curve to +Z (counter
+  to the rotation), every other jump to −Z; all listed jumps land on the right back outside
+  edge (the Euler on the left back inside); the Axel adds half a revolution and takes off
+  forward. Feet are described for a counter-clockwise skater. The trace colours edges:
+  outside blue, inside orange/red, flat grey, toe black.
+- Spin presets and the explorer name phases with the handbook language; the HUD counter
+  integrates yaw from `rotation.yawStart`.
+- Captions and values come from `captionFor`; pair elements use `kind: "pair"`.
+- Tests pin ISU numbers (4T 9.50, 3A 8.00, 4A 12.50, 3Lz< 4.72, 3Lze 4.72, 3Fe 4.24, CCoSp4
+  4.20, FCCoSp4V 3.15, 5RLi4 7.00, 3Tw3 5.70, 3LzTh 5.30, factors 1.67/3.33 and 1.33/2.67).
 
-## Waves 0–2 (orchestrated, 14–15 Oct 2026)
+## 7. Orchestration log (what was done, verified, believed, redone)
 
-Run as waves of two worktree agents (`isolation: "worktree"`, dev servers on :3001/:3002, Blender
-assets symlinked from the main checkout), each verified by the orchestrator with its own
-screenshots and `pnpm test` before merging into `main`:
+- **Earlier the same night (inline):** physics review fixes (8 confirmed findings), Pair
+  Skating animations/pages/calculator, the first dress rebuild, per-jump entries v1, ice
+  arrows, softer arms, lifted heads, spins stills.
+- **Wave 0 (orchestrator, inline, commit 4e29018):** limits/validator contract, failing
+  all-poses test (52 of 77 poses), costume contract, `poseNames()` fix.
+- **Wave 1 rig agent (section A, merged 8ab0a29):** verified by me: 199 tests green, camels a
+  straight line with the pelvis following, layback tucked, Biellmann a closed ring, tuck
+  elbows in plane, spread eagle turned out at the hip, pairs intact. Judgement calls it made
+  (candidates for review): Biellmann trunk ≈50° forward, layback attitude leg 22° not 35°,
+  lift-press straddle 130° not 176°, death-spiral poses re-solved numerically.
+- **Wave 1 model agent (sections B, C, merged 9587251):** verified by me: dress shell, draped
+  skirt, boots with cuff/tongue/laces/hooks, closed hands, ruby costume recolour, GLB rebuild
+  reproducible. Not verified by anyone: `--sleeves long`, `--skirt long|none`, `--neckline
+  high`, non-default palettes never rendered; the man's finger packing judged in Blender only.
+- **Redone by me after the user's "legs going outside the shoes" (81f3f37):** the rig agent's
+  50–60° pointed feet swung the rigid boot shaft off the shin; fixed with the foot→shin boot
+  weighting, the booted ankle limit (45° min) and the resolver's boot clamp; poses re-pointed
+  to 50°.
+- **Wave 2 jumps agent (section D, merged abeed52):** verified by me: six visibly different
+  knee bends, lip/flutz/unclear-edge through the public page (trace colours, lobes, codes and
+  values), Flip-vs-Lutz block in sync. Believed only: head over the right shoulder on the
+  Lutz, sync across a loop boundary, the Euler sharing the Loop's crossed entry.
+- **Wave 2 spins agent (section E, merged 3545340):** verified by me: explorer through the UI
+  (family, level, V, feature buttons, variation selects → code/value/GOE and the level panel),
+  camel knee above hip, sit thigh parallel, flying sit, change of edge lean and marker.
+  Believed only: the overhead camera hides the change-of-edge loops under the boot (orbit
+  shows them; tests pin the flip), hop-change transitions checked by tests not by eye.
+- **Wave 2 close (f834049):** stills regenerated, build, production deploy.
+- **Dev-origin fix (8584ec2):** see §5.
 
-- **Wave 0 contracts.** `three/rig/limits.ts`: range-of-motion table (`LIMITS`), `validatePose`,
-  `poseFrames`, `resolvePose`; `tests/poses.test.ts` walks every registered pose, its mirror and
-  the blend midpoints of timeline-adjacent poses; costume contract in `three/skaterStore.ts`
-  (`COSTUME_MATERIALS` the GLB keeps: top, skirt, legs, glove, boot, hair; `COSTUME_PRESETS`);
-  `poseNames()` + `three/rig/allPoses.ts` barrel (every pose module must be imported there).
-- **Wave 1 rig (section A).** `resolvePose` derives the pelvis tilt (`derivePelvisTilt`, convex
-  solve on pitch/roll from trunk and legs), limb twists (upper arm/thigh from the hinge child,
-  forearm from the hand, shin from the foot), projects knees and elbows into their hinge planes,
-  clamps posed feet to the booted ankle range (≥45° from the shin line, ±25° sideways), and is
-  what both the rig and the validator use. `lerpPose` blends skeleton-wise in the parent's
-  frame. The pelvis tilt pivots about the hip sockets so the blade stays on the ice.
-- **Wave 1 model (sections B, C).** Real dress shell (offset copy of the torso, solidified rim),
-  skirt rings on the measured pelvis outline weighted hips + nearer thigh, boots with cuff,
-  tongue, crossed laces and hooks, relaxed hands, boots centred on the measured shin and weighted
-  foot→shin across the ankle; CLI `--sleeves --skirt --neckline --palette`; runtime recolouring
-  by material name in `three/SkaterModel.tsx` and a Costume select in the player controls.
-- **Wave 2 jumps (section D).** `three/rig/poses-jumps.ts` (12 entry poses), entries built as
-  path segments (`EntrySegment`, `EDGE_ROLL_TIME`, `FLAT_TIME`), edge calls animated (lip,
-  flutz, unclear-edge flat) through `JumpParams.edgeCall` / the viewer spec's `edge`,
-  `app/jumps/FlipVsLutz.tsx` on one clock, tests pinning every difference.
-- **Wave 2 spins (section E).** `app/spins/SpinExplorer.tsx` (family, level, V, feature toggles,
-  variations; code + value + "what counts for the level"), spec `{ kind: "spin", code,
-  features }` → `spinFromSpec`; `three/rig/poses-spins.ts` overrides camel/sit/variations per
-  the handbook; `spinTimeline` animates change of edge (lean + trace), change of foot by jump,
-  flying entries per family, 8 revolutions, travelling threes; `tests/spins.test.ts`.
-- Stills: regenerate the 13 files in `public/poses` (incl. `camelForward`) after model or pose
-  changes (command in the pipeline section).
+## 8. In progress: Wave 3 review
 
-## Done since the first handoff (all committed)
+A Workflow run (`wf_b84b04f1-323`) reviews `git diff 727cdf3..HEAD` with two lenses
+(biomechanics vs the ISU handbook and joint ranges; code correctness over the resolver, entry
+segments, spin spec builder, explorer, costumes, Blender script and tests), then two refuters
+per finding run two at a time; a finding counts as confirmed only if both fail to refute it.
+Its journal is at
+`~/.claude/projects/<project>/f09f0cc2-5c64-4da1-ba46-57c377d36180/subagents/workflows/wf_b84b04f1-323/journal.jsonl`
+(`started`/`result`/`log` lines; the final `return` holds `confirmed` with each finding's
+`adjustedFix`). Script:
+`~/.claude/projects/.../workflows/scripts/wave3-review-wf_b84b04f1-323.js` (resumable with
+`resumeFromRunId`). When it completes: apply **confirmed findings only** (inline, not with
+more agents unless large), re-run tests/typecheck/lint, re-shoot the affected poses or
+elements, commit, `pnpm build`, `vercel deploy --prod --yes`, and report to the user.
 
-1. Physics review fixes (8 confirmed findings): approach poses mirrored onto the take-off
-   foot, smoothstep vault, finite skid, continuous spin hook and exit, `yawStart` counter.
-2. Pair Skating animations, pages, viewers, calculator categories and validation.
-3. The dress rebuild, per-jump entries, ice arrows, softer arms, lifted heads (camel,
-   spiral), the spins page stills and orbit camera. The user's asks that drove this:
-   "performers don't follow kinesiology/anatomy", "legs disintegrated", "flip and lutz
-   look the same", "spins page is a bit different".
+## 9. Known gaps and ideas
 
-## Known gaps / ideas
-
-- Lace eyelets and plates are simple primitives; a hockey-style tongue is missing.
-- The hairline edge is still face-cut; the dress edges are refined but not perfectly smooth.
 - No IK: hands do not exactly touch the blade in the Biellmann/catch-foot nor the partner in
   lifts and death spirals (a hold-snap on the Man's arm would fix it).
-- Skirt weighting is static (hips + thigh share): in extreme positions it clips a little.
-- The counter-rotation arrows and the entry turns exist only for listed jumps; `special.ts`
-  (Walley, split, inside Axel, backflip) keeps the plain edge entry.
-- No program replay with running score yet (the animated-highlights clip was the inspiration).
-- Quiz mode, Ice Dance and localisation were explicitly deferred.
+- Skirt weighting is static (hips + thigh share): extreme leg raises still cut the skirt.
+- The hairline edge is face-cut; the dress rim reads a little thick on the shoulders; the hair
+  is ellipsoids; the faces are the bare base-mesh heads.
+- The base mesh's limbs sit off the bone axes (hands ≈7 cm ahead of the hand bones, the man's
+  shins ≈6 cm outside the leg bones); skates and hands compensate, nothing else does.
+- `special.ts` jumps keep plain entries and no arrows; "both directions" spin feature not
+  modelled; the overhead camera is too high to read the 20 cm change-of-edge loops.
+- The `rotation.turns` HUD semantics and the Biellmann/layback judgement calls above may be
+  revisited by the Wave 3 review.
+- Deferred by the user: quiz mode, Ice Dance, localisation, program replay with running score.
