@@ -5,6 +5,7 @@ import { SourceNote } from "@/components/SourceNote";
 import { ElementViewer } from "@/components/ElementViewer";
 import { JUMPS, JUMP_CALLING_RULES, JUMP_SIGNS, ROTATION_NAMES } from "@/data/jumps";
 import { SpecialExplorer } from "./SpecialExplorer";
+import { FlipVsLutz } from "./FlipVsLutz";
 import { SOV } from "@/lib/scoring/sov";
 
 export const metadata: Metadata = {
@@ -86,7 +87,11 @@ export default function JumpsPage() {
       </Section>
       <Section title="Watch a quad Lutz">
         <ElementViewer spec={{ kind: "jump", slug: "lutz", rotations: 4 }} height={460} camera="follow" />
-        <p className="mt-2 text-sm text-muted">The blue line is the back outside edge; the dashed arc is the flight; the counter shows revolutions in the air. Open the Lutz page to change rotations, add a q or &lt; call and compare the take-off with the flip.</p>
+        <p className="mt-2 text-sm text-muted">The blue line is the back outside edge; the dashed arc is the flight; the counter shows revolutions in the air. Open the Lutz page to change rotations, add a q, &lt; or edge call; the Flip and the Lutz are compared on one clock below.</p>
+      </Section>
+      <Section id="flip-vs-lutz" title="Flip vs Lutz: the edge is the difference">
+        <FlipVsLutz />
+        <SourceNote refs={[{ doc: "tpSingles", where: "Taking off from wrong edge (Flip/Lutz)" }, { doc: "comm2788", where: "IV, Jumps" }]} className="mt-3" />
       </Section>
       <Section title="What the technical panel calls">
         <div className="grid gap-3 md:grid-cols-2">
