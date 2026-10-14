@@ -1,6 +1,6 @@
 import { createStore } from "zustand";
 import { buildTimeline, captionFor, toElementSpecs, type ViewerSpec } from "./catalog";
-import { endOf, extentOf, keepInRink, linkTimeline, placeTimeline, placementAfter, roomAhead, startOf, STROKE_SPEED, wrapAngle, type IcePoint, type LinkOptions } from "./place";
+import { EDGE_MARGIN, endOf, extentOf, keepInRink, linkTimeline, placeTimeline, placementAfter, roomAhead, startOf, STROKE_SPEED, wrapAngle, type IcePoint, type LinkOptions } from "./place";
 import { headingOf } from "./timeline";
 import { insideRink } from "./rinkSize";
 import type { Timeline } from "./timeline";
@@ -81,7 +81,7 @@ export interface ProgramState {
  * How long a stroking turn takes: comfortable when there is room, tighter near the boards so the
  * arc (which reaches STROKE_SPEED·T/|turn| metres along the old heading) stays on the ice.
  */
-const BOARD_CLEARANCE = 1.5;
+const BOARD_CLEARANCE = EDGE_MARGIN + 0.3;
 
 function turnSeconds(p: IcePoint, turn: number, comfortable: number): number {
   const a = Math.abs(turn);
@@ -93,21 +93,64 @@ function turnSeconds(p: IcePoint, turn: number, comfortable: number): number {
   return Math.max(0.6, Math.min(comfortable, (radiusMax * a) / STROKE_SPEED));
 }
 
-/** A stroking link that stays at least a metre inside the boards: the arc is tightened until every trace sample is on the ice (corners defeat the straight-line guards). */
+/** A stroking link that stays on the ice right up to the boards: the arc is tightened until every trace sample is inside (corners defeat the straight-line guards). */
 function safeLink(at: IcePoint, opts: LinkOptions & { turn: number; seconds: number }): Timeline {
-  let link = linkTimeline(at, opts);
-  for (let seconds = opts.seconds * 0.8; seconds >= 0.6 && !link.trace.every((t) => insideRink(t.x, t.z, 1)); seconds *= 0.8) link = linkTimeline(at, { ...opts, seconds });
-  return link;
+  const onIce = (tl: Timeline) => tl.trace.every((t) => insideRink(t.x, t.z, EDGE_MARGIN));
+  // tighten the arc; when even the tightest arc at stroking speed would cross the boards (nose to the
+  // glass), slow right down and turn almost on the spot
+  for (const speed of [opts.speed ?? STROKE_SPEED, 2.0, 1.2, 0.7, 0.4]) {
+    let link = linkTimeline(at, { ...opts, speed });
+    for (let seconds = opts.seconds * 0.8; seconds >= 0.25 && !onIce(link); seconds *= 0.8) link = linkTimeline(at, { ...opts, speed, seconds });
+    if (onIce(link)) return link;
+  }
+  return linkTimeline(at, { ...opts, speed: 0.4, seconds: 0.25 });
 }
 
 const NO_STEER: Steer = { rate: 0, speed: STROKE_SPEED };
 
-/** Beyond this distance from centre ice the unsteered wander turns back toward the middle. */
-const HOME_RADIUS = 9;
+/** Beyond this distance from centre ice the unsteered wander drifts back toward the middle; steering overrides it, right up to the boards. */
+const HOME_RADIUS = 13;
+
+/** True when the whole root path and trace of a placed timeline (both skaters) stay on the ice. */
+export function staysOnIce(tl: Timeline, margin = EDGE_MARGIN): boolean {
+  for (const sample of tl.trace) if (!insideRink(sample.x, sample.z, margin)) return false;
+  for (let i = 0; i <= 60; i++) {
+    const r = tl.root((tl.duration * i) / 60);
+    if (!insideRink(r.x, r.z, margin)) return false;
+    if (tl.partner) {
+      const q = tl.partner.root((tl.duration * i) / 60);
+      if (!insideRink(q.x, q.z, margin)) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * The stroking link into an element: the smallest turn (trying the current heading, then toward
+ * centre ice, then every 15°) after which the element's real path, placed at the link's end, stays
+ * on the ice; the heading with the most room is the fallback.
+ */
+function linkInto(position: IcePoint, tl: Timeline): Timeline {
+  const comfortable = (turn: number) => 1.6 + Math.abs(turn) * 0.8;
+  const make = (turn: number) => safeLink(position, { turn, seconds: turnSeconds(position, turn, comfortable(turn)), endBackward: startOf(tl).facingBackward, endPose: tl.keys[0]?.pose });
+  const candidates = [0, wrapAngle(headingOf(-position.x, -position.z) - position.heading), ...Array.from({ length: 24 }, (_, i) => wrapAngle((i * Math.PI) / 12))].sort((a, b) => Math.abs(a) - Math.abs(b));
+  const tried = new Set<number>();
+  for (const turn of candidates) {
+    const key = Math.round(turn * 100);
+    if (tried.has(key)) continue;
+    tried.add(key);
+    const link = make(turn);
+    if (!staysOnIce(link)) continue;
+    const placed = placeTimeline(tl, placementAfter(tl, endOf(link)));
+    if (staysOnIce(placed)) return link;
+  }
+  return make(keepInRink(position, 8 + extentOf(tl)).turn);
+}
 
 function idle(at: IcePoint, wander: 1 | -1, steer: Steer = NO_STEER): Playing {
   const steered = steer.rate !== 0 || steer.speed !== STROKE_SPEED;
-  const ahead = steered ? 6 : 12;
+  // steering may take her to the boards: only the next segment's length plus one tight turn is reserved
+  const ahead = steered ? steer.speed * STEER_SECONDS + 0.8 : 10;
   const k = keepInRink(at, ahead);
   const seconds = steered ? STEER_SECONDS : 3;
   let free = wander * 0.5;
@@ -155,8 +198,7 @@ export function createProgramStore(start: IcePoint = CENTRE_ICE) {
       if (s.queue.length > 0) {
         const [next, ...queue] = s.queue;
         const tl = buildTimeline(next);
-        const k = keepInRink(position, 8 + extentOf(tl));
-        const link = safeLink(position, { turn: k.turn, seconds: turnSeconds(position, k.turn, 1.6 + Math.abs(k.turn) * 0.8), endBackward: startOf(tl).facingBackward, endPose: tl.keys[0]?.pose });
+        const link = linkInto(position, tl);
         set({ position, marks, history, nextId, queue, pending: next, playing: { kind: "link", timeline: link, caption: `Next: ${captionFor(next).caption}` } });
         return;
       }

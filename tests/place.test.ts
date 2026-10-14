@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildTimeline } from "@/three/animation/catalog";
-import { endOf, keepInRink, linkTimeline, placementAfter, placeTimeline, startOf, wrapAngle } from "@/three/animation/place";
+import { EDGE_MARGIN, endOf, keepInRink, linkTimeline, placementAfter, placeTimeline, startOf, wrapAngle } from "@/three/animation/place";
 import { insideRink } from "@/three/animation/rinkSize";
 
 const near = (a: number, b: number, eps = 1e-6) => expect(Math.abs(a - b), `${a} vs ${b}`).toBeLessThan(eps);
@@ -126,6 +126,17 @@ describe("linkTimeline", () => {
     expect(endOf(b).facingBackward).toBe(true);
   });
 
+  it("strokes on alternate feet, in time order, and coasts on two feet when slow", () => {
+    const link = linkTimeline(from, { seconds: 3 });
+    for (let i = 1; i < link.keys.length; i++) expect(link.keys[i].t).toBeGreaterThan(link.keys[i - 1].t);
+    const glides = link.keys.filter((k) => k.pose !== link.keys[0].pose && k.t < 2.5);
+    expect(glides.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(glides.map((k) => k.pose)).size).toBeGreaterThanOrEqual(2);
+    expect(new Set(link.trace.map((s) => s.foot))).toEqual(new Set(["L", "R"]));
+    const coast = linkTimeline(from, { seconds: 2, speed: 1.3 });
+    expect(coast.trace.every((s) => s.foot === "both")).toBe(true);
+  });
+
   it("blends into the next element's first pose", () => {
     const link = linkTimeline(from, { endPose: lutz.keys[0].pose });
     expect(link.keys[link.keys.length - 1].pose).toBe(lutz.keys[0].pose);
@@ -134,8 +145,10 @@ describe("linkTimeline", () => {
 });
 
 describe("keepInRink", () => {
-  it("leaves a heading alone in the middle of the ice", () => {
+  it("leaves a heading alone in the middle of the ice, and right up to the boards while there is room", () => {
     expect(keepInRink({ x: 0, z: 0, heading: 1 }, 10).turn).toBe(0);
+    // 1.5 m from the side boards, skating along them: nothing to correct
+    expect(keepInRink({ x: 0, z: 13.5, heading: Math.PI / 2 }, 2.5).turn).toBe(0);
   });
 
   it("turns toward centre ice before the end boards and the corners", () => {
@@ -146,7 +159,7 @@ describe("keepInRink", () => {
     ]) {
       const k = keepInRink(p, 8);
       expect(k.turn, JSON.stringify(p)).not.toBe(0);
-      expect(insideRink(p.x + 8 * Math.sin(k.heading), p.z + 8 * Math.cos(k.heading), 3), JSON.stringify(p)).toBe(true);
+      expect(insideRink(p.x + 8 * Math.sin(k.heading), p.z + 8 * Math.cos(k.heading), EDGE_MARGIN), JSON.stringify(p)).toBe(true);
     }
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyAppearance, materialColours, visibleNodes, type Wardrobe } from "@/three/appearance";
+import { applyAppearance, darken, materialColours, visibleNodes, type Wardrobe } from "@/three/appearance";
 import {
   DEFAULT_APPEARANCES,
   GLB_MATERIALS,
@@ -141,6 +141,27 @@ describe("materialColours", () => {
     expect(Object.keys(on).sort()).toEqual([...GLB_MATERIALS].sort());
     expect(on.skin).toBe(base.skin);
     expect(on.hair).toBe(base.hair.colour);
+  });
+
+  it("paints the sole with the boot colour by default and separately when chosen", () => {
+    for (const v of VARIANTS) {
+      const d = DEFAULT_APPEARANCES[v];
+      expect(d.outfit.colours.sole).toBe(d.outfit.colours.boot);
+      expect(materialColours(d).sole).toBe(d.outfit.colours.boot);
+    }
+    const custom = materialColours(mergeAppearance(base, { outfit: { colours: { sole: "#123456" } } }));
+    expect(custom.sole).toBe("#123456");
+    expect(lookFor("female", "ivory").appearance.outfit.colours.sole).toBe("#f5f3ee");
+  });
+
+  it("gives the blades their chosen finish and the mounting plates a darker shade of it", () => {
+    const gold = materialColours(mergeAppearance(base, { outfit: { colours: { blade: "#d4a93c" } } }));
+    expect(gold.blade).toBe("#d4a93c");
+    expect(gold.plate).toBe(darken("#d4a93c", 0.72));
+    expect(darken("#ffffff", 0.5)).toBe("#808080");
+    expect(darken("#000000", 0.5)).toBe("#000000");
+    expect(darken("nonsense", 0.5)).toBe("nonsense");
+    expect(materialColours(base).blade).toBe(base.outfit.colours.blade);
   });
 });
 

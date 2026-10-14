@@ -24,7 +24,7 @@ black trousers, a belt, black gloves, a dark quiff and black boots.
 
 Material names are a contract with three/skaterStore.ts, which recolours them at runtime by
 name: "top" (dress bodice + briefs / shirt), "skirt" (female only), "legs" (tights / trousers),
-"glove", "boot", "hair". The rest (skin, sole, lace, vent, eyelet, hook, tongue, blade, plate,
+"glove", "boot", "sole", "hair", "blade", "plate". The rest (skin, lace, vent, eyelet, hook, tongue,
 belt) keep their built colours.
 
 Bone names (glTF nodes): root, hips, spine, chest, neck, head, head_tip, shoulder_L,
@@ -61,8 +61,8 @@ def srgb(hex_str):
 
 
 # Colour sets. "skirt" defaults to "top". The female and male defaults are "black" and "charcoal".
-WHITE_BOOT = {"boot": (0.93, 0.91, 0.88), "sole": (0.78, 0.68, 0.55), "lace": (0.97, 0.96, 0.94), "vent": (0.72, 0.70, 0.66), "eyelet": (0.55, 0.52, 0.48), "tongue": (0.90, 0.88, 0.85)}
-BLACK_BOOT = {"boot": (0.05, 0.05, 0.06), "sole": (0.08, 0.07, 0.07), "lace": (0.14, 0.14, 0.15), "vent": (0.02, 0.02, 0.02), "eyelet": (0.30, 0.30, 0.32), "tongue": (0.07, 0.07, 0.08)}
+WHITE_BOOT = {"boot": (0.93, 0.91, 0.88), "sole": (0.93, 0.91, 0.88), "lace": (0.97, 0.96, 0.94), "vent": (0.72, 0.70, 0.66), "eyelet": (0.55, 0.52, 0.48), "tongue": (0.90, 0.88, 0.85)}
+BLACK_BOOT = {"boot": (0.05, 0.05, 0.06), "sole": (0.05, 0.05, 0.06), "lace": (0.14, 0.14, 0.15), "vent": (0.02, 0.02, 0.02), "eyelet": (0.30, 0.30, 0.32), "tongue": (0.07, 0.07, 0.08)}
 TIGHTS = (0.80, 0.60, 0.50)
 AUBURN = (0.30, 0.10, 0.05)
 DARK_HAIR = (0.07, 0.045, 0.035)
@@ -355,8 +355,10 @@ mat_lace = make_material("lace", PALETTE["lace"], roughness=0.7)
 mat_vent = make_material("vent", PALETTE["vent"], roughness=0.6)
 mat_tongue = make_material("tongue", PALETTE["tongue"], roughness=0.5)
 mat_hook = make_material("hook", (0.72, 0.73, 0.76), metallic=0.9, roughness=0.3)
-mat_blade = make_material("blade", (0.86, 0.88, 0.91), metallic=1.0, roughness=0.22)
-mat_plate = make_material("plate", (0.80, 0.81, 0.84), metallic=0.9, roughness=0.35)
+# steel: a mid-grey base under full metalness reads as polished steel; a near-white base only
+# mirrors the bright environment and looks like frosted plastic. The viewer recolours both by name.
+mat_blade = make_material("blade", (0.60, 0.62, 0.66), metallic=0.7, roughness=0.25)
+mat_plate = make_material("plate", (0.42, 0.43, 0.46), metallic=0.7, roughness=0.4)
 mat_hair = make_material("hair", PALETTE["hair"], roughness=0.7)
 mat_skirt = make_material("skirt", PALETTE["skirt"], roughness=0.42, double_sided=True)
 
@@ -699,17 +701,17 @@ def hair_bun(center):
 
 
 def hair_tail(length):
-    """A ponytail from the nape: a tapered tube hanging down the back."""
-    n = 7
-    nodes = []
-    edges = []
-    for i in range(n + 1):
+    """A ponytail: rooted inside the cap at the back of the skull, gathered at the nape, then a
+    tapered tube hanging down the back clear of the neck."""
+    n = 8
+    nodes = [((0.0, 0.040 * k, z(0.932)), (0.034, 0.034)), ((0.0, 0.066 * k, z(0.905)), (0.030, 0.030))]
+    top_z = z(0.905)
+    for i in range(1, n + 1):
         u = i / n
-        pos = (0.0, 0.075 * k + 0.045 * math.sin(u * math.pi) + 0.015 * u, z(0.905) - length * u)
-        r = 0.027 * (1 - u) + 0.011 * u
+        pos = (0.0, 0.072 * k + 0.012 * u, top_z - length * u)
+        r = 0.026 * (1 - u) + 0.011 * u
         nodes.append((pos, (r, r)))
-        if i:
-            edges.append((i - 1, i))
+    edges = [(i, i + 1) for i in range(len(nodes) - 1)]
     return skin_chain("tail", nodes, edges, mat_hair)
 
 
@@ -725,7 +727,7 @@ def hair_mane(length):
 
 if FEMALE:
     finish_variant(join_parts([hair_cap(), hair_fringe(), hair_bun((0, 0.062 * k, z(0.912)))], "hair.lowBun"), "hair.lowBun")
-    finish_variant(join_parts([hair_cap(), hair_fringe(), hair_bun((0, 0.012 * k, z(0.992)))], "hair.highBun"), "hair.highBun")
+    finish_variant(join_parts([hair_cap(), hair_fringe(), hair_bun((0, 0.004 * k, head_c.z + 0.099 * k + 0.018))], "hair.highBun"), "hair.highBun")
     for name, length in (("short", 0.12), ("medium", 0.22), ("long", 0.32)):
         finish_variant(join_parts([hair_cap(), hair_fringe(), hair_tail(length)], f"hair.ponytail.{name}"), f"hair.ponytail.{name}")
     for name, length in (("short", 0.17), ("medium", 0.27), ("long", 0.38)):

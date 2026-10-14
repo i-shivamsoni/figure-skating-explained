@@ -49,6 +49,8 @@ export function Stage({ children, camera, controls = true, orbit, arena = false,
         <Lightformer form="rect" intensity={1.1} color="#dbe9ff" position={[-6, 4, -3]} scale={[6, 5, 1]} target={[0, 1, 0]} />
         <Lightformer form="ring" intensity={0.8} color="#ffffff" position={[0, 8, 0]} scale={[6, 6, 1]} target={[0, 0, 0]} />
         <Lightformer form="rect" intensity={0.5} color="#cfe3f5" position={[0, 0.5, 8]} scale={[10, 2, 1]} target={[0, 1, 0]} />
+        {/* a soft sky over everything, so metal (the blades) reflects brightness from low angles instead of the void */}
+        <Lightformer form="rect" intensity={0.55} color="#eef4fb" position={[0, 14, 0]} rotation-x={Math.PI / 2} scale={[60, 60, 1]} />
       </Environment>
       <directionalLight
         position={[6, 10, 4]}

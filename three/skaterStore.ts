@@ -9,15 +9,18 @@ export type SkaterVariant = "female" | "male";
  * GLB contract (overhaul Wave 0). tools/blender/build_skater.py must keep these names, because
  * the viewer recolours materials and shows variant meshes by name at runtime:
  * - materials: skin, hair, top (bodice / shirt), skirt (woman), legs (tights / trousers), glove,
- *   boot, sleeve_upper (shoulder to elbow), sleeve_lower (elbow to wrist). Sleeve length is a
- *   recolour (top colour or skin); gloves off recolours "glove" to the skin.
+ *   boot, sole (the sole and heel block between boot and blade; follows the boot colour unless
+ *   chosen), sleeve_upper (shoulder to elbow), sleeve_lower (elbow to wrist), blade and plate (the
+ *   runner and its mounting plates: metallic materials whose base colour the viewer sets, the
+ *   plate a shade darker than the blade). Sleeve length is a recolour (top colour or skin);
+ *   gloves off recolours "glove" to the skin.
  * - variant nodes: hair.<style> (hair.ponytail.<length>, hair.loose.<length>), skirt.short,
  *   skirt.long. Exactly one hair node and at most one skirt node are visible.
  * - the GLB's built-in colours equal the default appearance below (the Blender palette uses the
  *   same hex values through srgb()), so the default look renders the same stills as before.
  * Bone names (three/rig/bones.ts) and the bind pose stay the hard contract they already were.
  */
-export const GLB_MATERIALS = ["skin", "hair", "top", "skirt", "legs", "glove", "boot", "sleeve_upper", "sleeve_lower"] as const;
+export const GLB_MATERIALS = ["skin", "hair", "top", "skirt", "legs", "glove", "boot", "sole", "sleeve_upper", "sleeve_lower", "blade", "plate"] as const;
 export type GlbMaterial = (typeof GLB_MATERIALS)[number];
 
 export const HAIR_STYLES = {
@@ -68,7 +71,7 @@ export function variantNodes(variant: SkaterVariant): string[] {
 
 /* ---------------------------------------------------------------- appearance */
 
-export type OutfitPiece = "top" | "skirt" | "legs" | "glove" | "boot";
+export type OutfitPiece = "top" | "skirt" | "legs" | "glove" | "boot" | "sole" | "blade";
 export type OutfitColours = Record<OutfitPiece, string>;
 export const OUTFIT_PIECES: { id: OutfitPiece; label: Record<SkaterVariant, string> }[] = [
   { id: "top", label: { female: "Dress", male: "Shirt" } },
@@ -76,7 +79,11 @@ export const OUTFIT_PIECES: { id: OutfitPiece; label: Record<SkaterVariant, stri
   { id: "legs", label: { female: "Tights", male: "Trousers" } },
   { id: "glove", label: { female: "Gloves", male: "Gloves" } },
   { id: "boot", label: { female: "Boots", male: "Boots" } },
+  { id: "sole", label: { female: "Soles", male: "Soles" } },
+  { id: "blade", label: { female: "Blades", male: "Blades" } },
 ];
+
+
 
 export interface Appearance {
   /** CSS hex colours throughout. */
@@ -117,6 +124,7 @@ const BUILT = {
   maleLegs: "#38383f",
   darkHair: "#4b3c35",
   blackBoot: "#3f3f45",
+  blade: "#cbced4",
 };
 
 export const SKIN_TONES: ColourSwatch[] = [
@@ -153,17 +161,27 @@ export const OUTFIT_COLOURS: ColourSwatch[] = [
   { id: "tights", hex: BUILT.tights, label: "Tights" },
 ];
 
+/** Blade finishes: the base colour under a fully metallic surface. */
+export const BLADE_COLOURS: ColourSwatch[] = [
+  { id: "steel", hex: "#cbced4", label: "Steel" },
+  { id: "chrome", hex: "#e2e5ea", label: "Chrome" },
+  { id: "gunmetal", hex: "#5a5e66", label: "Gunmetal" },
+  { id: "gold", hex: "#d4a93c", label: "Gold" },
+  { id: "roseGold", hex: "#d9a08c", label: "Rose gold" },
+  { id: "black", hex: "#1f2024", label: "Black" },
+];
+
 export function defaultAppearance(variant: SkaterVariant): Appearance {
   return variant === "female"
     ? {
         skin: BUILT.skin,
         hair: { style: "lowBun", length: "medium", colour: BUILT.auburn },
-        outfit: { sleeves: "none", skirt: "short", gloves: true, colours: { top: BUILT.femaleTop, skirt: BUILT.femaleTop, legs: BUILT.tights, glove: BUILT.glove, boot: BUILT.whiteBoot } },
+        outfit: { sleeves: "none", skirt: "short", gloves: true, colours: { top: BUILT.femaleTop, skirt: BUILT.femaleTop, legs: BUILT.tights, glove: BUILT.glove, boot: BUILT.whiteBoot, sole: BUILT.whiteBoot, blade: BUILT.blade } },
       }
     : {
         skin: BUILT.skin,
         hair: { style: "quiff", length: "medium", colour: BUILT.darkHair },
-        outfit: { sleeves: "short", skirt: "none", gloves: true, colours: { top: BUILT.maleTop, skirt: BUILT.maleTop, legs: BUILT.maleLegs, glove: BUILT.glove, boot: BUILT.blackBoot } },
+        outfit: { sleeves: "short", skirt: "none", gloves: true, colours: { top: BUILT.maleTop, skirt: BUILT.maleTop, legs: BUILT.maleLegs, glove: BUILT.glove, boot: BUILT.blackBoot, sole: BUILT.blackBoot, blade: BUILT.blade } },
       };
 }
 
@@ -183,10 +201,10 @@ export const LOOKS: Record<SkaterVariant, Look[]> = {
     look("female", "classic", "Classic black", {}),
     look("female", "ruby", "Ruby", dress("#8f1230")),
     look("female", "navy", "Navy", dress("#16264d")),
-    look("female", "ivory", "Ivory", dress("#f1ead9", { outfit: { colours: { boot: "#f5f3ee" } } })),
+    look("female", "ivory", "Ivory", dress("#f1ead9", { outfit: { colours: { boot: "#f5f3ee", sole: "#f5f3ee" } } })),
     look("female", "emerald", "Emerald", dress("#0f5a3f")),
     look("female", "unitard", "Black unitard", { hair: { style: "ponytail", length: "long" }, outfit: { sleeves: "long", skirt: "none", colours: { legs: BUILT.femaleTop } } }),
-    look("female", "ballet", "Ivory ballet", dress("#f1ead9", { hair: { style: "highBun" }, outfit: { sleeves: "short", skirt: "long", colours: { boot: "#f5f3ee" } } })),
+    look("female", "ballet", "Ivory ballet", dress("#f1ead9", { hair: { style: "highBun" }, outfit: { sleeves: "short", skirt: "long", colours: { boot: "#f5f3ee", sole: "#f5f3ee" } } })),
     look("female", "crimson", "Crimson, hair down", dress("#a8162f", { hair: { style: "loose", length: "long", colour: "#1c1a1d" }, outfit: { sleeves: "long", gloves: false } })),
   ],
   male: [

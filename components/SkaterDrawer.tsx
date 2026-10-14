@@ -2,6 +2,7 @@
 
 import { useUiStore } from "@/lib/uiStore";
 import {
+  BLADE_COLOURS,
   HAIR_COLOURS,
   HAIR_LABELS,
   HAIR_LENGTHS,
@@ -104,7 +105,7 @@ export function SkaterDrawer() {
             {OUTFIT_PIECES.filter((piece) => piece.id !== "skirt" || (variant === "female" && appearance.outfit.skirt !== "none")).map((piece) => (
               <div key={piece.id} className="flex flex-wrap items-center gap-2">
                 <span className="w-16 text-xs text-muted">{piece.label[variant]}</span>
-                <Swatches label={`${piece.label[variant]} colour`} options={OUTFIT_COLOURS} value={appearance.outfit.colours[piece.id]} onChange={(hex) => setAppearance(variant, { outfit: { colours: { [piece.id]: hex } } })} />
+                <Swatches label={`${piece.label[variant]} colour`} options={piece.id === "blade" ? BLADE_COLOURS : OUTFIT_COLOURS} value={appearance.outfit.colours[piece.id]} onChange={(hex) => setAppearance(variant, { outfit: { colours: piece.id === "boot" ? { boot: hex, sole: hex } : { [piece.id]: hex } } })} />
               </div>
             ))}
           </div>

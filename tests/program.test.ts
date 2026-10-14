@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createProgramStore, programTotal, programWarnings, CENTRE_ICE } from "@/three/animation/program";
+import { createProgramStore, programTotal, programWarnings, staysOnIce, CENTRE_ICE } from "@/three/animation/program";
 import { endOf, startOf, wrapAngle } from "@/three/animation/place";
 import { insideRink } from "@/three/animation/rinkSize";
 import { specFromCode, toElementSpecs } from "@/three/animation/catalog";
@@ -65,7 +65,7 @@ describe("the program store", () => {
       const store = createProgramStore(start);
       const s = store.getState();
       const idle = s.playing.timeline;
-      expect(insideRink(endOf(idle).x, endOf(idle).z, 1), JSON.stringify(start)).toBe(true);
+      expect(insideRink(endOf(idle).x, endOf(idle).z, 0.3), JSON.stringify(start)).toBe(true);
       s.perform(LUTZ);
       s.advance();
       const link = store.getState().playing.timeline;
@@ -130,5 +130,50 @@ describe("codes and element specs", () => {
     expect(toElementSpecs(COMBO)).toEqual([{ kind: "spin", family: "CCoSp", level: 4, v: undefined }]);
     expect(toElementSpecs({ kind: "turn", id: "bracket" })).toEqual([]);
     expect(toElementSpecs({ kind: "pair", id: "3Tw" })).toEqual([{ kind: "code", code: "3Tw3" }]);
+  });
+});
+
+describe("steering near the boards", () => {
+  it("lets the skater reach the boards and keeps her on the ice there", () => {
+    const store = createProgramStore({ x: 0, z: 9, heading: 0 });
+    const s = store.getState();
+    s.setSteer(0, 3.5);
+    // stroke straight at the side boards, segment after segment
+    let closest = Infinity;
+    for (let i = 0; i < 12; i++) {
+      s.advance();
+      const tl = store.getState().playing.timeline;
+      for (const sample of tl.trace) {
+        expect(insideRink(sample.x, sample.z, 0.3), `${sample.x.toFixed(1)}, ${sample.z.toFixed(1)}`).toBe(true);
+        closest = Math.min(closest, 15 - Math.abs(sample.z));
+      }
+    }
+    expect(closest).toBeLessThan(1.5);
+  });
+});
+
+describe("elements placed along the boards", () => {
+  it("keeps a Lutz's entry lobe and a spin's travel on the ice from anywhere, including the glass", () => {
+    const starts = [
+      { x: 10, z: 13.6, heading: Math.PI / 2 }, // along the side boards, 1.4 m from the glass
+      { x: -10, z: -13.6, heading: -Math.PI / 2 },
+      { x: 28.5, z: 0, heading: Math.PI / 2 }, // nose to the end boards
+      { x: -22, z: 9, heading: 0.8 }, // toward a corner
+      { x: 0, z: 14.2, heading: 0 }, // at the glass, facing it
+    ];
+    for (const start of starts) {
+      for (const spec of [LUTZ, COMBO, { kind: "jump", slug: "axel", rotations: 3 } as ViewerSpec, { kind: "pair", id: "3Tw" } as ViewerSpec]) {
+        const store = createProgramStore(start);
+        const s = store.getState();
+        s.perform(spec);
+        s.advance(start); // cut the wander: start exactly here
+        const link = store.getState().playing.timeline;
+        expect(staysOnIce(link), `link ${JSON.stringify(start)} ${JSON.stringify(spec)}`).toBe(true);
+        s.advance();
+        const placed = store.getState().playing.timeline;
+        expect(store.getState().playing.kind).toBe("element");
+        expect(staysOnIce(placed), `element ${JSON.stringify(start)} ${JSON.stringify(spec)}`).toBe(true);
+      }
+    }
   });
 });

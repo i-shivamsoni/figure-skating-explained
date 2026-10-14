@@ -1,4 +1,4 @@
-import { POSES } from "../rig/poses";
+import { mirrorPose, POSES } from "../rig/poses";
 import type { Pose } from "../rig/pose";
 import { clamp01, easeInOut, headingOf, TWO_PI, type IceArrow, type PoseKey, type RootState, type Timeline, type TraceSample } from "./timeline";
 import { insideRink } from "./rinkSize";
@@ -101,6 +101,8 @@ export function placementAfter(tl: Timeline, from: IcePoint): Placement {
 
 /** Stroking speed between elements, metres per second. */
 export const STROKE_SPEED = 3.5;
+/** One stroke (push and glide) on each foot, seconds. */
+export const STROKE_PERIOD = 0.9;
 
 export interface LinkOptions {
   /** Change of heading over the link, radians (positive turns left, like yaw). */
@@ -120,7 +122,7 @@ export interface LinkOptions {
  * idle loop.
  */
 export function linkTimeline(from: IcePoint, { turn = 0, seconds = 2, endBackward = false, endPose, speed = STROKE_SPEED }: LinkOptions = {}): Timeline {
-  const T = Math.max(0.6, seconds);
+  const T = Math.max(0.25, seconds);
   const v = speed;
   const w = turn / T;
   const h0 = from.heading;
@@ -145,23 +147,27 @@ export function linkTimeline(from: IcePoint, { turn = 0, seconds = 2, endBackwar
   const glideF = POSES.glideFO;
   const glideB = POSES.glideBO;
   const last = endPose ?? (endBackward ? glideB : glideF);
-  const keys: PoseKey[] = endBackward
-    ? [
-        { t: 0, pose: glideF },
-        { t: turnStart, pose: glideF },
-        { t: turnEnd, pose: glideB, ease: easeInOut },
-        { t: T, pose: last, ease: easeInOut },
-      ]
-    : [
-        { t: 0, pose: glideF },
-        { t: Math.max(0.05, T - 0.5), pose: glideF },
-        { t: T, pose: last, ease: easeInOut },
-      ];
+  // stroking: feet together on the push, a glide on the left, together, a glide on the right…
+  // (the trace alternates feet on the same period); coasting slowly is a two-foot glide
+  const together = POSES.stand;
+  const glides = [glideF, mirrorPose(glideF)];
+  const strokes = v >= STROKE_SPEED * 0.6;
+  const settle = endBackward ? turnStart : Math.max(0.05, T - 0.5);
+  const keys: PoseKey[] = [{ t: 0, pose: strokes ? together : glideF }];
+  for (let i = 0, t0 = 0; strokes && t0 + STROKE_PERIOD * 0.5 < settle; i++, t0 += STROKE_PERIOD) {
+    keys.push({ t: t0 + STROKE_PERIOD * 0.5, pose: glides[i % 2], ease: easeInOut });
+    if (t0 + STROKE_PERIOD < settle) keys.push({ t: t0 + STROKE_PERIOD, pose: together, ease: easeInOut });
+  }
+  if (endBackward) {
+    keys.push({ t: turnStart, pose: glideF, ease: easeInOut });
+    keys.push({ t: turnEnd, pose: glideB, ease: easeInOut });
+  } else keys.push({ t: settle, pose: glideF, ease: easeInOut });
+  keys.push({ t: T, pose: last, ease: easeInOut });
   const trace: TraceSample[] = [];
   for (let i = 0; i <= Math.round(T * 40); i++) {
     const t = i / 40;
     const r = root(t);
-    trace.push({ t, x: r.x, z: r.z, foot: Math.floor(t / 0.9) % 2 === 0 ? "L" : "R", edge: "outside" });
+    trace.push({ t, x: r.x, z: r.z, foot: strokes ? (Math.floor(t / STROKE_PERIOD) % 2 === 0 ? "L" : "R") : "both", edge: strokes ? "outside" : "flat" });
   }
   return {
     id: "link",
@@ -176,8 +182,11 @@ export function linkTimeline(from: IcePoint, { turn = 0, seconds = 2, endBackwar
   };
 }
 
+/** How close to the boards the skater may get: a blade's width of clearance, not a safety band. */
+export const EDGE_MARGIN = 0.6;
+
 /** Metres of ice ahead of a point along `heading` before the surface ends (`margin` inside the boards). */
-export function roomAhead(p: { x: number; z: number }, heading: number, margin = 3, max = 70): number {
+export function roomAhead(p: { x: number; z: number }, heading: number, margin = EDGE_MARGIN, max = 70): number {
   const sx = Math.sin(heading);
   const cz = Math.cos(heading);
   for (let d = 0; d <= max; d += 0.5) if (!insideRink(p.x + d * sx, p.z + d * cz, margin)) return d;
@@ -189,7 +198,7 @@ export function roomAhead(p: { x: number; z: number }, heading: number, margin =
  * to the heading with the most ice ahead (toward centre ice or along the long axis), nearer
  * headings winning ties. `turn` is 0 when nothing needs to change.
  */
-export function keepInRink(p: IcePoint, ahead: number, margin = 3): { heading: number; turn: number } {
+export function keepInRink(p: IcePoint, ahead: number, margin = EDGE_MARGIN): { heading: number; turn: number } {
   if (!insideRink(p.x, p.z, margin)) {
     // already in the band by the boards: head straight back toward centre ice
     const turn = wrapAngle(headingOf(-p.x, -p.z) - p.heading);

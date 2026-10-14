@@ -11,6 +11,14 @@ export interface Wardrobe {
   nodes: Map<string, { visible: boolean }>;
 }
 
+/** A CSS hex colour scaled toward black by `f` (0–1). */
+export function darken(hex: string, f: number): string {
+  const n = parseInt(hex.replace("#", ""), 16);
+  if (Number.isNaN(n) || hex.length !== 7) return hex;
+  const ch = (v: number) => Math.round(v * f).toString(16).padStart(2, "0");
+  return `#${ch((n >> 16) & 255)}${ch((n >> 8) & 255)}${ch(n & 255)}`;
+}
+
 /** The colour every contract material takes for an appearance. */
 export function materialColours(a: Appearance): Record<GlbMaterial, string> {
   const { colours, sleeves, gloves } = a.outfit;
@@ -22,8 +30,11 @@ export function materialColours(a: Appearance): Record<GlbMaterial, string> {
     legs: colours.legs,
     glove: gloves ? colours.glove : a.skin,
     boot: colours.boot,
+    sole: colours.sole,
     sleeve_upper: sleeves === "none" ? a.skin : colours.top,
     sleeve_lower: sleeves === "long" ? colours.top : a.skin,
+    blade: colours.blade,
+    plate: darken(colours.blade, 0.72),
   };
 }
 
