@@ -1,5 +1,6 @@
-import { Vector3 } from "three";
+import { Quaternion, Vector3 } from "three";
 import type { BoneName } from "./bones";
+import { ORDER, PARENT, boneRotation, poseFrames, residualTwist, rotateVec, twistAfterSwing } from "./limits";
 
 /**
  * A pose aims bones in "skater space": +X is the skater's left, +Y up, +Z the way the
@@ -48,6 +49,25 @@ export function limb(fwdDeg: number, sideDeg = 0): Vec3 {
   return norm([-y1 * Math.sin(sd), y1 * Math.cos(sd), z1]);
 }
 
+const _qp = new Quaternion();
+const _vp = new Vector3();
+const _vz = new Vector3();
+
+/**
+ * A pointed foot: the foot direction `deg` degrees from the shin line, bent in the shin's own
+ * sagittal plane (plantarflexion). The ankle folds to about 12° from the shin line at most.
+ */
+export function pointed(shin: Vec3, deg = 15): Vec3 {
+  const s = _vp.set(shin[0], shin[1], shin[2]).normalize();
+  // where the shin's "forward" went: the rest shin hangs down, so swing +Z along with it
+  _qp.setFromUnitVectors(_vz.set(0, -1, 0), s);
+  const f = _vz.set(0, 0, 1).applyQuaternion(_qp);
+  f.addScaledVector(s, -f.dot(s)).normalize();
+  const a = (deg * Math.PI) / 180;
+  const out = s.clone().multiplyScalar(Math.cos(a)).addScaledVector(f, Math.sin(a));
+  return [out.x, out.y, out.z];
+}
+
 /** Mirror a direction to the other side of the body (left ↔ right). */
 export function mirrorDir(d: Vec3): Vec3 {
   return [-d[0], d[1], d[2]];
@@ -85,14 +105,48 @@ export function slerpDir(a: Vec3, b: Vec3, t: number): Vec3 {
   return [a[0] * wa + b[0] * wb, a[1] * wa + b[1] * wb, a[2] * wa + b[2] * wb];
 }
 
-/** Blend two poses. Bones present in only one side blend toward `rest` for that bone. */
+const lerpAngle = (a: number, b: number, t: number) => {
+  let d = (b - a) % (2 * Math.PI);
+  if (d > Math.PI) d -= 2 * Math.PI;
+  if (d < -Math.PI) d += 2 * Math.PI;
+  return a + d * t;
+};
+
+/**
+ * Blend two poses the way a skeleton moves: each bone's direction is interpolated along the
+ * great circle in its parent's blended frame and its twist beyond the parent's rotation
+ * linearly, using the resolved frames of both poses (derived twists, pelvic tilt, hinge
+ * projection; see limits.ts). A knee therefore stays a knee mid-blend, a leg swinging from
+ * behind to in front passes beside the body, and a hand unposed on one side keeps following its
+ * forearm. The result aims every bone either side posed; twists are written only where an
+ * endpoint set one and the pelvis only where an endpoint aimed it, so the rig re-derives them
+ * from the blended directions.
+ */
 export function lerpPose(a: Pose, b: Pose, t: number, rest: (bone: BoneName) => Vec3): Pose {
-  const names = new Set<BoneName>([...(Object.keys(a.bones) as BoneName[]), ...(Object.keys(b.bones) as BoneName[])]);
+  const fa = poseFrames(a, rest);
+  const fb = poseFrames(b, rest);
+  const world = new Map<BoneName, Quaternion>([["root", new Quaternion()]]);
   const bones: Pose["bones"] = {};
-  for (const n of names) {
-    const ba = a.bones[n] ?? { dir: rest(n), twist: 0 };
-    const bb = b.bones[n] ?? { dir: rest(n), twist: 0 };
-    bones[n] = { dir: slerpDir(ba.dir, bb.dir, t), twist: (ba.twist ?? 0) * (1 - t) + (bb.twist ?? 0) * t };
+  for (const n of ORDER) {
+    const parent = PARENT[n] ?? "root";
+    const restDir = rest(n);
+    const side = (f: Map<BoneName, { q: Quaternion; dir: Vec3 }>) => {
+      const pq = f.get(parent)!.q;
+      const me = f.get(n)!;
+      return { local: rotateVec(pq.clone().invert(), me.dir), twist: residualTwist(me.q, pq, rotateVec(pq, restDir), me.dir) };
+    };
+    const sa = side(fa);
+    const sb = side(fb);
+    const pq = world.get(parent)!;
+    const dir = rotateVec(pq, slerpDir(sa.local, sb.local, t));
+    const q = boneRotation(pq, rotateVec(pq, restDir), dir, lerpAngle(sa.twist, sb.twist, t));
+    world.set(n, q);
+    const aimA = a.bones[n];
+    const aimB = b.bones[n];
+    if (!aimA && !aimB) continue;
+    const aim: BoneAim = { dir };
+    if (aimA?.twist !== undefined || aimB?.twist !== undefined) aim.twist = twistAfterSwing(q, restDir, dir);
+    bones[n] = aim;
   }
   const ha = a.hips ?? [0, 0, 0];
   const hb = b.hips ?? [0, 0, 0];

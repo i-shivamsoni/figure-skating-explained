@@ -1,4 +1,4 @@
-import { limb, mirrorDir, vec, type Pose, type Vec3 } from "./pose";
+import { limb, mirrorDir, pointed, vec, type Pose, type Vec3 } from "./pose";
 
 /**
  * Named poses in skater space (+X left, +Y up, +Z forward). Legs: `limb(fwd, side)`.
@@ -46,7 +46,8 @@ export const POSES: Record<string, Pose> = {
       shin_R: { dir: limb(-5, -2) },
       thigh_L: { dir: limb(-40, 8) },
       shin_L: { dir: limb(-50, 8) },
-      foot_L: { dir: vec(0.1, -0.5, 0.85) },
+      // the free foot is softly pointed; a foot hooked forward of a backward shin folds the ankle past 95°
+      foot_L: { dir: pointed(limb(-50, 8), 20) },
       spine: { dir: vec(0, 0.98, 0.15) },
       ...armsOut(80, 5),
     },
@@ -93,7 +94,7 @@ export const POSES: Record<string, Pose> = {
       shin_R: { dir: limb(-30, -2) },
       thigh_L: { dir: limb(-60, 10) },
       shin_L: { dir: limb(-65, 10) },
-      foot_L: { dir: vec(0.1, -0.3, -0.9) },
+      foot_L: { dir: pointed(limb(-65, 10), 15) },
       spine: { dir: vec(0, 0.95, 0.25) },
       ...armsOut(85, 0),
     },
@@ -107,7 +108,7 @@ export const POSES: Record<string, Pose> = {
       shin_L: { dir: limb(-3, 0) },
       thigh_R: { dir: limb(-92, -4) },
       shin_R: { dir: limb(-95, -4) },
-      foot_R: { dir: vec(0, 0.2, -1) },
+      foot_R: { dir: pointed(limb(-95, -4), 15) },
       spine: { dir: vec(0, 0.3, 0.95) },
       chest: { dir: vec(0, 0.22, 0.98) },
       // the back arches and the head lifts so the eyes look ahead, not at the ice
@@ -160,9 +161,10 @@ export const POSES: Record<string, Pose> = {
     bones: {
       thigh_L: { dir: limb(2, 0) },
       shin_L: { dir: limb(-2, 0) },
-      thigh_R: { dir: limb(-35, -8) },
-      shin_R: { dir: limb(-125, -8) },
-      foot_R: { dir: vec(0, 0.5, -0.85) },
+      // attitude leg at 22° behind: with the pelvis tucked back for the arch, more would exceed the hip's extension
+      thigh_R: { dir: limb(-22, -8) },
+      shin_R: { dir: limb(-118, -8) },
+      foot_R: { dir: pointed(limb(-118, -8), 15) },
       spine: { dir: vec(0, 0.9, -0.42) },
       chest: { dir: vec(0, 0.6, -0.8) },
       neck: { dir: vec(0, 0.3, -0.95) },
@@ -175,20 +177,25 @@ export const POSES: Record<string, Pose> = {
     hips: [0, -0.03, 0.06],
   },
 
-  /** Biellmann: free leg pulled up behind and over the head, held by both hands. */
+  /**
+   * Biellmann: free leg pulled up behind and over the head, held by both hands. The ring is shared
+   * over the chain: the pelvis tips ~100° forward over the standing hip, the hip extends 40°, the
+   * lumbar and thoracic arch back 45° and 35°, the neck 65°, so the thigh ends 50° above horizontal
+   * and the folded shin brings the blade above the head.
+   */
   biellmann: {
     bones: {
       thigh_L: { dir: limb(2, 0) },
       shin_L: { dir: limb(-2, 0) },
-      thigh_R: { dir: limb(-150, -6) },
-      shin_R: { dir: vec(0.05, 1, 0.1) },
-      foot_R: { dir: vec(0.05, 0.8, 0.6) },
-      spine: { dir: vec(0, 0.92, -0.38) },
-      chest: { dir: vec(0, 0.85, -0.5) },
-      neck: { dir: vec(0, 0.7, -0.7) },
-      head: { dir: vec(0, 0.5, -0.85) },
-      upper_arm_L: { dir: vec(0.15, 0.98, -0.1) },
-      upper_arm_R: { dir: vec(-0.15, 0.98, -0.1) },
+      thigh_R: { dir: limb(-140, -6) },
+      shin_R: { dir: vec(0.05, 0.55, 0.85) },
+      foot_R: { dir: pointed(vec(0.05, 0.55, 0.85), 25) },
+      spine: { dir: vec(0, 0.57, 0.82) },
+      chest: { dir: vec(0, 0.925, 0.38) },
+      neck: { dir: vec(0, 0.74, -0.67) },
+      head: { dir: vec(0, 0.24, -0.97) },
+      upper_arm_L: { dir: vec(0.15, 0.97, 0.2) },
+      upper_arm_R: { dir: vec(-0.15, 0.97, 0.2) },
       forearm_L: { dir: vec(-0.1, 0.6, -0.8) },
       forearm_R: { dir: vec(0.1, 0.6, -0.8) },
     },
@@ -202,7 +209,7 @@ export const POSES: Record<string, Pose> = {
       shin_L: { dir: limb(-3, 0) },
       thigh_R: { dir: limb(-105, -4) },
       shin_R: { dir: limb(-108, -4) },
-      foot_R: { dir: vec(0, 0.4, -0.9) },
+      foot_R: { dir: pointed(limb(-108, -4), 15) },
       spine: { dir: vec(0, 0.7, 0.7) },
       chest: { dir: vec(0, 0.6, 0.8) },
       neck: { dir: vec(0, 0.8, 0.6) },
@@ -241,7 +248,8 @@ export function mirrorPose(p: Pose): Pose {
   const bones: Pose["bones"] = {};
   for (const [name, aim] of Object.entries(p.bones)) {
     const swapped = name.endsWith("_L") ? name.slice(0, -2) + "_R" : name.endsWith("_R") ? name.slice(0, -2) + "_L" : name;
-    bones[swapped as keyof Pose["bones"]] = { dir: mirrorDir(aim.dir as Vec3), twist: aim.twist ? -aim.twist : 0 };
+    // a twist the pose leaves out stays out, so the rig derives it for the mirrored side too
+    bones[swapped as keyof Pose["bones"]] = aim.twist === undefined ? { dir: mirrorDir(aim.dir as Vec3) } : { dir: mirrorDir(aim.dir as Vec3), twist: -aim.twist };
   }
   return { bones, hips: p.hips ? [-p.hips[0], p.hips[1], p.hips[2]] : undefined };
 }
@@ -253,7 +261,7 @@ POSES.glideFO = {
     shin_L: { dir: limb(-5, 2) },
     thigh_R: { dir: limb(-40, -8) },
     shin_R: { dir: limb(-50, -8) },
-    foot_R: { dir: vec(-0.1, -0.5, 0.85) },
+    foot_R: { dir: pointed(limb(-50, -8), 20) },
     spine: { dir: vec(0, 0.98, 0.15) },
     ...armsOut(75, 10),
   },
@@ -340,8 +348,10 @@ POSES.camelUpward = {
     head: { dir: vec(0, 0.9, 0.4) },
     upper_arm_L: { dir: vec(0.2, 0.95, -0.2) },
     forearm_L: { dir: vec(0.2, 0.95, -0.2) },
-    upper_arm_R: { dir: vec(-0.6, -0.6, 0.5) },
-    forearm_R: { dir: vec(-0.6, -0.6, 0.5) },
+    // the chest is rolled 149° to face the ceiling, so the right shoulder sits low on the skater's left and its
+    // arm reaches out that way toward the ice; reaching down behind the rolled chest would be 110° of extension
+    upper_arm_R: { dir: vec(0.75, -0.6, 0.3) },
+    forearm_R: { dir: vec(0.7, -0.65, 0.3) },
   },
   hips: [0, -0.04, 0],
 };
@@ -355,6 +365,7 @@ POSES.sitSideways = {
     foot_R: { dir: vec(-0.9, 0.3, 0.3) },
     spine: { dir: vec(0, 0.8, 0.6) },
     chest: { dir: vec(0, 0.75, 0.65) },
+    neck: { dir: vec(0, 0.7, 0.7) },
     head: { dir: vec(0, 0.6, 0.8) },
     upper_arm_L: { dir: vec(0.1, -0.8, 0.6) },
     forearm_L: { dir: vec(0.2, -0.3, 0.95) },
@@ -370,7 +381,7 @@ POSES.sitBehind = {
     ...POSES.sit.bones,
     thigh_R: { dir: limb(-25, -15) },
     shin_R: { dir: limb(-110, -15) },
-    foot_R: { dir: vec(0, 0.3, -0.95) },
+    foot_R: { dir: pointed(limb(-110, -15), 15) },
     spine: { dir: vec(0, 0.9, 0.45) },
     chest: { dir: vec(0, 0.9, 0.4) },
     upper_arm_L: { dir: vec(0.5, -0.4, 0.75) },
@@ -444,6 +455,7 @@ POSES.flyCamel = {
     shin_R: { dir: limb(-80, -15) },
     spine: { dir: vec(0, -0.1, 1) },
     chest: { dir: vec(0, -0.2, 0.98) },
+    neck: { dir: vec(0, 0.05, 1) },
     head: { dir: vec(0, 0.3, 0.95) },
     ...armsOut(85, 20),
   },
@@ -585,17 +597,19 @@ POSES.hydroblade = {
     thigh_L: { dir: limb(105, 15) },
     shin_L: { dir: limb(-5, 25) },
     foot_L: { dir: vec(0.3, -0.2, 0.9) },
-    thigh_R: { dir: limb(-10, -85) },
-    shin_R: { dir: limb(-10, -88) },
-    foot_R: { dir: vec(-0.95, -0.1, 0.3) },
-    spine: { dir: vec(-0.9, 0.3, 0.3) },
-    chest: { dir: vec(-0.95, 0.2, 0.25) },
-    neck: { dir: vec(-0.85, 0.45, 0.3) },
-    head: { dir: vec(-0.75, 0.55, 0.35) },
+    // the extended leg trails behind-sideways along the curve: a leg straight out to the side while the
+    // trunk leans over it would need 85° of abduction on top of the pelvis's roll
+    thigh_R: { dir: limb(-30, -60) },
+    shin_R: { dir: limb(-32, -60) },
+    foot_R: { dir: pointed(limb(-32, -60), 18) },
+    spine: { dir: vec(-0.75, 0.4, 0.5) },
+    chest: { dir: vec(-0.85, 0.3, 0.45) },
+    neck: { dir: vec(-0.8, 0.45, 0.4) },
+    head: { dir: vec(-0.7, 0.55, 0.45) },
     upper_arm_L: { dir: vec(0.1, 0.95, 0.3) },
     forearm_L: { dir: vec(0.2, 0.95, 0.2) },
-    upper_arm_R: { dir: vec(-0.55, -0.8, 0.2) },
-    forearm_R: { dir: vec(-0.4, -0.9, 0.15) },
+    upper_arm_R: { dir: vec(-0.4, -0.7, 0.6) },
+    forearm_R: { dir: vec(-0.3, -0.8, 0.5) },
   },
   hips: [-0.15, -0.62, 0.05],
 };
@@ -606,6 +620,7 @@ POSES.arabesque = {
     ...POSES.spiral.bones,
     thigh_R: { dir: limb(-120, -4) },
     shin_R: { dir: limb(-122, -4) },
+    foot_R: { dir: pointed(limb(-122, -4), 15) },
     spine: { dir: vec(0, 0.5, 0.86) },
     chest: { dir: vec(0, 0.4, 0.92) },
     upper_arm_L: { dir: vec(0.3, 0.4, 0.86) },
@@ -620,10 +635,12 @@ POSES.catchFoot = {
   bones: {
     thigh_L: { dir: limb(35, 0) },
     shin_L: { dir: limb(-35, 0) },
-    thigh_R: { dir: limb(-70, -12) },
+    // the hand pulls the knee up: 55° behind with the pelvis tilted ~17° forward keeps the hip inside 40° of extension
+    thigh_R: { dir: limb(-55, -12) },
     shin_R: { dir: vec(0.05, 0.9, -0.45) },
-    foot_R: { dir: vec(0.05, 0.75, 0.65) },
-    spine: { dir: vec(0, 0.82, -0.57) },
+    // pointed on the dorsal side of the shin line (toes up and back into the hand), never folded toward the sole
+    foot_R: { dir: pointed(vec(0.05, 0.9, -0.45), 25) },
+    spine: { dir: vec(0, 0.9, -0.44) },
     chest: { dir: vec(0, 0.62, -0.78) },
     neck: { dir: vec(0, 0.4, -0.92) },
     head: { dir: vec(0, 0.25, -0.97) },
@@ -685,8 +702,9 @@ POSES.charlotte = {
   bones: {
     thigh_L: { dir: limb(4, 0) },
     shin_L: { dir: limb(-4, 0) },
-    thigh_R: { dir: limb(-165, -6) },
-    shin_R: { dir: limb(-172, -6) },
+    // 160° behind: the pelvis tips 120° over the standing hip (near its 130° of flexion) and the free hip extends 40°
+    thigh_R: { dir: limb(-160, -6) },
+    shin_R: { dir: limb(-166, -6) },
     foot_R: { dir: vec(0, 0.3, -0.95) },
     spine: { dir: vec(0, -0.55, 0.84) },
     chest: { dir: vec(0, -0.8, 0.6) },
@@ -704,7 +722,7 @@ POSES.charlotte = {
 POSES.layoverBauer = {
   bones: {
     ...POSES.inaBauer.bones,
-    spine: { dir: vec(0, 0.55, -0.83) },
+    spine: { dir: vec(0, 0.6, -0.8) },
     chest: { dir: vec(0, 0.2, -0.98) },
     neck: { dir: vec(0, -0.2, -0.98) },
     head: { dir: vec(0, -0.4, -0.9) },
@@ -739,12 +757,13 @@ POSES.kneeSlide = {
 /** Split position in the air (split jump, Russian split): legs opened front and back, arms reaching the front foot. */
 POSES.splitAir = {
   bones: {
-    thigh_L: { dir: limb(95, 5) },
-    shin_L: { dir: limb(98, 5) },
-    foot_L: { dir: vec(0, 0.3, 0.95) },
-    thigh_R: { dir: limb(-88, -5) },
-    shin_R: { dir: limb(-92, -5) },
-    foot_R: { dir: vec(0, 0.3, -0.95) },
+    // a 166° split: front hip at 130° of flexion and back hip at 40° of extension about a pelvis tipped ~40° forward
+    thigh_L: { dir: limb(88, 5) },
+    shin_L: { dir: limb(90, 5) },
+    foot_L: { dir: pointed(limb(90, 5), 15) },
+    thigh_R: { dir: limb(-78, -5) },
+    shin_R: { dir: limb(-82, -5) },
+    foot_R: { dir: pointed(limb(-82, -5), 15) },
     spine: { dir: vec(0, 0.85, 0.5) },
     chest: { dir: vec(0, 0.75, 0.65) },
     upper_arm_L: { dir: vec(0.2, -0.3, 0.93) },
@@ -762,6 +781,7 @@ POSES.flipTuck = {
     shin_L: { dir: limb(-10, 6) },
     shin_R: { dir: limb(-10, -6) },
     spine: { dir: vec(0, 0.95, 0.3) },
+    neck: { dir: vec(0, 0.95, -0.3) },
     head: { dir: vec(0, 0.8, -0.6) },
     ...armsOut(90, -20),
   },
@@ -771,7 +791,7 @@ POSES.flipTuck = {
 POSES.headless = {
   bones: {
     ...POSES.upright.bones,
-    neck: { dir: vec(0, 0.35, -0.94) },
+    neck: { dir: vec(0, 0.42, -0.91) },
     head: { dir: vec(0, 0.1, -1) },
     upper_arm_L: { dir: vec(0.05, 0.99, -0.1) },
     upper_arm_R: { dir: vec(-0.05, 0.99, -0.1) },
@@ -786,8 +806,9 @@ POSES.pancake = {
     thigh_L: { dir: limb(88, 3) },
     shin_L: { dir: limb(-5, 3) },
     thigh_R: { dir: limb(70, -35) },
-    shin_R: { dir: limb(5, 60) },
-    foot_R: { dir: vec(0.9, -0.2, 0.3) },
+    // the shin crosses in front as far as 60° of hip rotation allows
+    shin_R: { dir: limb(12, 42) },
+    foot_R: { dir: pointed(limb(12, 42), 14) },
     spine: { dir: vec(0, 0.2, 0.98) },
     chest: { dir: vec(0, -0.1, 1) },
     neck: { dir: vec(0, -0.3, 0.95) },
@@ -807,15 +828,17 @@ POSES.doughnut = {
     shin_L: { dir: limb(-3, 0) },
     thigh_R: { dir: limb(-95, -4) },
     shin_R: { dir: vec(0, 0.95, -0.3) },
-    foot_R: { dir: vec(0, 0.7, 0.7) },
-    spine: { dir: vec(0, 0.45, 0.9) },
-    chest: { dir: vec(0, 0.6, 0.8) },
-    neck: { dir: vec(0, 0.85, 0.5) },
-    head: { dir: vec(0, 0.95, 0.3) },
-    upper_arm_L: { dir: vec(0.1, 0.9, -0.4) },
-    upper_arm_R: { dir: vec(-0.1, 0.9, -0.4) },
-    forearm_L: { dir: vec(0.05, 0.6, -0.8) },
-    forearm_R: { dir: vec(-0.05, 0.6, -0.8) },
+    foot_R: { dir: pointed(vec(0, 0.95, -0.3), 25) },
+    // the ring: pelvis ~74° forward, lumbar arched back 45°, thoracic 35°, so the chest is near vertical and the
+    // arms can go straight up and the forearms back to the blade (the shoulder cannot reach 100° behind the chest)
+    spine: { dir: vec(0, 0.87, 0.49) },
+    chest: { dir: vec(0, 1, -0.08) },
+    neck: { dir: vec(0, 0.75, -0.66) },
+    head: { dir: vec(0, 0.5, -0.87) },
+    upper_arm_L: { dir: vec(0.12, 0.99, -0.08) },
+    upper_arm_R: { dir: vec(-0.12, 0.99, -0.08) },
+    forearm_L: { dir: vec(-0.05, 0.6, -0.8) },
+    forearm_R: { dir: vec(0.05, 0.6, -0.8) },
   },
   hips: [0, -0.04, 0],
 };
@@ -830,6 +853,7 @@ POSES.toeArabian = {
     shin_R: { dir: limb(-45, -20) },
     spine: { dir: vec(0, -0.3, 0.95) },
     chest: { dir: vec(0, -0.4, 0.92) },
+    neck: { dir: vec(0, -0.15, 0.99) },
     head: { dir: vec(0, 0.1, 1) },
   },
   hips: [0, 0.4, 0],
@@ -871,6 +895,7 @@ POSES.landDeep = {
     shin_R: { dir: limb(-45, -2) },
     thigh_L: { dir: limb(-50, 10) },
     shin_L: { dir: limb(-55, 10) },
+    foot_L: { dir: pointed(limb(-55, 10), 15) },
     spine: { dir: vec(0, 0.9, 0.42) },
   },
   hips: [0, -0.26, 0],
@@ -887,13 +912,14 @@ POSES.landDeep = {
 /** Upright position (upper body vertical) in a Group 3 hip lift: legs in a split, arms in a V. */
 POSES.liftUpright = {
   bones: {
-    thigh_L: { dir: limb(92, 6) },
-    shin_L: { dir: limb(95, 6) },
-    foot_L: { dir: vec(0, -0.3, 0.95) },
-    thigh_R: { dir: limb(-85, -6) },
-    shin_R: { dir: limb(-90, -6) },
-    foot_R: { dir: vec(0, 0.3, -0.95) },
-    spine: { dir: vec(0, 1, -0.08) },
+    // a 160° split about a pelvis tipped ~40° forward (front hip 125° flexed, back hip 35° extended); the trunk stays vertical
+    thigh_L: { dir: limb(85, 6) },
+    shin_L: { dir: limb(88, 6) },
+    foot_L: { dir: pointed(limb(88, 6), 15) },
+    thigh_R: { dir: limb(-75, -6) },
+    shin_R: { dir: limb(-80, -6) },
+    foot_R: { dir: pointed(limb(-80, -6), 15) },
+    spine: { dir: vec(0, 1, 0.02) },
     chest: { dir: vec(0, 0.97, -0.22) },
     neck: { dir: vec(0, 0.95, -0.3) },
     head: { dir: vec(0, 0.9, -0.42) },
@@ -910,12 +936,13 @@ POSES.liftUpright = {
 /** Press lift (Group 4, hand to hand): the Woman upright over the Man, arms straight down into his hands, legs in a straddle. */
 POSES.liftPress = {
   bones: {
-    thigh_L: { dir: limb(0, 88) },
-    shin_L: { dir: limb(0, 90) },
-    foot_L: { dir: vec(0.95, -0.3, 0) },
-    thigh_R: { dir: limb(0, -88) },
-    shin_R: { dir: limb(0, -90) },
-    foot_R: { dir: vec(-0.95, -0.3, 0) },
+    // a 130° straddle: 65° of abduction each side is the turnout limit of the hip
+    thigh_L: { dir: limb(0, 65) },
+    shin_L: { dir: limb(0, 66) },
+    foot_L: { dir: pointed(limb(0, 66), 15) },
+    thigh_R: { dir: limb(0, -65) },
+    shin_R: { dir: limb(0, -66) },
+    foot_R: { dir: pointed(limb(0, -66), 15) },
     spine: { dir: vec(0, 1, 0.05) },
     chest: { dir: vec(0, 1, 0.02) },
     head: { dir: vec(0, 0.98, 0.2) },
@@ -945,10 +972,10 @@ POSES.liftStar = {
     hand_L: { dir: vec(0.05, 1, 0) },
     thigh_L: { dir: vec(0.85, 0.1, 0.5) },
     shin_L: { dir: vec(0.85, 0.1, 0.5) },
-    foot_L: { dir: vec(0.9, -0.1, 0.4) },
+    foot_L: { dir: pointed(vec(0.85, 0.1, 0.5), 15) },
     thigh_R: { dir: vec(0.85, -0.05, -0.5) },
     shin_R: { dir: vec(0.85, -0.05, -0.5) },
-    foot_R: { dir: vec(0.9, -0.2, -0.4) },
+    foot_R: { dir: pointed(vec(0.85, -0.05, -0.5), 15) },
   },
   hips: [0, -0.91, 0],
 };
@@ -980,12 +1007,13 @@ POSES.liftPlatter = {
 /** Twist lift: split position before rotating (each leg at least 45° from the body axis, legs straight), arms overhead. */
 POSES.twistSplit = {
   bones: {
-    thigh_L: { dir: limb(95, 5) },
-    shin_L: { dir: limb(98, 5) },
-    foot_L: { dir: vec(0, 0.3, 0.95) },
-    thigh_R: { dir: limb(-88, -5) },
-    shin_R: { dir: limb(-92, -5) },
-    foot_R: { dir: vec(0, 0.3, -0.95) },
+    // a 166° split (each leg well past 45° from the body axis): front hip 130° flexed, back hip 40° extended, pelvis ~40° forward
+    thigh_L: { dir: limb(88, 5) },
+    shin_L: { dir: limb(90, 5) },
+    foot_L: { dir: pointed(limb(90, 5), 15) },
+    thigh_R: { dir: limb(-78, -5) },
+    shin_R: { dir: limb(-82, -5) },
+    foot_R: { dir: pointed(limb(-82, -5), 15) },
     spine: { dir: vec(0, 1, 0.08) },
     chest: { dir: vec(0, 1, 0.05) },
     upper_arm_L: { dir: vec(0.35, 0.93, 0.05) },
@@ -1020,20 +1048,22 @@ POSES.twistAir = {
 /** Forward inside death spiral (right forward inside edge, circling counter-clockwise): leaning sideways to the ice, head below the skating knee, left arm to the Man. */
 POSES.deathSpiralFi = {
   bones: {
-    hips: { dir: vec(0.6, 0.8, 0) },
-    spine: { dir: vec(0.9, -0.4, 0.1) },
-    chest: { dir: vec(0.92, -0.35, 0.1) },
-    neck: { dir: vec(0.95, -0.25, 0.1) },
-    head: { dir: vec(0.97, -0.15, 0.1) },
+    // the pelvis tips forward and rolls left with the lean and turns toward the circle, so the lumbar bends
+    // 45° sideways at most (not 77°), the trailing free leg is within the hip's extension and the skating
+    // knee bends in its own plane; the trunk carries the same turn
+    hips: { dir: vec(0.7, 0.17, 0.7), twist: -1.05 },
+    spine: { dir: vec(0.9, -0.4, 0.1), twist: 1.05 },
+    chest: { dir: vec(0.92, -0.35, 0.1), twist: 1.05 },
+    neck: { dir: vec(0.95, -0.25, 0.1), twist: 1.05 },
+    head: { dir: vec(0.97, -0.15, 0.1), twist: 1.05 },
     thigh_R: { dir: vec(-0.909, -0.101, 0.404) },
     shin_R: { dir: vec(0.3, -0.949, -0.1) },
-    foot_R: { dir: vec(0, -0.4, 0.92) },
     thigh_L: { dir: vec(-0.1, 0.15, -0.98) },
     shin_L: { dir: vec(-0.1, 0.1, -0.99) },
-    foot_L: { dir: vec(-0.1, -0.3, -0.95) },
-    upper_arm_L: { dir: vec(0.7, 0.68, 0.2) },
-    forearm_L: { dir: vec(0.7, 0.68, 0.2) },
-    hand_L: { dir: vec(0.7, 0.68, 0.2) },
+    foot_L: { dir: pointed(vec(-0.1, 0.1, -0.99), 15) },
+    upper_arm_L: { dir: vec(0.62, 0.72, 0.2) },
+    forearm_L: { dir: vec(0.62, 0.72, 0.2) },
+    hand_L: { dir: vec(0.62, 0.72, 0.2) },
     upper_arm_R: { dir: vec(0.85, 0.2, -0.3) },
     forearm_R: { dir: vec(0.9, 0.15, -0.3) },
     hand_R: { dir: vec(0.9, 0.1, -0.3) },
@@ -1048,17 +1078,21 @@ POSES.deathSpiralFi = {
  */
 POSES.deathSpiralBo = {
   bones: {
-    hips: { dir: vec(0, 0.8, -0.6) },
+    // the pelvis arches back with the trunk (the lumbar takes 45° of the 96°) and is turned toward the blade
+    // so the skating knee, bent 80°, flexes in its plane with the blade across the line of the body
+    hips: { dir: vec(0, 0.64, -0.77), twist: 0.26 },
     spine: { dir: vec(0, -0.1, -1) },
     chest: { dir: vec(0, -0.2, -1) },
     neck: { dir: vec(0, -0.45, -0.9) },
     head: { dir: vec(0, -0.65, -0.75) },
-    thigh_R: { dir: vec(-0.1, -0.2, 0.98) },
-    shin_R: { dir: vec(-0.1, -0.98, 0.05) },
-    foot_R: { dir: vec(-0.95, -0.3, 0) },
+    // the skating knee bends in a plane that nearly holds the blade: thigh out to the right-front, shin down-right,
+    // the blade turned the last 20° by the tibia
+    thigh_R: { dir: vec(-0.6, -0.3, 0.74) },
+    shin_R: { dir: vec(-0.5, -0.85, 0.15) },
+    foot_R: { dir: vec(-0.85, -0.3, 0.4) },
     thigh_L: { dir: vec(0.75, -0.1, 0.65) },
     shin_L: { dir: vec(0.75, -0.15, 0.65) },
-    foot_L: { dir: vec(0.7, -0.4, 0.6) },
+    foot_L: { dir: pointed(vec(0.75, -0.15, 0.65), 15) },
     upper_arm_R: { dir: vec(-0.1, 0.4, -0.9) },
     forearm_R: { dir: vec(-0.1, 0.4, -0.9) },
     hand_R: { dir: vec(-0.1, 0.4, -0.9) },
@@ -1208,6 +1242,7 @@ POSES.twistSideways = {
     thigh_R: { dir: limb(-10, -6) },
     shin_R: { dir: limb(-15, -6) },
     spine: { dir: vec(0, 1, 0.03) },
+    neck: { dir: vec(0, 0.95, -0.3) },
     head: { dir: vec(0, 0.85, -0.5) },
     upper_arm_L: { dir: limb(5, 90) },
     forearm_L: { dir: limb(5, 90) },
@@ -1227,6 +1262,7 @@ POSES.twistCatch = {
     thigh_R: { dir: limb(-5, -6) },
     shin_R: { dir: limb(-15, -6) },
     spine: { dir: vec(0, 1, 0.05) },
+    neck: { dir: vec(0, 0.95, -0.3) },
     head: { dir: vec(0, 0.85, -0.5) },
     upper_arm_L: { dir: vec(0.3, 0.85, 0.4) },
     forearm_L: { dir: vec(0.2, 0.9, 0.35) },
@@ -1329,7 +1365,7 @@ POSES.spiralHold = {
     shin_R: { dir: limb(-10, -2) },
     thigh_L: { dir: limb(-45, 10) },
     shin_L: { dir: limb(-50, 10) },
-    foot_L: { dir: vec(0.05, -0.4, -0.9) },
+    foot_L: { dir: pointed(limb(-50, 10), 20) },
     spine: { dir: vec(0.15, 0.98, 0.1) },
     upper_arm_L: { dir: vec(0.97, -0.1, 0.2) },
     forearm_L: { dir: vec(0.97, -0.1, 0.2) },
@@ -1348,11 +1384,12 @@ POSES.spiralHoldBack = {
     thigh_L: { dir: limb(25, 15) },
     shin_L: { dir: limb(20, 15) },
     spine: { dir: vec(0, 0.95, -0.3) },
-    chest: { dir: vec(0, 0.9, -0.42) },
+    // the shoulders turn so the right arm can reach behind: an arm 90° behind an unturned chest is out of reach
+    chest: { dir: vec(0, 0.9, -0.42), twist: -0.8 },
     head: { dir: vec(0, 0.7, -0.7) },
-    upper_arm_R: { dir: vec(-0.2, 0.3, -0.93) },
-    forearm_R: { dir: vec(-0.2, 0.3, -0.93) },
-    hand_R: { dir: vec(-0.2, 0.3, -0.93) },
+    upper_arm_R: { dir: vec(-0.3, 0.4, -0.86) },
+    forearm_R: { dir: vec(-0.3, 0.4, -0.86) },
+    hand_R: { dir: vec(-0.3, 0.4, -0.86) },
     upper_arm_L: { dir: vec(0.95, 0.1, 0.3) },
     forearm_L: { dir: vec(0.95, 0.1, 0.3) },
   },

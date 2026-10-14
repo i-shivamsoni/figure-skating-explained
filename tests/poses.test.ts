@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { POSES, poseNames, mirrorPose } from "@/three/rig/allPoses";
 import { lerpPose } from "@/three/rig/pose";
-import { defaultRest, describeViolations, validatePose } from "@/three/rig/limits";
+import { defaultRest, describeViolations, resolvePose, validatePose } from "@/three/rig/limits";
 
 /**
  * CONTRACT (Wave 0): every registered pose, its mirror, and the midpoint of every blend the
@@ -49,4 +49,11 @@ describe("every pose respects the range-of-motion limits", () => {
       }
     });
   }
+  // what the rig renders is the resolved pose; validating it again must find nothing new
+  it("every resolved pose is itself valid (what is validated is what is rendered)", () => {
+    for (const name of names) {
+      const v = validatePose(resolvePose(POSES[name], defaultRest), defaultRest);
+      expect(v, `${name}: ${describeViolations(v)}`).toEqual([]);
+    }
+  });
 });
