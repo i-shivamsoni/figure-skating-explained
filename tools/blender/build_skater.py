@@ -108,6 +108,30 @@ def tag(ob, group):
     vg.add([v.index for v in ob.data.vertices], 1.0, "REPLACE")
 
 
+def tag_weights(ob, weights):
+    """Per-vertex bone shares: weights[vertex index] = {bone: share}. Shares are normalised at join time."""
+    groups = {}
+    for vi, shares in enumerate(weights):
+        for bone_name, w in shares.items():
+            if w <= 0:
+                continue
+            vg = groups.get(bone_name)
+            if vg is None:
+                vg = groups[bone_name] = ob.vertex_groups.new(name=f"part_{bone_name}")
+            vg.add([vi], w, "REPLACE")
+
+
+def body_extent(z0, half=0.012):
+    """Half-widths and centre of the body's cross-section in a slab around height z0."""
+    xs, ys = [], []
+    for v in body.data.vertices:
+        # the A-pose arms hang past the hips: only the torso counts
+        if abs(v.co.z - z0) < half and abs(v.co.x) < 0.13 * H and abs(v.co.y) < 0.12 * H:
+            xs.append(v.co.x)
+            ys.append(v.co.y)
+    return max(abs(x) for x in xs), (max(ys) - min(ys)) / 2, (max(ys) + min(ys)) / 2
+
+
 def make_box(name, center, size, material, bevel=0.0, segments=3):
     bpy.ops.mesh.primitive_cube_add(size=1, location=center)
     ob = bpy.context.active_object
@@ -403,21 +427,66 @@ if FEMALE:
 
 # ---------------------------------------------------------------- skirt (female)
 if FEMALE:
+    # the skirt hangs from the hip, where the bodice ends under it, so the dress reads as one garment:
+    # the top ring is an ellipse just outside the measured pelvis, the hem flares to a short circle
     top_z = z(0.515)
-    bottom_z = z(0.395)
-    bpy.ops.mesh.primitive_cone_add(vertices=48, radius1=0.235, radius2=0.14, depth=top_z - bottom_z, location=(0, 0.0, (top_z + bottom_z) / 2))
-    skirt = bpy.context.active_object
-    skirt.name = "skirt"
+    hem_z = z(0.405)
+    rx0, ry0, yc0 = body_extent(top_z)
+    N = 56
+    RINGS = 7
+    bm = bmesh.new()
+    rings = []
+    for ri in range(RINGS):
+        u = ri / (RINGS - 1)
+        zr = top_z + (hem_z - top_z) * u
+        # the waistband sits a hair inside the bodice (no gap, no visible rim), then the fabric clears
+        # the pelvis by a few millimetres wherever the body is wider, and flares gently toward the hem
+        bx, by, byc = body_extent(zr)
+        off = -0.004 if u == 0 else 0.007
+        flare = u ** 1.7
+        rx = max(bx + off, rx0 + (0.205 - rx0) * flare)
+        ry = max(by + off, ry0 + (0.195 - ry0) * flare)
+        yc = byc * (1 - flare) + (byc + 0.015) * flare  # slightly fuller at the back
+        ring = []
+        for i in range(N):
+            ang = 2 * math.pi * i / N
+            zz = zr + (0.012 * math.sin(ang * 7) + 0.005 * math.sin(ang * 3 + 1)) * u  # wavy hem
+            ring.append(bm.verts.new((rx * math.cos(ang), yc + ry * math.sin(ang), zz)))
+        rings.append(ring)
+    for ri in range(RINGS - 1):
+        for i in range(N):
+            a_, b_ = rings[ri][i], rings[ri][(i + 1) % N]
+            c_, d_ = rings[ri + 1][(i + 1) % N], rings[ri + 1][i]
+            bm.faces.new((a_, b_, c_, d_))
+    # face the fabric outward (the lit side), whichever way the rings were wound
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.faces.ensure_lookup_table()
+    f0 = bm.faces[0]
+    outward = f0.calc_center_median() - Vector((0, yc0, f0.calc_center_median().z))
+    if f0.normal.dot(outward) < 0:
+        bmesh.ops.reverse_faces(bm, faces=bm.faces)
+    skirt_mesh = bpy.data.meshes.new("skirt")
+    bm.to_mesh(skirt_mesh)
+    bm.free()
+    skirt = bpy.data.objects.new("skirt", skirt_mesh)
+    scene.collection.objects.link(skirt)
     skirt.data.materials.append(mat_skirt)
-    delete_faces(skirt, lambda c: abs(c.z - top_z) < 0.002 or abs(c.z - bottom_z) < 0.002)
-    # wavy hem and a little flare at the back
-    for v in skirt.data.vertices:
-        if v.co.z < (top_z + bottom_z) / 2:
-            ang = math.atan2(v.co.y, v.co.x)
-            v.co.z += 0.014 * math.sin(ang * 7) + 0.006 * math.sin(ang * 3 + 1)
-            v.co.y += 0.012 if v.co.y > 0 else 0.0
+    bpy.ops.object.select_all(action="DESELECT")
+    skirt.select_set(True)
+    bpy.context.view_layer.objects.active = skirt
     bpy.ops.object.shade_smooth()
-    tag(skirt, "hips")
+    # the fabric follows the pelvis at the waistband and increasingly the nearer leg toward the hem,
+    # so a raised or bent leg carries its side of the skirt instead of poking through a rigid cone
+    shares = []
+    for v in skirt.data.vertices:
+        u = (top_z - v.co.z) / (top_z - hem_z)
+        u = min(1.0, max(0.0, u))
+        leg = 0.5 * u
+        side = max(-1.0, min(1.0, v.co.x / max(rx0, 1e-6)))
+        wl = leg * max(0.0, side)
+        wr = leg * max(0.0, -side)
+        shares.append({"hips": 1.0 - wl - wr, "thigh_L": wl, "thigh_R": wr})
+    tag_weights(skirt, shares)
     extras.append(skirt)
 
 # ---------------------------------------------------------------- armature
@@ -464,6 +533,20 @@ bpy.ops.object.mode_set(mode="OBJECT")
 bpy.context.view_layer.objects.active = body
 cut = GROUND + 0.085 * H
 delete_faces(body, lambda c: c.z < cut)
+# relax the splayed bind-pose fingers: pull the hand together toward the arm's axis beyond the wrist
+for side in ("L", "R"):
+    sh, _, wrist, tip = arm_points(side)
+    axis = tip - sh
+    for v in body.data.vertices:
+        u = (v.co - sh).dot(axis) / axis.length_squared
+        if u < 0.86:
+            continue
+        foot = sh + axis * u
+        d = v.co - foot
+        if d.length > 0.08 * H:
+            continue
+        k = 1.0 - 0.32 * min(1.0, (u - 0.86) / 0.1)
+        v.co = foot + d * k
 body.data.materials.append(mat_skin)
 body.data.materials.append(mat_top)
 body.data.materials.append(mat_legs)
@@ -487,17 +570,24 @@ bpy.ops.object.join()
 body = bpy.context.active_object
 bpy.ops.object.shade_smooth()
 
-# tagged parts follow one bone rigidly
-for vg in list(body.vertex_groups):
-    if not vg.name.startswith("part_"):
+# tagged parts follow their bones: one bone rigidly (tag) or several by share (tag_weights)
+part_groups = [vg for vg in body.vertex_groups if vg.name.startswith("part_")]
+part_bone = {vg.index: vg.name[len("part_") :] for vg in part_groups}
+for bone_name in set(part_bone.values()):
+    if not body.vertex_groups.get(bone_name):
+        body.vertex_groups.new(name=bone_name)
+bone_group = {name: body.vertex_groups[name] for name in set(part_bone.values())}
+other_groups = [vg for vg in body.vertex_groups if vg.index not in part_bone]
+for v in body.data.vertices:
+    parts = [(part_bone[g.group], g.weight) for g in v.groups if g.group in part_bone]
+    if not parts:
         continue
-    bone_name = vg.name[len("part_") :]
-    target = body.vertex_groups.get(bone_name) or body.vertex_groups.new(name=bone_name)
-    idx = [v.index for v in body.data.vertices if any(g.group == vg.index for g in v.groups)]
-    for other in body.vertex_groups:
-        if other is not vg and other is not target:
-            other.remove(idx)
-    target.add(idx, 1.0, "REPLACE")
+    total = sum(w for _, w in parts) or 1.0
+    for other in other_groups:
+        other.remove([v.index])
+    for bone_name, w in parts:
+        bone_group[bone_name].add([v.index], w / total, "REPLACE")
+for vg in part_groups:
     body.vertex_groups.remove(vg)
 
 for b in arm_data.bones:
@@ -507,42 +597,76 @@ for b in arm_data.bones:
         if vg:
             body.vertex_groups.remove(vg)
 
-# ---------------------------------------------------------------- outfit by dominant bone
-skin_groups = {"head", "neck"}
-glove_groups = {"hand_L", "hand_R"}
+# ---------------------------------------------------------------- outfit by geometry
+# Regions are decided from where a point sits on the body (along each arm's axis, the height,
+# the neckline curve), not from the auto weights, so the cuts are clean lines; faces that straddle
+# a boundary are subdivided twice first so the hem follows the curve instead of the coarse mesh.
 sleeves = PALETTE["sleeves"]
-bare_arm_groups = {"none": {"shoulder_L", "shoulder_R", "upper_arm_L", "upper_arm_R", "forearm_L", "forearm_R"}, "short": {"forearm_L", "forearm_R"}, "long": set()}[sleeves]
-leg_groups = {"thigh_L", "thigh_R", "shin_L", "shin_R", "foot_L", "foot_R"}
-arm_groups = {"shoulder_L", "shoulder_R", "upper_arm_L", "upper_arm_R", "forearm_L", "forearm_R", "hand_L", "hand_R"}
-gi = {vg.index: vg.name for vg in body.vertex_groups}
+ARM = {side: arm_points(side) for side in ("L", "R")}
+waist = z(0.505) if FEMALE else z(0.53)
+
+
+def arm_coord(c):
+    """(u along the arm from shoulder 0 to fingertip 1, distance from the arm axis) for the nearer arm."""
+    best = (None, 1e9)
+    for side, (sh, _, _, tip) in ARM.items():
+        v = tip - sh
+        u = (c - sh).dot(v) / v.length_squared
+        d = ((c - sh) - v * u).length
+        if d < best[1]:
+            best = (u, d)
+    return best
+
+
+def region(c):
+    u, d = arm_coord(c)
+    on_arm = d < 0.075 * H and u > 0.06
+    if on_arm and u > 0.84:
+        return "glove"
+    if on_arm:
+        if sleeves == "none" and u > 0.10:
+            return "skin"
+        if sleeves == "short" and u > 0.50:
+            return "skin"
+        return "top"
+    if c.z > z(0.83):
+        return "skin"  # neck and head
+    if FEMALE:
+        xn = c.x / (0.085 * H)
+        if c.y < -0.005 and c.z > z(0.745) + 0.07 * H * min(1.0, xn * xn):
+            return "skin"  # scoop neckline
+        if c.y > 0.02 and c.z > z(0.66) + 0.14 * H * min(1.0, xn * xn):
+            return "skin"  # open back
+    elif c.y < -0.005 and abs(c.x) < 0.03 * H and c.z > z(0.78):
+        return "skin"  # open collar
+    if c.z < waist and not on_arm:
+        return "legs"
+    return "top"
+
+
 mesh = body.data
-dominant = []
-for v in mesh.vertices:
-    best, bw = None, 0.0
-    for g in v.groups:
-        if g.weight > bw:
-            bw, best = g.weight, gi.get(g.group)
-    dominant.append(best)
 slot = {m.name: i for i, m in enumerate(mesh.materials) if m}
 fixed_slots = {slot[n] for n in ("boot", "sole", "lace", "vent", "eyelet", "blade", "plate", "hair", "skirt", "belt") if n in slot}
-waist = z(0.53)
+for _pass in range(2):
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bm.faces.ensure_lookup_table()
+    mixed_edges = set()
+    for f in bm.faces:
+        if f.material_index in fixed_slots:
+            continue
+        regions = {region(v.co) for v in f.verts}
+        if len(regions) > 1:
+            mixed_edges.update(f.edges)
+    if mixed_edges:
+        bmesh.ops.subdivide_edges(bm, edges=list(mixed_edges), cuts=1, use_grid_fill=True)
+    bm.to_mesh(mesh)
+    bm.free()
 for p in mesh.polygons:
     if p.material_index in fixed_slots:
         continue
-    names = [dominant[vi] for vi in p.vertices]
     centre = sum((mesh.vertices[vi].co for vi in p.vertices), Vector()) / len(p.vertices)
-    if sum(1 for n in names if n in glove_groups) * 2 > len(names):
-        p.material_index = slot["glove"]
-    elif sum(1 for n in names if n in skin_groups or n in bare_arm_groups) * 2 > len(names):
-        p.material_index = slot["skin"]
-    elif FEMALE and centre.z > z(0.775) and centre.y < -0.02 and abs(centre.x) < 0.075:
-        p.material_index = slot["skin"]  # scoop neckline
-    elif FEMALE and centre.z > z(0.70) and centre.y > 0.045 and abs(centre.x) < 0.09:
-        p.material_index = slot["skin"]  # open back
-    elif centre.z < waist and sum(1 for n in names if n in arm_groups) * 2 <= len(names):
-        p.material_index = slot["legs"]
-    else:
-        p.material_index = slot["top"]
+    p.material_index = slot[region(centre)]
 
 unweighted = sum(1 for v in mesh.vertices if not v.groups)
 print(f"SKATER body={args.body} verts={len(mesh.vertices)} faces={len(mesh.polygons)} unweighted={unweighted} H={H:.3f} bones={len(arm_data.bones)}")

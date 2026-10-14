@@ -5,11 +5,17 @@ import { limb, mirrorDir, vec, type Pose, type Vec3 } from "./pose";
  * Spine/neck/head directions point up at rest; arms hang down at rest.
  * "L" is the skater's left. Most skaters rotate counter-clockwise and land on the right foot.
  */
+/**
+ * Arms carried out to the sides. A skater's arms are never a stiff T: the upper arm sits a
+ * little below the shoulder line, the elbow is soft, so the forearm continues slightly lower
+ * and further forward than the upper arm, with the hand leading. `elev` is the upper arm's
+ * elevation from hanging (90 = horizontal), `fwd` how far forward of the frontal plane.
+ */
 const armsOut = (elev = 85, fwd = 10): Pose["bones"] => ({
-  upper_arm_L: { dir: limb(fwd, elev) },
-  upper_arm_R: { dir: limb(fwd, -elev) },
-  forearm_L: { dir: limb(fwd + 5, elev) },
-  forearm_R: { dir: limb(fwd + 5, -elev) },
+  upper_arm_L: { dir: limb(fwd, Math.min(elev, 88) - 4) },
+  upper_arm_R: { dir: limb(fwd, -(Math.min(elev, 88) - 4)) },
+  forearm_L: { dir: limb(fwd + 14, Math.min(elev, 88) - 12) },
+  forearm_R: { dir: limb(fwd + 14, -(Math.min(elev, 88) - 12)) },
 });
 
 const armsCrossed: Pose["bones"] = {
@@ -102,10 +108,11 @@ export const POSES: Record<string, Pose> = {
       thigh_R: { dir: limb(-92, -4) },
       shin_R: { dir: limb(-95, -4) },
       foot_R: { dir: vec(0, 0.2, -1) },
-      spine: { dir: vec(0, 0.35, 0.94) },
-      chest: { dir: vec(0, 0.15, 0.99) },
-      neck: { dir: vec(0, 0.5, 0.85) },
-      head: { dir: vec(0, 0.7, 0.7) },
+      spine: { dir: vec(0, 0.3, 0.95) },
+      chest: { dir: vec(0, 0.22, 0.98) },
+      // the back arches and the head lifts so the eyes look ahead, not at the ice
+      neck: { dir: vec(0, 0.62, 0.78) },
+      head: { dir: vec(0, 0.88, 0.47) },
       ...armsOut(90, 0),
     },
     hips: [0, -0.04, 0],
@@ -197,8 +204,9 @@ export const POSES: Record<string, Pose> = {
       shin_R: { dir: limb(-108, -4) },
       foot_R: { dir: vec(0, 0.4, -0.9) },
       spine: { dir: vec(0, 0.7, 0.7) },
-      chest: { dir: vec(0, 0.55, 0.83) },
-      head: { dir: vec(0, 0.8, 0.6) },
+      chest: { dir: vec(0, 0.6, 0.8) },
+      neck: { dir: vec(0, 0.8, 0.6) },
+      head: { dir: vec(0, 0.95, 0.3) },
       ...armsOut(80, 0),
     },
   },

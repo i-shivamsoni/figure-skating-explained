@@ -41,8 +41,11 @@ describe("jump timeline", () => {
     const tl = jumpTimeline({ jump: JUMP_BY_ID.S, rotations: 2 });
     const landing = tl.trace.filter((s) => s.t >= tl.rotation!.end);
     expect(landing.every((s) => s.foot === "R" && s.edge === "outside")).toBe(true);
-    const entry = tl.trace.filter((s) => s.t < tl.rotation!.start);
+    // the Salchow enters with a left forward outside three turn, then rides the back inside edge
+    const turn = tl.markers.find((m) => m.label === "Three turn")!.t;
+    const entry = tl.trace.filter((s) => s.t > turn + 0.4 && s.t < tl.rotation!.start);
     expect(entry.every((s) => s.foot === "L" && s.edge === "inside")).toBe(true);
+    expect(tl.trace.filter((s) => s.t < turn - 0.05).every((s) => s.foot === "L" && s.edge === "outside")).toBe(true);
     const rest = () => [0, -1, 0] as [number, number, number];
     for (let t = 0; t <= tl.duration; t += 0.37) expect(Object.keys(poseAt(tl, t, rest).bones).length).toBeGreaterThan(0);
     expect(markerAt(tl, tl.rotation!.start + 0.2)?.label).toBe("Rotation");

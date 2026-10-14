@@ -66,7 +66,10 @@ describe("angular momentum", () => {
       const jump = JUMP_BY_ID[id];
       const tl = jumpTimeline({ jump, rotations: id === "Eu" ? 1 : 3 });
       const foot = jump.takeOff.foot === "left" ? "L" : "R";
-      for (const t of [0, tl.rotation!.start - 0.5, tl.rotation!.start - 0.25]) expect(standingLeg(poseAt(tl, t, rest)), `${id} at ${t}`).toBe(foot);
+      // the Axel glides in on the right foot and steps forward onto the left; every other entry stays on one foot
+      const first = tl.markers.find((m) => m.label === "Step forward");
+      expect(standingLeg(poseAt(tl, 0, rest)), `${id} at 0`).toBe(first ? "R" : foot);
+      for (const t of [tl.rotation!.start - 0.5, tl.rotation!.start - 0.25]) expect(standingLeg(poseAt(tl, t, rest)), `${id} at ${t}`).toBe(foot);
       const landFoot = jump.landing.foot === "left" ? "L" : "R";
       expect(standingLeg(poseAt(tl, tl.rotation!.end + 0.4, rest)), `${id} landing`).toBe(landFoot);
       expect(tl.trace.filter((s) => s.t > tl.rotation!.end).every((s) => s.foot === landFoot && s.edge === jump.landing.edge)).toBe(true);
@@ -147,6 +150,56 @@ describe("angular momentum", () => {
   });
 });
 
+describe("entries", () => {
+  it("turns a forward three onto the take-off edge for Flip, Salchow and toe loop, with a cusp on the ice", () => {
+    for (const id of ["F", "S", "T"] as const) {
+      const tl = jumpTimeline({ jump: JUMP_BY_ID[id], rotations: 3 });
+      const turn = tl.markers.find((m) => m.label === "Three turn")!;
+      expect(turn, id).toBeDefined();
+      const foot = JUMP_BY_ID[id].takeOff.foot === "left" ? "L" : "R";
+      const before = tl.trace.filter((s) => s.t < turn.t - 0.05);
+      const after = tl.trace.filter((s) => s.t > turn.t + 0.4 && s.t < tl.rotation!.start && s.edge !== "toe");
+      expect(before.length).toBeGreaterThan(10);
+      expect(before.every((s) => s.foot === foot && s.edge !== JUMP_BY_ID[id].takeOff.edge), `${id} before`).toBe(true);
+      expect(after.every((s) => s.foot === foot && s.edge === JUMP_BY_ID[id].takeOff.edge), `${id} after`).toBe(true);
+      // facing forward along the travel before the turn, backward after it: half a revolution counter-clockwise
+      const yawBefore = tl.root(turn.t - 0.1).yaw;
+      const yawAfter = tl.root(turn.t + 0.45).yaw;
+      expect(yawAfter - yawBefore).toBeGreaterThan(Math.PI * 0.9);
+      expect(yawAfter - yawBefore).toBeLessThan(Math.PI * 1.25);
+      const vel = { x: tl.root(turn.t - 0.1 + 1e-3).x - tl.root(turn.t - 0.1).x, z: tl.root(turn.t - 0.1 + 1e-3).z - tl.root(turn.t - 0.1).z };
+      expect(Math.cos(yawBefore - Math.atan2(vel.x, vel.z))).toBeGreaterThan(0.9);
+      // the cusp reaches into the circle at the middle of the turn
+      const mid = tl.root(turn.t + 0.15);
+      const base = tl.root(turn.t);
+      expect(Math.abs(mid.z - base.z)).toBeGreaterThan(0.08);
+    }
+  });
+  it("steps the Axel forward from the right back outside edge, turning clockwise toward the circle", () => {
+    const tl = jumpTimeline({ jump: JUMP_BY_ID.A, rotations: 2 });
+    const step = tl.markers.find((m) => m.label === "Step forward")!;
+    expect(step).toBeDefined();
+    expect(tl.trace.filter((s) => s.t < step.t).every((s) => s.foot === "R" && s.edge === "outside")).toBe(true);
+    expect(tl.trace.filter((s) => s.t > step.t + 0.4 && s.t < tl.rotation!.start).every((s) => s.foot === "L" && s.edge === "outside")).toBe(true);
+    // half a revolution clockwise, less the lobe's own counter-clockwise drift over those 0.55 s
+    const d = tl.root(step.t + 0.45).yaw - tl.root(step.t - 0.1).yaw;
+    expect(d).toBeLessThan(-Math.PI * 0.8);
+    expect(d).toBeGreaterThan(-Math.PI * 1.1);
+  });
+  it("keeps the Lutz on one long back outside edge curving the other way from the Flip", () => {
+    const lz = jumpTimeline({ jump: JUMP_BY_ID.Lz, rotations: 3 });
+    const f = jumpTimeline({ jump: JUMP_BY_ID.F, rotations: 3 });
+    expect(lz.markers.some((m) => m.label === "Three turn" || m.label === "Step forward")).toBe(false);
+    expect(lz.trace.filter((s) => s.t < lz.rotation!.start && s.edge !== "toe").every((s) => s.foot === "L" && s.edge === "outside")).toBe(true);
+    const tLoad = lz.rotation!.start - 0.4;
+    expect(lz.root(tLoad - 1).z).toBeGreaterThan(0.05);
+    expect(f.root(f.rotation!.start - 0.4 - 0.3).z).toBeLessThan(-0.05);
+    // the Lutz approach is longer and straighter: for a circle |z| / x² ≈ 1 / 2R, so about half the Flip's curvature
+    const curv = (tl: ReturnType<typeof jumpTimeline>, t: number) => Math.abs(tl.root(t).z) / (tl.root(t).x * tl.root(t).x);
+    expect(curv(lz, tLoad - 1)).toBeLessThan(curv(f, f.rotation!.start - 0.4 - 0.3) * 0.7);
+  });
+});
+
 describe("edge lean", () => {
   it("leans by atan(v²/gR) and tilts the body toward the point it is given", () => {
     expect(edgeLean(4.2, 7)).toBeCloseTo(Math.atan((4.2 * 4.2) / (G * 7)), 9);
@@ -163,7 +216,10 @@ describe("edge lean", () => {
     const settled = 0.8; // on the entry edge, before the knee bend
     expect(upOf(lz.root(settled)).z).toBeGreaterThan(0.1);
     expect(upOf(f.root(settled)).z).toBeLessThan(-0.1);
-    expect(Math.abs(lz.root(settled).roll!)).toBeCloseTo(edgeLean(4.2, 7), 6);
+    // the Lutz rides a shallower 13 m edge, so it leans less than the Flip's 7 m lobe
+    expect(Math.abs(lz.root(settled).roll!)).toBeCloseTo(jumpModel({ jump: JUMP_BY_ID.Lz, rotations: 3 }).lean, 6);
+    expect(Math.abs(lz.root(settled).roll!)).toBeLessThan(Math.abs(f.root(settled).roll!));
+    expect(Math.abs(f.root(settled).roll!)).toBeCloseTo(edgeLean(4.2, 7), 6);
     expect(lz.root(0).roll).toBeCloseTo(0, 9);
     expect(lz.root(lz.rotation!.start).roll ?? 0).toBeCloseTo(0, 9);
     expect(lz.root((lz.rotation!.start + lz.rotation!.end) / 2).roll ?? 0).toBe(0);
