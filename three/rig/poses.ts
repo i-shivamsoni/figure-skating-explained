@@ -227,7 +227,14 @@ export const POSES: Record<string, Pose> = {
   },
 };
 
-export const POSE_NAMES = Object.keys(POSES);
+/**
+ * Every registered pose name, read at call time: poses are added to POSES all through this
+ * file and by other modules (three/rig/allPoses.ts imports them all), so a constant captured
+ * here would miss everything registered after this line.
+ */
+export function poseNames(): string[] {
+  return Object.keys(POSES);
+}
 
 /** Swap left and right so a pose can be mirrored for clockwise skaters or the other foot. */
 export function mirrorPose(p: Pose): Pose {

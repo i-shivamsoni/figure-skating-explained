@@ -1,0 +1,72 @@
+poses=77 failing=52
+thigh:backward 22
+forearm:lateral 16
+forearm:backward 15
+spine:cone 14
+foot:minAngle 13
+spine:forward 10
+shin:lateral 8
+foot:lateral 7
+upper_arm:inward 5
+thigh:outward 5
+foot:cone 3
+thigh:cone 3
+upper_arm:backward 3
+spine:backward 3
+head:cone 2
+spine:lateral 2
+neck:cone 1
+neck:backward 1
+
+glideBO: foot_L cone 109.1>95
+loadBO: thigh_L backward 50>40
+tuck: forearm_L lateral 59.9>25, forearm_R lateral 59.9>25
+land: thigh_L backward 60>40, foot_L minAngle 6.5>12
+camel: spine cone 72.5>60, spine forward 72.5>60, thigh_R backward 88>40, foot_R minAngle 6.3>12
+upright: forearm_L lateral 42.7>25, forearm_R lateral 42.7>25
+layback: forearm_L backward 40.8>8, forearm_R backward 40.8>8, foot_R minAngle 6.3>12
+biellmann: forearm_L backward 49.1>8, forearm_R backward 49.1>8, thigh_R cone 149.5>130
+spiral: thigh_R backward 75>40, foot_R minAngle 6.1>12
+glideFO: foot_R cone 109.1>95
+loadFO: thigh_R backward 45>40
+pickBack: thigh_L backward 55>40
+camelSideways: spine cone 69.6>60, spine forward 69.6>60, thigh_R backward 88>40, foot_R minAngle 6.3>12
+camelUpward: spine cone 66.5>60, spine forward 66.5>60, upper_arm_R backward 70.5>60, thigh_R backward 88>40, foot_R minAngle 6.3>12
+sitSideways: head cone 47.4>35, foot_R lateral 36.5>25
+sitBehind: foot_R minAngle 5.4>12
+uprightForward: spine cone 72.5>60, spine forward 72.5>60
+sidewaysLean: forearm_L lateral 33.4>25
+flyCamel: spine cone 95.7>60, spine forward 84.3>60, upper_arm_L inward 68.1>50, upper_arm_R inward 68.1>50, thigh_L backward 60>40, thigh_R backward 70>40
+windmillUp: spine cone 78.5>60, spine forward 78.5>60, thigh_R backward 50>40
+spinEntry: thigh_R backward 50>40
+windUp: forearm_L lateral 42.7>25, forearm_R lateral 42.7>25
+spinExit: foot_L cone 109.1>95
+twizzle: forearm_L lateral 63.6>25, forearm_R lateral 63.6>25
+inaBauer: thigh_R outward 56.8>55, shin_L lateral 14.2>10, foot_L lateral 43.8>25
+hydroblade: spine cone 72.5>60, spine lateral 64.8>30, thigh_R outward 78.8>55, shin_L lateral 28.1>10
+arabesque: thigh_R backward 60>40, foot_R minAngle 8.2>12
+catchFoot: forearm_R lateral 32.3>25, thigh_R backward 70>40
+openArch: forearm_L backward 71.1>8, forearm_R backward 71.1>8, foot_L lateral 30>25, foot_R lateral 33.7>25
+cantilever: spine cone 72.5>60, spine backward 72.5>45, forearm_L backward 10>8, forearm_R backward 10>8, shin_L lateral 22.9>10, shin_R lateral 22.9>10
+charlotte: spine cone 123.2>60, forearm_L backward 11.5>8, forearm_R backward 11.5>8, thigh_R cone 163.9>130, foot_R lateral 61.1>25
+layoverBauer: spine backward 56.5>45, thigh_R outward 56.8>55, shin_L lateral 14.2>10, foot_L lateral 43.8>25
+kneeSlide: forearm_L lateral 27.7>25, forearm_R lateral 27.7>25
+splitAir: thigh_R backward 88>40, foot_L minAngle 9.6>12
+flipTuck: head cone 54.4>35
+headless: neck cone 70.7>65, neck backward 70.7>65
+pancake: spine cone 78.5>60, spine forward 78.5>60, shin_R lateral 71.3>10
+doughnut: spine cone 63.4>60, spine forward 63.4>60, upper_arm_L backward 75.9>60, upper_arm_R backward 75.9>60, forearm_L backward 9.2>8, forearm_L lateral 27.5>25, forearm_R backward 9.2>8, forearm_R lateral 27.5>25, thigh_R backward 85>40
+toeArabian: spine cone 107.5>60, spine forward 72.5>60, upper_arm_L inward 68.1>50, upper_arm_R inward 68.1>50, thigh_L cone 146.8>130
+landDeep: thigh_L backward 50>40
+liftUpright: thigh_R backward 85>40
+liftPress: thigh_L outward 88>55, thigh_R outward 88>55
+liftStar: foot_R minAngle 10.7>12
+twistSplit: thigh_R backward 88>40, foot_L minAngle 9.6>12
+deathSpiralFi: spine cone 77.2>60, spine lateral 75.9>30, thigh_L backward 79.6>40, shin_R lateral 64.7>10
+deathSpiralBo: spine backward 58.8>45, upper_arm_L inward 64.8>50, foot_R lateral 66.7>25
+pairCamel: spine cone 72.5>60, spine forward 72.5>60, forearm_L backward 23.6>8, forearm_L lateral 49.1>25, thigh_R backward 88>40, foot_R minAngle 6.3>12
+pairSit: forearm_L backward 17.5>8
+pairSitBehind: forearm_L backward 17.5>8, foot_R minAngle 5.4>12
+throwAssist: forearm_L lateral 33.1>25
+pivot: shin_L lateral 13.8>10
+spiralHold: thigh_L backward 45>40

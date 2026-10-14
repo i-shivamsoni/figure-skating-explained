@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { POSE_NAMES, POSES } from "@/three/rig/poses";
+import { POSES, poseNames } from "@/three/rig/allPoses";
 
 const PoseStage = dynamic(() => import("./PoseStage").then((m) => m.PoseStage), { ssr: false });
 
@@ -12,7 +12,8 @@ export function PoseLab() {
   const params = useSearchParams();
   const initial = params.get("pose") ?? "stand";
   const cam = params.get("cam") ?? "iso";
-  const [pose, setPose] = useState(POSE_NAMES.includes(initial) ? initial : "stand");
+  const names = poseNames();
+  const [pose, setPose] = useState(names.includes(initial) ? initial : "stand");
   // ?bare=1 renders only the stage, above the site chrome (used to capture the pose thumbnails in public/poses)
   if (params.get("bare") === "1") {
     return (
@@ -26,7 +27,7 @@ export function PoseLab() {
       <div className="mb-3 flex items-center gap-3 text-sm">
         <label htmlFor="pose">Pose</label>
         <select id="pose" value={pose} onChange={(e) => setPose(e.target.value)} className="rounded border border-border bg-surface px-2 py-1">
-          {POSE_NAMES.map((n) => (
+          {names.map((n) => (
             <option key={n} value={n}>
               {n}
             </option>
