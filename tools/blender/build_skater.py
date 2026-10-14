@@ -29,18 +29,18 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--body", default="female", choices=["female", "male"])
 ap.add_argument("--out", default="")
 ap.add_argument("--preview", default="")
+ap.add_argument("--boot-preview", default="")
 args = ap.parse_args(argv)
 OUT = args.out or os.path.join(ROOT, f"public/models/skater-{args.body}.glb")
 FEMALE = args.body == "female"
 
-BLADE_H = 0.026
-STANCHION_H = 0.018
-SOLE_H = 0.012
-GROUND = BLADE_H + STANCHION_H + SOLE_H
+# the boot's sole top (where the foot rests) sits this far above the ice; the runner is 28 mm tall,
+# the front mounting plate 17 mm and the leather sole 12 mm
+GROUND = 0.057
 
 OUTFITS = {
-    "female": {"top": (0.36, 0.03, 0.09), "legs": (0.80, 0.60, 0.50), "boot": (0.94, 0.94, 0.96), "hair": (0.16, 0.08, 0.05)},
-    "male": {"top": (0.16, 0.25, 0.58), "legs": (0.05, 0.05, 0.08), "boot": (0.06, 0.06, 0.07), "hair": (0.09, 0.06, 0.04)},
+    "female": {"top": (0.36, 0.03, 0.09), "legs": (0.80, 0.60, 0.50), "boot": (0.93, 0.91, 0.88), "sole": (0.78, 0.68, 0.55), "lace": (0.97, 0.96, 0.94), "vent": (0.72, 0.70, 0.66), "hair": (0.16, 0.08, 0.05)},
+    "male": {"top": (0.16, 0.25, 0.58), "legs": (0.05, 0.05, 0.08), "boot": (0.05, 0.05, 0.06), "sole": (0.08, 0.07, 0.07), "lace": (0.12, 0.12, 0.13), "vent": (0.02, 0.02, 0.02), "hair": (0.09, 0.06, 0.04)},
 }
 PALETTE = OUTFITS[args.body]
 
@@ -143,29 +143,186 @@ def delete_faces(ob, predicate):
 mat_skin = make_material("skin", (0.78, 0.56, 0.45), roughness=0.55)
 mat_top = make_material("top", PALETTE["top"], roughness=0.5)
 mat_legs = make_material("legs", PALETTE["legs"], roughness=0.55)
-mat_boot = make_material("boot", PALETTE["boot"], roughness=0.45)
-mat_blade = make_material("blade", (0.85, 0.87, 0.9), metallic=1.0, roughness=0.25)
+mat_boot = make_material("boot", PALETTE["boot"], roughness=0.38)
+mat_sole = make_material("sole", PALETTE["sole"], roughness=0.6)
+mat_lace = make_material("lace", PALETTE["lace"], roughness=0.7)
+mat_vent = make_material("vent", PALETTE["vent"], roughness=0.6)
+mat_blade = make_material("blade", (0.86, 0.88, 0.91), metallic=1.0, roughness=0.22)
+mat_plate = make_material("plate", (0.80, 0.81, 0.84), metallic=0.9, roughness=0.35)
 mat_hair = make_material("hair", PALETTE["hair"], roughness=0.7)
 mat_skirt = make_material("skirt", PALETTE["top"], roughness=0.5, double_sided=True)
 
 extras = []
 
-# ---------------------------------------------------------------- boots, blades
+# ---------------------------------------------------------------- skates
+def apply_mods(ob):
+    bpy.context.view_layer.objects.active = ob
+    for m in list(ob.modifiers):
+        bpy.ops.object.modifier_apply(modifier=m.name)
+
+
+def skin_chain(name, nodes, edges, material):
+    """A smooth organic shell from a vertex skeleton: nodes = [((x, y, z), (r1, r2)), ...]."""
+    me = bpy.data.meshes.new(name)
+    ob = bpy.data.objects.new(name, me)
+    scene.collection.objects.link(ob)
+    me.from_pydata([n[0] for n in nodes], edges, [])
+    me.update()
+    bpy.context.view_layer.objects.active = ob
+    ob.select_set(True)
+    skin = ob.modifiers.new("Skin", "SKIN")
+    skin.use_smooth_shade = True
+    for i, n in enumerate(nodes):
+        me.skin_vertices[0].data[i].radius = n[1]
+    me.skin_vertices[0].data[0].use_root = True
+    sub = ob.modifiers.new("Sub", "SUBSURF")
+    sub.levels = 2
+    sub.render_levels = 2
+    apply_mods(ob)
+    me.materials.append(material)
+    return ob
+
+
+def profile_extrude(name, points, width, material):
+    """Extrudes a closed side-view polygon (y, z) into a plate of the given width along x."""
+    me = bpy.data.meshes.new(name)
+    ob = bpy.data.objects.new(name, me)
+    scene.collection.objects.link(ob)
+    bm = bmesh.new()
+    verts = [bm.verts.new((-width / 2, y, zz)) for y, zz in points]
+    face = bm.faces.new(verts)
+    res = bmesh.ops.extrude_face_region(bm, geom=[face])
+    moved = [g for g in res["geom"] if isinstance(g, bmesh.types.BMVert)]
+    bmesh.ops.translate(bm, verts=moved, vec=(width, 0, 0))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(material)
+    return ob
+
+
+def build_skate(side):
+    """One skate at the origin of its foot (x = lateral centre, y = 0 at the ankle, z = 0 on the ice)."""
+    k = H / 1.639
+    parts = []
+    heel_raise = 0.022 * k
+    pivot_y = -0.14 * k  # the toe stays down, the heel comes up
+    tilt = math.atan2(heel_raise, 0.24 * k)
+    sole_top = GROUND  # at the toe
+
+    def tilted(y, zz):
+        """Rotate a point of the boot about the toe so the heel rises; y toward the toe is negative."""
+        dy = y - pivot_y
+        return (y, sole_top + zz + dy * math.sin(tilt))
+
+    # leather shell: foot chain and ankle chain, radii = (lateral, vertical) for foot nodes, (lateral, front-back) for ankle nodes.
+    # Subdivision shrinks the skin mesh, so the radii are generous and the underside is cut flat afterwards.
+    foot = [(-0.165, 0.014, (0.034, 0.030)), (-0.100, 0.018, (0.054, 0.036)), (-0.030, 0.024, (0.054, 0.044)), (0.045, 0.024, (0.048, 0.044)), (0.088, 0.026, (0.036, 0.036))]
+    ankle = [(-0.012, 0.090, (0.047, 0.056)), (-0.006, 0.145, (0.046, 0.054)), (-0.002, 0.205, (0.045, 0.052))]
+    nodes = []
+    for y, zz, r in foot:
+        yy, zw = tilted(y * k, zz * k)
+        nodes.append(((0, yy, zw), (r[0] * k, r[1] * k)))
+    for y, zz, r in ankle:
+        yy, zw = tilted(y * k, zz * k)
+        nodes.append(((0, yy, zw), (r[0] * k, r[1] * k)))
+    edges = [(0, 1), (1, 2), (2, 3), (3, 4), (2, 5), (5, 6), (6, 7)]
+    shell = skin_chain(f"boot_{side}", nodes, edges, mat_boot)
+    for v in shell.data.vertices:
+        floor = tilted(v.co.y, 0.0)[1] + 0.003
+        if v.co.z < floor:
+            v.co.z = floor
+    parts.append(shell)
+    shell_pts = [v.co.copy() for v in shell.data.vertices]
+    y_min = min(c.y for c in shell_pts)
+    y_max = max(c.y for c in shell_pts)
+
+    def front_at(zz):
+        band = [c for c in shell_pts if abs(c.z - zz) < 0.008 and abs(c.x) < 0.012]
+        return min(c.y for c in band) if band else -0.05 * k
+
+    def side_at(y, zz):
+        band = [c for c in shell_pts if abs(c.z - zz) < 0.012 and abs(c.y - y) < 0.012]
+        return max(abs(c.x) for c in band) if band else 0.04 * k
+
+    # leather sole trimmed to the shell, and a stacked heel
+    sole_pts = [(y_min + 0.004, -0.012 * k), (y_min + 0.004, 0.0), (y_max - 0.004, 0.0), (y_max - 0.004, -0.012 * k)]
+    sole = profile_extrude(f"sole_{side}", [tilted(y, zz) for y, zz in sole_pts], 0.076 * k, mat_sole)
+    parts.append(sole)
+    heel_pts = [(0.030, -0.012), (0.030, -0.034), (0.090, -0.034), (0.090, -0.012)]
+    heel = profile_extrude(f"heelblock_{side}", [tilted(y * k, zz * k) for y, zz in heel_pts], 0.062 * k, mat_sole)
+    parts.append(heel)
+
+    # runner: level on the ice, serrated toe pick at the front, slight rise at both ends
+    blade_top = 0.028
+    runner = [
+        (0.102, 0.010), (0.096, 0.003), (0.080, 0.0), (-0.120, 0.0), (-0.142, 0.004), (-0.153, 0.012),
+        (-0.149, 0.016), (-0.158, 0.023), (-0.152, 0.026), (-0.161, 0.034), (-0.154, 0.037), (-0.163, 0.046), (-0.150, 0.047),
+        (-0.138, blade_top + 0.004), (-0.120, blade_top), (0.090, blade_top), (0.100, blade_top - 0.006),
+    ]
+    blade = profile_extrude(f"blade_{side}", [(y * k, zz * k) for y, zz in runner], 0.0042, mat_blade)
+    parts.append(blade)
+
+    # mounting plates: a wide front plate under the ball, a short one under the heel block
+    def plate(name, y0, y1):
+        top = min(tilted(y0 * k, -0.012 * k)[1], tilted(y1 * k, -0.012 * k)[1])
+        if y0 > 0:
+            top = tilted(y0 * k, -0.034 * k)[1]
+        pts = [(y0 * k, blade_top * k - 0.002), (y0 * k - 0.006 * k, top), (y1 * k + 0.006 * k, top), (y1 * k, blade_top * k - 0.002)]
+        ob = profile_extrude(name, pts, 0.022 * k, mat_plate)
+        return ob
+
+    parts.append(plate(f"plate_f_{side}", -0.112, -0.062))
+    parts.append(plate(f"plate_b_{side}", 0.040, 0.076))
+
+    # laces: crossed strips up the instep and ankle, sitting on the boot's front surface
+    for i in range(7):
+        t = i / 6
+        zz = (0.062 + 0.118 * t) * k
+        zw = tilted(-0.04 * k, zz)[1]
+        yy = front_at(zw) + 0.0045
+        pitch = math.radians(34 - 22 * t)
+        for sign in (1, -1):
+            bpy.ops.mesh.primitive_cube_add(size=1, location=(0, yy, zw))
+            strip = bpy.context.active_object
+            strip.name = f"lace_{side}_{i}_{sign}"
+            strip.scale = (0.030 * k, 0.0035, 0.0045)
+            strip.rotation_euler = (pitch, 0, sign * math.radians(40))
+            bpy.ops.object.transform_apply(scale=True, rotation=True)
+            strip.data.materials.append(mat_lace)
+            parts.append(strip)
+
+    # side vents: three slanted slits on each side of the ankle, flush with the leather
+    for sx in (1, -1):
+        for i in range(3):
+            y = (-0.028 + 0.028 * i) * k
+            yy, zw = tilted(y, 0.125 * k)
+            x = side_at(yy, zw) - 0.0025
+            bpy.ops.mesh.primitive_cube_add(size=1, location=(sx * x, yy, zw))
+            vent = bpy.context.active_object
+            vent.name = f"vent_{side}_{sx}_{i}"
+            vent.scale = (0.004, 0.0085, 0.026)
+            vent.rotation_euler = (math.radians(-16), 0, 0)
+            bpy.ops.object.transform_apply(scale=True, rotation=True)
+            vent.data.materials.append(mat_vent)
+            parts.append(vent)
+
+    for ob in parts:
+        bpy.ops.object.select_all(action="DESELECT")
+        ob.select_set(True)
+        bpy.context.view_layer.objects.active = ob
+        bpy.ops.object.shade_smooth()
+    return parts
+
+
 for side in ("L", "R"):
     hip, knee, ankle, toe = leg_points(side)
-    foot_len = 0.15 * H
-    cx = ankle.x
-    cy = (ankle.y + toe.y) / 2 + 0.01 * H
-    foot_h = 0.058 * H + SOLE_H
-    foot_part = make_box(f"boot_{side}", (cx, cy, GROUND - SOLE_H + foot_h / 2), (0.064 * H, foot_len, foot_h), mat_boot, bevel=0.02, segments=5)
-    cuff = make_box(f"cuff_{side}", (cx, ankle.y + 0.004 * H, GROUND + 0.03 * H + 0.06 * H), (0.058 * H, 0.08 * H, 0.12 * H), mat_boot, bevel=0.018, segments=5)
-    sole = make_box(f"heel_{side}", (cx, cy + foot_len * 0.3, GROUND - SOLE_H / 2), (0.05 * H, 0.04 * H, SOLE_H), mat_boot)
-    # two stanchions hold the blade under the toe and the heel
-    front = make_box(f"stanchion_f_{side}", (cx, cy - foot_len * 0.3, BLADE_H + STANCHION_H / 2), (0.012, 0.03, STANCHION_H), mat_blade)
-    back = make_box(f"stanchion_b_{side}", (cx, cy + foot_len * 0.32, BLADE_H + STANCHION_H / 2), (0.012, 0.03, STANCHION_H), mat_blade)
-    blade = make_box(f"blade_{side}", (cx, cy, BLADE_H / 2), (0.0045, foot_len * 1.04, BLADE_H), mat_blade)
-    pick = make_box(f"pick_{side}", (cx, cy - foot_len * 0.53, BLADE_H * 0.8), (0.0045, 0.016, BLADE_H * 0.55), mat_blade)
-    for part in (foot_part, cuff, sole, front, back, blade, pick):
+    for part in build_skate(side):
+        part.location = (ankle.x, ankle.y + 0.004 * H, 0.0)
+        bpy.ops.object.select_all(action="DESELECT")
+        part.select_set(True)
+        bpy.context.view_layer.objects.active = part
+        bpy.ops.object.transform_apply(location=True)
         tag(part, f"foot_{side}")
         extras.append(part)
 
@@ -258,7 +415,7 @@ bpy.ops.object.mode_set(mode="OBJECT")
 
 # ---------------------------------------------------------------- remove bare feet, add material slots, join, auto weights
 bpy.context.view_layer.objects.active = body
-cut = GROUND + 0.075 * H
+cut = GROUND + 0.085 * H
 delete_faces(body, lambda c: c.z < cut)
 body.data.materials.append(mat_skin)
 body.data.materials.append(mat_top)
@@ -313,7 +470,7 @@ for v in mesh.vertices:
             bw, best = g.weight, gi.get(g.group)
     dominant.append(best)
 slot = {m.name: i for i, m in enumerate(mesh.materials) if m}
-fixed_slots = {slot[n] for n in ("boot", "blade", "hair", "skirt") if n in slot}
+fixed_slots = {slot[n] for n in ("boot", "sole", "lace", "vent", "blade", "plate", "hair", "skirt") if n in slot}
 waist = z(0.53)
 for p in mesh.polygons:
     if p.material_index in fixed_slots:
@@ -337,6 +494,30 @@ body.select_set(True)
 rig.select_set(True)
 bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", use_selection=True, export_apply=True, export_animations=False, export_skins=True, export_yup=True, export_materials="EXPORT", export_image_format="NONE")
 print(f"EXPORTED {OUT} {os.path.getsize(OUT)} bytes")
+
+# ---------------------------------------------------------------- boot close-ups
+if args.boot_preview:
+    os.makedirs(args.boot_preview, exist_ok=True)
+    scene.render.engine = "BLENDER_WORKBENCH"
+    scene.render.resolution_x = 800
+    scene.render.resolution_y = 600
+    scene.display.shading.light = "STUDIO"
+    scene.display.shading.color_type = "MATERIAL"
+    scene.world = bpy.data.worlds.new("Wb")
+    cam_data = bpy.data.cameras.new("CamB")
+    cam_data.type = "ORTHO"
+    cam_data.ortho_scale = 0.42
+    cam = bpy.data.objects.new("CamB", cam_data)
+    scene.collection.objects.link(cam)
+    scene.camera = cam
+    _, _, ankle_r, _ = leg_points("R")
+    fx, fy, fz = ankle_r.x, ankle_r.y, 0.11
+    for name, loc, rot in [("side", (fx + 3, fy, fz), (math.pi / 2, 0, math.pi / 2)), ("front34", (fx + 2.2, fy - 2.2, fz + 0.9), (math.radians(72), 0, math.radians(45)))]:
+        cam.location = loc
+        cam.rotation_euler = rot
+        scene.render.filepath = os.path.join(args.boot_preview, f"{args.body}_boot_{name}.png")
+        bpy.ops.render.render(write_still=True)
+    print("BOOT_PREVIEW_DONE")
 
 # ---------------------------------------------------------------- optional preview renders
 if args.preview:
