@@ -175,6 +175,17 @@ export const SPIN_PRESETS: Record<string, SpinParams> = {
       { pose: "biellmann", revolutions: 2, label: "Upright Biellmann (UB)", detail: "free leg pulled above the head", transition: 0.7 },
     ],
   },
+  ChSp: {
+    id: "ChSp",
+    title: "Choreographic spin",
+    entry: "step",
+    rps: 1.4,
+    phases: [
+      { pose: "uprightForward", revolutions: 1.5, label: "Any position", detail: "basic or non-basic; only three consecutive revolutions on one foot are required" },
+      { pose: "sitBehind", revolutions: 1.5, label: "Change at will", detail: "changes of foot and position are free and can repeat", transition: 0.6 },
+      { pose: "layback", revolutions: 2, label: "Matching the music", detail: "judges score it in GOE only; no levels", transition: 0.6 },
+    ],
+  },
   windmills: {
     id: "windmills",
     title: "Windmills (three in a row)",
