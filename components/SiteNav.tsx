@@ -8,6 +8,7 @@ const LINKS: { href: string; label: string }[] = [
   { href: "/spins", label: "Spins" },
   { href: "/steps", label: "Steps" },
   { href: "/choreo", label: "Choreo" },
+  { href: "/pairs", label: "Pairs" },
   { href: "/scoring", label: "Scoring" },
   { href: "/calculator", label: "Calculator" },
   { href: "/compare", label: "Compare" },

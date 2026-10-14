@@ -8,6 +8,7 @@ const SECTIONS = [
   { href: "/spins", title: "Spins", text: "Camel, sit, upright and layback positions, ten difficult variations and the features that build a Level 4." },
   { href: "/steps", title: "Step sequences", text: "Twizzles, brackets, rockers and counters: what the blade draws and how variety becomes a level." },
   { href: "/choreo", title: "Choreographic elements", text: "The choreographic sequence and choreographic spin, scored by the judges alone." },
+  { href: "/pairs", title: "Pair Skating", text: "Lifts in five groups, twist lifts, throw jumps, death spirals and pair spins, with their levels and values." },
   { href: "/scoring", title: "How scoring works", text: "Base value, Grade of Execution, trimmed means, program components and deductions." },
   { href: "/calculator", title: "Program calculator", text: "Build a Short Program or Free Skating and see the score with the 2026-27 Scale of Values." },
 ];
