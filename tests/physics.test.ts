@@ -152,7 +152,7 @@ describe("landing", () => {
     expect(deepestAt).toBeLessThan(ABSORB_TIME / 2);
     const tl = jumpTimeline({ jump: JUMP_BY_ID.S, rotations: 4 });
     const tLand = tl.rotation!.end;
-    expect(tl.root(tLand + 0.07).y).toBeLessThan(-0.03);
+    expect(tl.root(tLand + 0.07).y).toBeLessThan(-DIP_PER_SPEED * 3 * 0.5);
     expect(tl.root(tLand + ABSORB_TIME).y).toBe(0);
     expect(tl.root(tl.duration).y).toBe(0);
     const single = jumpTimeline({ jump: JUMP_BY_ID.S, rotations: 1 });
