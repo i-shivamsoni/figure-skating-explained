@@ -20,9 +20,9 @@ Vercel project `figure-skating-explained` (team `<vercel team>`), linked via `.v
 Deploy with `vercel deploy --prod --yes` (preview: `vercel deploy --yes`; previews sit behind
 Vercel auth, production is public). The Vercel CLI is 54.x and nags to upgrade; ignore it.
 
-State at the time of writing (updated 15 Oct 05:10 IST): see §10 for the overhaul; 275 vitest
+State at the time of writing (updated 15 Oct 06:00 IST): see §10 for the overhaul; 283 vitest
 tests green, 21 Playwright tests green, typecheck and lint clean, production redeployed after
-commit `584218b`.
+commit `a619c8c`.
 
 ## 2. The user and the working agreement
 
@@ -333,6 +333,17 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
   skin, hair style/length/colour, sleeves, skirt, gloves and a colour row per piece; no live
   preview stage yet. Verified with nine looks in the pose lab (`scratchpad/looks`) and the e2e
   drawer test (ponytail long + no skirt survive a reload).
+- **Morning round (05:10–06:00 IST, commits 8c0451c and a619c8c, user feedback inline):**
+  blades are satin steel with a "Blades" finish choice (`BLADE_COLOURS`; plates a darker shade
+  via `darken()`), the sole and heel block are a "Soles" piece that follows the boot colour (the
+  Boots swatch sets both); the environment has a soft sky panel so metal reflects light; the rink
+  lets the skater reach the boards (`EDGE_MARGIN` 0.6 m, wander homes beyond 13 m, steering
+  reserves one segment) and places every element by testing its real path against the ice
+  (`linkInto`, `staysOnIce`; a boxed-in link slows to turn on the spot); stroking links push
+  and glide on alternate feet (`STROKE_PERIOD`) and coast two-footed when slow; the ponytail is
+  rooted inside the cap and the high bun sits on the crown; the backflip somersaults about the
+  centre of mass (`CM_HEIGHT` in `special.ts`) with two-footed poses `flipLoad`, `flipLaunch`,
+  `flipLand`. 283 unit tests, 21 e2e.
 - **Pending, in priority order:**
   1. Content pages onto the new primitives (plan Wave 3, agents 3A/3B); Compare and FlipVsLutz
      still carry their own camera selects; the drawer could get a live preview stage.
