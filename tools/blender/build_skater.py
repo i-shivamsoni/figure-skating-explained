@@ -725,8 +725,8 @@ def hairline(y):
     if FEMALE:
         pts = [(-0.14, z(0.968)), (-0.09, z(0.956)), (-0.04, z(0.922)), (0.0, z(0.905)), (0.06, z(0.888))]
     else:
-        # fringe: the cap reaches down over the forehead at the front
-        pts = [(-0.14, z(0.945)), (-0.10, z(0.948)), (-0.05, z(0.925)), (0.0, z(0.905)), (0.06, z(0.885))]
+        # a level line across the forehead, sideburns to mid-ear, down to the nape
+        pts = [(-0.15, z(0.953)), (-0.10, z(0.951)), (-0.05, z(0.925)), (0.0, z(0.905)), (0.06, z(0.885))]
     if y <= pts[0][0]:
         return pts[0][1]
     for (y0, z0), (y1, z1) in zip(pts, pts[1:]):
@@ -794,19 +794,10 @@ def lock(name, pts, r0, r1):
     return ob
 
 
-def hair_cap(lift=0.0, combed=True, fade=0.0):
-    """The cap of hair above the hairline; `fade` raises the cut at the sides and nape (short, faded
-    sides under a longer top, as in a fade or an undercut)."""
+def hair_cap(combed=True):
+    """The cap of hair above the hairline (the woman's styles)."""
     cap = make_ellipsoid("cap", head_c, CAP_RADII, mat_hair, 56, 36)
-
-    def side_lift(c):
-        if not fade:
-            return 0.0
-        sides = smoothstep(0.05 * k, 0.085 * k, abs(c.x))
-        back = smoothstep(0.02 * k, 0.07 * k, c.y)
-        return fade * max(sides, 0.8 * back)
-
-    cut_along(cap, lambda c: c.z >= hairline(c.y) + lift + side_lift(c) and c.y >= (-0.113 if FEMALE else -0.126) * k)
+    cut_along(cap, lambda c: c.z >= hairline(c.y) and c.y >= (-0.113 if FEMALE else -0.126) * k)
     if combed:
         # combed back from the forehead: ridges run front to back, so they vary across x
         comb(cap, lambda c: c.x + 0.25 * c.y)
@@ -819,46 +810,6 @@ def hair_fringe():
     rotate_about(fringe, fc, (0, math.radians(-14), math.radians(-18)))
     cut_along(fringe, lambda c: c.y >= -0.112 * k and c.z >= z(0.94))
     return fringe
-
-
-def hair_quiff():
-    """Pompadour: the front swept up and back over the crown as one combed mass."""
-    qc = (0, -0.066 * k, z(0.994))
-    quiff = make_ellipsoid("quiff", qc, (0.064 * k, 0.074 * k, 0.042 * k), mat_hair, 40, 26)
-    rotate_about(quiff, qc, (math.radians(-18), 0, 0))
-    cut_along(quiff, lambda c: c.y >= -0.135 * k and c.z >= z(0.95))
-    comb(quiff, lambda c: c.x, period=0.014, amp=0.0016)
-    return quiff
-
-
-def hair_fringe_short():
-    """Textured crop: a short, choppy mass brushed forward over the forehead."""
-    fc = (0, -0.09 * k, z(0.975))
-    fringe = make_ellipsoid("cropfringe", fc, (0.07 * k, 0.055 * k, 0.03 * k), mat_hair, 36, 22)
-    rotate_about(fringe, fc, (math.radians(-26), 0, 0))
-    cut_along(fringe, lambda c: c.y >= -0.132 * k and c.z >= z(0.95))
-    comb(fringe, lambda c: c.x, period=0.011, amp=0.0022, wobble=1.2)
-    return fringe
-
-
-def hair_sweep():
-    """A side part: a flat mass lying diagonally across the forehead, swept to the skater's left."""
-    sc = (0.028 * k, -0.082 * k, z(0.972))
-    sweep = make_ellipsoid("sweep", sc, (0.08 * k, 0.052 * k, 0.027 * k), mat_hair, 40, 24)
-    rotate_about(sweep, sc, (math.radians(-12), math.radians(14), math.radians(-28)))
-    cut_along(sweep, lambda c: c.y >= -0.128 * k and c.z >= z(0.945))
-    comb(sweep, lambda c: c.y - 0.5 * c.x, period=0.013, amp=0.0014)
-    return sweep
-
-
-def hair_slick():
-    """Slicked back: a low combed ridge from the forehead over the crown, ending inside the cap."""
-    rc = (0, -0.03 * k, z(0.988))
-    ridge = make_ellipsoid("slick", rc, (0.064 * k, 0.105 * k, 0.028 * k), mat_hair, 40, 26)
-    rotate_about(ridge, rc, (math.radians(10), 0, 0))
-    cut_along(ridge, lambda c: c.y >= -0.125 * k and c.y <= 0.045 * k and c.z >= z(0.93))
-    comb(ridge, lambda c: c.x, period=0.012, amp=0.0016)
-    return ridge
 
 
 def hair_bun(center):
@@ -892,6 +843,183 @@ def hair_mane(length):
     return mane
 
 
+# ---------------------------------------------------------------- men's hair: a layer on the skull
+# The men's styles are not shells hovering round the head: each one is the skull surface itself,
+# found by casting rays onto the body, pushed out by a thickness field (3.5 mm over the faded sides
+# and nape, 1–4 cm where the style has volume) with a rim down into the skin along the edge, so the
+# hair hugs the head. +x is the skater's left, -y forward; `d` is the unit direction of a skull
+# point from head_c, `p` the point itself.
+SIDE_T = 0.0035
+EAR_C = (-0.034 * k, z(0.922))  # ear centre (y, z): the hair is notched round the ear
+EAR_R = (0.030 * k, 0.034 * k)
+
+
+def skull_directions():
+    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=5, radius=1.0, location=(0, 0, 0))
+    ico = bpy.context.active_object
+    dirs = [v.co.copy() for v in ico.data.vertices]
+    faces = [tuple(p.vertices) for p in ico.data.polygons]
+    bpy.data.meshes.remove(ico.data)
+    return dirs, faces
+
+
+def skull_hits(dirs):
+    """The skin point in each direction from the head centre, cast from outside so the ear and the
+    face are hit before anything inside the head; a missed ray lands far below the hairline."""
+    bpy.context.view_layer.update()
+    dg = bpy.context.evaluated_depsgraph_get()
+    pts = []
+    for d in dirs:
+        hit, loc, _, _ = body.ray_cast(head_c + d * 0.3, -d, distance=0.3, depsgraph=dg)
+        pts.append(loc.copy() if hit else head_c + Vector((0, 0, -0.5)))
+    return pts
+
+
+def top_blend(p):
+    """1 on top of the head, 0 over the short sides and nape: the boundary runs level round the
+    head a couple of centimetres above the ears and dips to the hairline over the forehead."""
+    y = p.y / k
+    zt = z(0.952) + 0.012 * smoothstep(-0.12, -0.04, y)
+    zt -= 0.045 * (1 - smoothstep(0.035, 0.07, abs(p.x) / k)) * smoothstep(-0.06, -0.12, y)
+    return smoothstep(zt - 0.012, zt + 0.018, p.z)
+
+
+def men_hairline(c, front_drop=0.0):
+    """The hairline of the men's styles: recedes at the temples; `front_drop` lowers it over the
+    forehead for a fringe."""
+    y = c.y / k
+    hl = hairline(c.y) + 0.012 * smoothstep(0.045, 0.075, abs(c.x) / k) * smoothstep(-0.06, -0.11, y)
+    return hl - front_drop * smoothstep(-0.085, -0.115, y)
+
+
+def keep_men(c, front_drop=0.0):
+    if c.y < -0.126 * k or c.z < men_hairline(c, front_drop):
+        return False
+    ey, ez = EAR_C
+    return not (abs(c.x) > 0.06 * k and ((c.y - ey) / EAR_R[0]) ** 2 + ((c.z - ez) / EAR_R[1]) ** 2 < 1)
+
+
+def ridges(across, period, amp, wobble=0.5):
+    """Comb relief for skull_hair: ridges along the combing direction (`across` gives the
+    coordinate perpendicular to it), on the top of the head only."""
+
+    def f(p, d):
+        phase = 2 * math.pi * across(p) / period + wobble * math.sin(53.0 * p.z + 31.0 * p.y)
+        return amp * (0.5 + 0.5 * math.sin(phase)) * top_blend(p)
+
+    return f
+
+
+def skull_hair(name, thickness, tilt=None, relief=None, front_drop=0.0, edge=0.015):
+    """A men's style: the skull surface trimmed to the hairline, every vertex pushed out along the
+    skin normal (bent by the vector `tilt(p, d)`) by `thickness(p, d)` metres, thinning to 2 mm at
+    the hairline over `edge` metres, with `relief(p, d)` metres of comb ridges on top and a rim
+    down into the skin along the edge so the mass reads as solid."""
+    me = bpy.data.meshes.new(name)
+    me.from_pydata([tuple(p) for p in SKULL_PTS], [], SKULL_FACES)
+    me.update()
+    ob = bpy.data.objects.new(name, me)
+    scene.collection.objects.link(ob)
+    bpy.context.view_layer.objects.active = ob
+    cut_along(ob, lambda c: keep_men(c, front_drop))
+    me.update()
+    base = [v.co.copy() for v in me.vertices]
+    normals = [v.normal.copy() for v in me.vertices]
+    for v, p, n in zip(me.vertices, base, normals):
+        d = p - head_c
+        d.normalize()
+        h = p.z - men_hairline(p, front_drop)
+        t = 0.002 + (thickness(p, d) - 0.002) * smoothstep(0.0, edge, h)
+        direction = n + (tilt(p, d) if tilt else Vector((0, 0, 0)))
+        direction.normalize()
+        v.co = p + direction * t + n * (relief(p, d) if relief else 0.0)
+    # strands run round the head and down from the crown; the seam sits at the back
+    uv = me.uv_layers.new(name="UVMap")
+    for poly in me.polygons:
+        us = []
+        for li in poly.loop_indices:
+            d = base[me.loops[li].vertex_index] - head_c
+            theta = math.acos(max(-1.0, min(1.0, d.normalized().z)))
+            us.append([(math.atan2(d.x, d.y) / (2 * math.pi)) % 1.0, theta * 0.1 / 0.08])
+        if max(u for u, _ in us) - min(u for u, _ in us) > 0.5:
+            for pair in us:
+                if pair[0] < 0.5:
+                    pair[0] += 1.0
+        for li, (u, vv) in zip(poly.loop_indices, us):
+            uv.data[li].uv = (u, vv)
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    old = set(bm.verts)
+    ret = bmesh.ops.extrude_edge_only(bm, edges=[e for e in bm.edges if e.is_boundary])
+    for g in ret["geom"]:
+        if isinstance(g, bmesh.types.BMVert):
+            src = next(e.other_vert(g) for e in g.link_edges if e.other_vert(g) in old)
+            g.co = base[src.index] - normals[src.index] * 0.0015
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(mat_hair)
+    return ob
+
+
+def men_quiff():
+    """Pompadour: faded sides, the top swept up and back from the forehead into a crest."""
+
+    def t(p, d):
+        top = 0.013 + 0.030 * smoothstep(0.25, 0.9, -d.y)
+        return SIDE_T + (top - SIDE_T) * top_blend(p)
+
+    def tilt(p, d):
+        return Vector((0, 0.5, 1.6)) * smoothstep(0.5, 0.95, -d.y) * top_blend(p)
+
+    return skull_hair("quiff", t, tilt, ridges(lambda p: p.x + 0.2 * p.y, 0.014, 0.0014), edge=0.03)
+
+
+def men_crop():
+    """Textured crop: short all over, a choppy top and a fringe brushed forward."""
+
+    def t(p, d):
+        top = 0.011 + 0.004 * smoothstep(0.3, 0.9, -d.y)
+        return SIDE_T + (top - SIDE_T) * top_blend(p)
+
+    def tilt(p, d):
+        return Vector((0, -0.9, -0.3)) * smoothstep(0.6, 0.98, -d.y) * top_blend(p)
+
+    return skull_hair("crop", t, tilt, ridges(lambda p: p.x, 0.011, 0.002, wobble=1.4), front_drop=0.012, edge=0.012)
+
+
+def men_side_part():
+    """Side part: parted on the skater's left, the top combed over to the right with a lift at the part."""
+    xp = 0.022 * k
+
+    def t(p, d):
+        dx = p.x - xp
+        big = 0.012 + 0.009 * math.exp(-(((dx + 0.012) / 0.035) ** 2))
+        w = smoothstep(-0.006, 0.006, dx)
+        top = (1 - w) * big + w * 0.009
+        top *= 1 - 0.5 * math.exp(-((dx / 0.007) ** 2)) * smoothstep(-0.3, 0.1, -d.y)
+        return SIDE_T + (top - SIDE_T) * top_blend(p)
+
+    def tilt(p, d):
+        w = smoothstep(-0.006, 0.006, p.x - xp)
+        return (Vector((-0.6, 0, 0)) * (1 - w) + Vector((0.4, 0, 0)) * w) * top_blend(p) * (0.5 + 0.5 * smoothstep(0.2, 0.9, -d.y))
+
+    return skull_hair("sidePart", t, tilt, ridges(lambda p: p.y - 0.3 * p.x, 0.013, 0.0014))
+
+
+def men_slick():
+    """Slicked back: combed flat from the forehead, the mass gathering towards the crown."""
+
+    def t(p, d):
+        top = 0.008 + 0.007 * (1 - smoothstep(-0.3, 0.8, -d.y))
+        return SIDE_T + (top - SIDE_T) * top_blend(p)
+
+    def tilt(p, d):
+        return Vector((0, 0.9, 0.2)) * smoothstep(0.5, 0.95, -d.y) * top_blend(p)
+
+    return skull_hair("sweptBack", t, tilt, ridges(lambda p: p.x + 0.25 * p.y, 0.012, 0.0012, wobble=0.3))
+
+
 if FEMALE:
     finish_variant(join_parts([hair_cap(), hair_fringe(), hair_bun((0, 0.062 * k, z(0.912)))], "hair.lowBun"), "hair.lowBun")
     finish_variant(join_parts([hair_cap(), hair_fringe(), hair_bun((0, 0.004 * k, head_c.z + 0.099 * k + 0.018))], "hair.highBun"), "hair.highBun")
@@ -901,11 +1029,10 @@ if FEMALE:
         finish_variant(join_parts([hair_cap(), hair_fringe(), hair_mane(length)], f"hair.loose.{name}"), f"hair.loose.{name}")
     finish_variant(join_parts([hair_cap(), hair_fringe(), hair_mane(0.13)], "hair.bob"), "hair.bob")
 else:
-    # short faded sides under every men's style, as in a fade or an undercut
-    finish_variant(join_parts([hair_cap(fade=0.03), hair_quiff()], "hair.quiff"), "hair.quiff")
-    finish_variant(join_parts([hair_cap(lift=0.006, fade=0.024), hair_fringe_short()], "hair.crop"), "hair.crop")
-    finish_variant(join_parts([hair_cap(fade=0.028), hair_sweep()], "hair.sidePart"), "hair.sidePart")
-    finish_variant(join_parts([hair_cap(fade=0.03), hair_slick()], "hair.sweptBack"), "hair.sweptBack")
+    SKULL_DIRS, SKULL_FACES = skull_directions()
+    SKULL_PTS = skull_hits(SKULL_DIRS)
+    for build, name in ((men_quiff, "hair.quiff"), (men_crop, "hair.crop"), (men_side_part, "hair.sidePart"), (men_slick, "hair.sweptBack")):
+        finish_variant(build(), name)
     # a flat strap following the waist's outline
     belt_z = z(0.535)
     belt_cy, belt_r = torso_profile(belt_z, 56, half=0.014)

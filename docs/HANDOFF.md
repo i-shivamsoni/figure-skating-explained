@@ -344,6 +344,17 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
   rooted inside the cap and the high bun sits on the crown; the backflip somersaults about the
   centre of mass (`CM_HEIGHT` in `special.ts`) with two-footed poses `flipLoad`, `flipLaunch`,
   `flipLand`. 283 unit tests, 21 e2e.
+- **Men's hair rebuilt (15 Oct 06:15 IST, user feedback "they look like a turban or a lump"):**
+  the four men's styles are no longer ellipsoid shells (the old cap stood 1.5–2 cm off the skull
+  with the quiff, fringe and sweep as detached blobs). `skull_hair` in `build_skater.py` casts rays
+  from an icosphere onto the body, trims that skull surface to `men_hairline`/`keep_men` (temple
+  recession, ear notch `EAR_C`/`EAR_R`), pushes each vertex out by a per-style thickness field
+  (`SIDE_T` 3.5 mm over the faded sides and nape via `top_blend`, 1–4 cm on top), bends it with a
+  `tilt` vector (quiff up and back, crop fringe forward, side part across, slick back), adds comb
+  `ridges` on top only, cylindrical strand UVs, and a rim down into the skin along the edge. Shapes
+  are tuned with `scratchpad/hair/render_heads.py`-style Blender close-ups and `/dev/pose?cam=head`
+  screenshots. The woman's cap (`hair_cap`) is untouched and still the ellipsoid: give it the same
+  treatment if she gets the same complaint.
 - **Pending, in priority order:**
   1. Content pages onto the new primitives (plan Wave 3, agents 3A/3B); Compare and FlipVsLutz
      still carry their own camera selects; the drawer could get a live preview stage.
