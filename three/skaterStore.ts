@@ -38,10 +38,10 @@ export const HAIR_LABELS: Record<HairStyle, string> = {
   ponytail: "Ponytail",
   loose: "Loose",
   bob: "Bob",
-  quiff: "Quiff",
-  crop: "Short crop",
+  quiff: "Pompadour",
+  crop: "Textured crop",
   sidePart: "Side part",
-  sweptBack: "Swept back",
+  sweptBack: "Slicked back",
 };
 
 export type Sleeves = "none" | "short" | "long";

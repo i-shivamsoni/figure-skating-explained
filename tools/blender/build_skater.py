@@ -44,6 +44,7 @@ import sys
 
 import bmesh
 import bpy
+import numpy as np
 from mathutils import Euler, Matrix, Vector
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -359,13 +360,74 @@ mat_hook = make_material("hook", (0.72, 0.73, 0.76), metallic=0.9, roughness=0.3
 # mirrors the bright environment and looks like frosted plastic. The viewer recolours both by name.
 mat_blade = make_material("blade", (0.60, 0.62, 0.66), metallic=0.7, roughness=0.25)
 mat_plate = make_material("plate", (0.42, 0.43, 0.46), metallic=0.7, roughness=0.4)
-mat_hair = make_material("hair", PALETTE["hair"], roughness=0.7)
+# hair shells are cut open at the hairline and seen from inside at the openings: render both sides;
+# a little sheen so the strands catch the light
+mat_hair = make_material("hair", PALETTE["hair"], roughness=0.5, double_sided=True)
+
+
+def hair_textures(size=512, seed=7):
+    """Procedural strands: a greyscale map (clumps of lighter and darker strands running along V)
+    that multiplies whatever hair colour the viewer picks, and a normal map of the same relief."""
+    rng = np.random.default_rng(seed)
+    cols = np.convolve(rng.normal(0, 1, size), np.ones(5) / 5, mode="same")
+    fine = rng.normal(0, 1, (size + 64, size))
+    w = 40
+    cs = np.cumsum(np.vstack([np.zeros((1, size)), fine]), axis=0)
+    sm = ((cs[w:] - cs[:-w]) / w)[:size]
+    h = 0.6 * np.tile(cols, (size, 1)) + 0.4 * sm * 2.4
+    h = (h - h.min()) / (h.max() - h.min())
+    albedo = 0.86 + 0.14 * h
+    strength = 1.6
+    dx = (np.roll(h, -1, axis=1) - np.roll(h, 1, axis=1)) * strength
+    dy = (np.roll(h, -1, axis=0) - np.roll(h, 1, axis=0)) * strength
+    n = np.stack([-dx, -dy, np.ones_like(h)], axis=-1)
+    n /= np.linalg.norm(n, axis=-1, keepdims=True)
+    return np.repeat(albedo[..., None], 3, axis=2), n * 0.5 + 0.5
+
+
+def image_from(name, rgb, non_color=False):
+    size = rgb.shape[0]
+    img = bpy.data.images.new(name, size, size, alpha=True)
+    rgba = np.ones((size, size, 4), dtype=np.float32)
+    rgba[..., :3] = rgb
+    img.pixels.foreach_set(rgba.ravel())
+    if non_color:
+        img.colorspace_settings.name = "Non-Color"
+    img.file_format = "PNG"
+    try:
+        img.pack()
+    except RuntimeError:
+        tmp = os.path.join(os.path.dirname(OUT) or ".", f"_{name}.png")
+        img.filepath_raw = tmp
+        img.save()
+        img.pack()
+        os.remove(tmp)
+    return img
+
+
+def texture_hair(mat, strength=0.35):
+    """Base colour = the strand map (the viewer multiplies its chosen colour in), normal = the strand relief."""
+    albedo, normal = hair_textures()
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    tex.image = image_from("hair_strands", albedo)
+    nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    ntex = nt.nodes.new("ShaderNodeTexImage")
+    ntex.image = image_from("hair_normal", normal, non_color=True)
+    nmap = nt.nodes.new("ShaderNodeNormalMap")
+    nmap.inputs["Strength"].default_value = strength
+    nt.links.new(ntex.outputs["Color"], nmap.inputs["Color"])
+    nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+
+
+texture_hair(mat_hair)
 mat_skirt = make_material("skirt", PALETTE["skirt"], roughness=0.42, double_sided=True)
 
 extras = []
 
 # ---------------------------------------------------------------- skates
-def skin_chain(name, nodes, edges, material):
+def skin_chain(name, nodes, edges, material, levels=2):
     """A smooth organic shell from a vertex skeleton: nodes = [((x, y, z), (r1, r2)), ...]."""
     me = bpy.data.meshes.new(name)
     ob = bpy.data.objects.new(name, me)
@@ -380,8 +442,8 @@ def skin_chain(name, nodes, edges, material):
         me.skin_vertices[0].data[i].radius = n[1]
     me.skin_vertices[0].data[0].use_root = True
     sub = ob.modifiers.new("Sub", "SUBSURF")
-    sub.levels = 2
-    sub.render_levels = 2
+    sub.levels = levels
+    sub.render_levels = levels
     apply_mods(ob)
     me.materials.append(material)
     return ob
@@ -674,9 +736,80 @@ def hairline(y):
     return pts[-1][1]
 
 
-def hair_cap(lift=0.0):
-    cap = make_ellipsoid("cap", head_c, (0.087 * k, 0.107 * k, 0.099 * k) if FEMALE else (0.089 * k, 0.112 * k, 0.104 * k), mat_hair, *HAIR_SEG)
-    cut_along(cap, lambda c: c.z >= hairline(c.y) + lift and c.y >= (-0.113 if FEMALE else -0.126) * k)
+CAP_RADII = (0.087 * k, 0.107 * k, 0.099 * k) if FEMALE else (0.089 * k, 0.112 * k, 0.104 * k)
+
+
+def on_cap(p, lift=0.005):
+    """The point of the cap's surface in the direction of `p` from the head centre, raised by `lift`."""
+    d = Vector(p) - head_c
+    n = math.sqrt((d.x / CAP_RADII[0]) ** 2 + (d.y / CAP_RADII[1]) ** 2 + (d.z / CAP_RADII[2]) ** 2)
+    return tuple(head_c + d / n + d.normalized() * lift)
+
+
+def smoothstep(a, b, x):
+    t = min(1.0, max(0.0, (x - a) / (b - a)))
+    return t * t * (3 - 2 * t)
+
+
+def tube_uv(ob, root, tip, tile=0.08):
+    """Cylindrical UVs along a lock, so the strands run from root to tip; one texture tile per `tile` metres."""
+    axis = Vector(tip) - Vector(root)
+    axis.normalize()
+    e1 = axis.cross(Vector((0, 0, 1)))
+    if e1.length < 1e-3:
+        e1 = axis.cross(Vector((0, 1, 0)))
+    e1.normalize()
+    e2 = axis.cross(e1)
+    me = ob.data
+    uv = me.uv_layers.new(name="UVMap")
+    r0 = Vector(root)
+    for poly in me.polygons:
+        for li in poly.loop_indices:
+            co = me.vertices[me.loops[li].vertex_index].co - r0
+            uv.data[li].uv = ((math.atan2(co.dot(e2), co.dot(e1)) / (2 * math.pi)) % 1.0, co.dot(axis) / tile)
+
+
+def comb(ob, across, period=0.019, amp=0.0009, wobble=0.5):
+    """Combed-hair relief: fine ridges running along the combing direction (`across` gives the
+    coordinate perpendicular to it), raised outward only, so a smooth shell reads as strands."""
+    me = ob.data
+    me.update()
+    for v in me.vertices:
+        u = across(v.co)
+        phase = 2 * math.pi * u / period + wobble * math.sin(53.0 * v.co.z + 31.0 * v.co.y)
+        v.co = v.co + v.normal * (amp * (0.5 + 0.5 * math.sin(phase)))
+    me.update()
+
+
+def lock(name, pts, r0, r1):
+    """One lock of hair: a tapered tube along a polyline, radius r0 at the root to r1 at the tip, strands along it."""
+    nodes = []
+    n = len(pts) - 1
+    for i, pt in enumerate(pts):
+        r = r0 + (r1 - r0) * (i / n)
+        nodes.append((tuple(pt), (r, r)))
+    edges = [(i, i + 1) for i in range(n)]
+    ob = skin_chain(name, nodes, edges, mat_hair, levels=1)
+    tube_uv(ob, pts[0], pts[-1])
+    return ob
+
+
+def hair_cap(lift=0.0, combed=True, fade=0.0):
+    """The cap of hair above the hairline; `fade` raises the cut at the sides and nape (short, faded
+    sides under a longer top, as in a fade or an undercut)."""
+    cap = make_ellipsoid("cap", head_c, CAP_RADII, mat_hair, 56, 36)
+
+    def side_lift(c):
+        if not fade:
+            return 0.0
+        sides = smoothstep(0.05 * k, 0.085 * k, abs(c.x))
+        back = smoothstep(0.02 * k, 0.07 * k, c.y)
+        return fade * max(sides, 0.8 * back)
+
+    cut_along(cap, lambda c: c.z >= hairline(c.y) + lift + side_lift(c) and c.y >= (-0.113 if FEMALE else -0.126) * k)
+    if combed:
+        # combed back from the forehead: ridges run front to back, so they vary across x
+        comb(cap, lambda c: c.x + 0.25 * c.y)
     return cap
 
 
@@ -688,12 +821,44 @@ def hair_fringe():
     return fringe
 
 
-def hair_quiff(back=False, side=0.0):
-    qc = (side, (-0.062 if not back else -0.045) * k, z(0.985))
-    quiff = make_ellipsoid("quiff", qc, (0.072 * k, 0.07 * k, 0.034 * k), mat_hair, 32, 20)
-    rotate_about(quiff, qc, (math.radians(16 if back else -16), 0, math.radians(-25) if side else 0))
-    cut_along(quiff, lambda c: c.y >= -0.128 * k and c.z >= z(0.95))
+def hair_quiff():
+    """Pompadour: the front swept up and back over the crown as one combed mass."""
+    qc = (0, -0.066 * k, z(0.994))
+    quiff = make_ellipsoid("quiff", qc, (0.064 * k, 0.074 * k, 0.042 * k), mat_hair, 40, 26)
+    rotate_about(quiff, qc, (math.radians(-18), 0, 0))
+    cut_along(quiff, lambda c: c.y >= -0.135 * k and c.z >= z(0.95))
+    comb(quiff, lambda c: c.x, period=0.014, amp=0.0016)
     return quiff
+
+
+def hair_fringe_short():
+    """Textured crop: a short, choppy mass brushed forward over the forehead."""
+    fc = (0, -0.09 * k, z(0.975))
+    fringe = make_ellipsoid("cropfringe", fc, (0.07 * k, 0.055 * k, 0.03 * k), mat_hair, 36, 22)
+    rotate_about(fringe, fc, (math.radians(-26), 0, 0))
+    cut_along(fringe, lambda c: c.y >= -0.132 * k and c.z >= z(0.95))
+    comb(fringe, lambda c: c.x, period=0.011, amp=0.0022, wobble=1.2)
+    return fringe
+
+
+def hair_sweep():
+    """A side part: a flat mass lying diagonally across the forehead, swept to the skater's left."""
+    sc = (0.028 * k, -0.082 * k, z(0.972))
+    sweep = make_ellipsoid("sweep", sc, (0.08 * k, 0.052 * k, 0.027 * k), mat_hair, 40, 24)
+    rotate_about(sweep, sc, (math.radians(-12), math.radians(14), math.radians(-28)))
+    cut_along(sweep, lambda c: c.y >= -0.128 * k and c.z >= z(0.945))
+    comb(sweep, lambda c: c.y - 0.5 * c.x, period=0.013, amp=0.0014)
+    return sweep
+
+
+def hair_slick():
+    """Slicked back: a low combed ridge from the forehead over the crown, ending inside the cap."""
+    rc = (0, -0.03 * k, z(0.988))
+    ridge = make_ellipsoid("slick", rc, (0.064 * k, 0.105 * k, 0.028 * k), mat_hair, 40, 26)
+    rotate_about(ridge, rc, (math.radians(10), 0, 0))
+    cut_along(ridge, lambda c: c.y >= -0.125 * k and c.y <= 0.045 * k and c.z >= z(0.93))
+    comb(ridge, lambda c: c.x, period=0.012, amp=0.0016)
+    return ridge
 
 
 def hair_bun(center):
@@ -712,7 +877,9 @@ def hair_tail(length):
         r = 0.026 * (1 - u) + 0.011 * u
         nodes.append((pos, (r, r)))
     edges = [(i, i + 1) for i in range(len(nodes) - 1)]
-    return skin_chain("tail", nodes, edges, mat_hair)
+    tail = skin_chain("tail", nodes, edges, mat_hair, levels=1)
+    tube_uv(tail, nodes[1][0], nodes[-1][0])
+    return tail
 
 
 def hair_mane(length):
@@ -720,7 +887,7 @@ def hair_mane(length):
     top = head_c.z + 0.04
     bottom = head_c.z - length
     rz = (top - bottom) / 2
-    mane = make_ellipsoid("mane", (0, 0.02 * k, (top + bottom) / 2), (0.098 * k, 0.118 * k, rz), mat_hair, 40, 28)
+    mane = make_ellipsoid("mane", (0, 0.02 * k, (top + bottom) / 2), (0.098 * k, 0.118 * k, rz), mat_hair, 36, 24)
     cut_along(mane, lambda c: c.z <= top - 0.004 and c.y >= -0.052 * k)
     return mane
 
@@ -734,10 +901,11 @@ if FEMALE:
         finish_variant(join_parts([hair_cap(), hair_fringe(), hair_mane(length)], f"hair.loose.{name}"), f"hair.loose.{name}")
     finish_variant(join_parts([hair_cap(), hair_fringe(), hair_mane(0.13)], "hair.bob"), "hair.bob")
 else:
-    finish_variant(join_parts([hair_cap(), hair_quiff()], "hair.quiff"), "hair.quiff")
-    finish_variant(hair_cap(lift=0.008), "hair.crop")
-    finish_variant(join_parts([hair_cap(), hair_quiff(side=0.03 * k)], "hair.sidePart"), "hair.sidePart")
-    finish_variant(join_parts([hair_cap(), hair_quiff(back=True)], "hair.sweptBack"), "hair.sweptBack")
+    # short faded sides under every men's style, as in a fade or an undercut
+    finish_variant(join_parts([hair_cap(fade=0.03), hair_quiff()], "hair.quiff"), "hair.quiff")
+    finish_variant(join_parts([hair_cap(lift=0.006, fade=0.024), hair_fringe_short()], "hair.crop"), "hair.crop")
+    finish_variant(join_parts([hair_cap(fade=0.028), hair_sweep()], "hair.sidePart"), "hair.sidePart")
+    finish_variant(join_parts([hair_cap(fade=0.03), hair_slick()], "hair.sweptBack"), "hair.sweptBack")
     # a flat strap following the waist's outline
     belt_z = z(0.535)
     belt_cy, belt_r = torso_profile(belt_z, 56, half=0.014)
@@ -1165,7 +1333,7 @@ rig.select_set(True)
 for ob in variants:
     ob.select_set(True)
 print(f"VARIANTS {[ob.name for ob in variants]}")
-bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", use_selection=True, export_apply=True, export_animations=False, export_skins=True, export_yup=True, export_materials="EXPORT", export_image_format="NONE")
+bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", use_selection=True, export_apply=True, export_animations=False, export_skins=True, export_yup=True, export_materials="EXPORT", export_image_format="AUTO")
 print(f"EXPORTED {OUT} {os.path.getsize(OUT)} bytes")
 
 

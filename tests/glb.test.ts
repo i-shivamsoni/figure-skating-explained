@@ -20,7 +20,7 @@ function readGlb(path: string): GltfJson {
 }
 
 const VARIANTS: SkaterVariant[] = ["female", "male"];
-const MAX_BYTES = 2.6 * 1024 * 1024;
+const MAX_BYTES = 3.4 * 1024 * 1024;
 
 describe.each(VARIANTS)("public/models/skater-%s.glb", (variant) => {
   const path = `public/models/skater-${variant}.glb`;
