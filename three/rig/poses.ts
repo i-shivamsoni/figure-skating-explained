@@ -779,6 +779,54 @@ POSES.splitAir = {
   },
 };
 
+/** Two-footed crouch before a backflip: both knees deep with the blades flat, trunk forward, arms swung back. */
+POSES.flipLoad = {
+  bones: {
+    thigh_L: { dir: limb(55, 4) },
+    thigh_R: { dir: limb(55, -4) },
+    shin_L: { dir: limb(-45, 4) },
+    shin_R: { dir: limb(-45, -4) },
+    foot_L: { dir: vec(0, -0.38, 0.925) },
+    foot_R: { dir: vec(0, -0.38, 0.925) },
+    spine: { dir: vec(0, 0.9, 0.42) },
+    upper_arm_L: { dir: vec(0.35, -0.6, -0.72) },
+    upper_arm_R: { dir: vec(-0.35, -0.6, -0.72) },
+    forearm_L: { dir: vec(0.3, -0.5, -0.8) },
+    forearm_R: { dir: vec(-0.3, -0.5, -0.8) },
+  },
+  hips: [0, -0.26, 0],
+};
+
+/** The two feet leave the ice together: body extended, arms thrown up and back, the head leading the somersault. */
+POSES.flipLaunch = {
+  bones: {
+    ...legsTogether,
+    spine: { dir: vec(0, 0.98, -0.2) },
+    neck: { dir: vec(0, 0.92, -0.4) },
+    head: { dir: vec(0, 0.85, -0.5) },
+    upper_arm_L: { dir: vec(0.25, 0.9, -0.35) },
+    upper_arm_R: { dir: vec(-0.25, 0.9, -0.35) },
+    forearm_L: { dir: vec(0.15, 0.95, -0.28) },
+    forearm_R: { dir: vec(-0.15, 0.95, -0.28) },
+  },
+  hips: [0, 0.02, 0],
+};
+
+/** Two-footed landing of a backflip: knees bent, blades flat, trunk forward, arms out in front for balance. */
+POSES.flipLand = {
+  bones: {
+    thigh_L: { dir: limb(50, 4) },
+    thigh_R: { dir: limb(50, -4) },
+    shin_L: { dir: limb(-42, 4) },
+    shin_R: { dir: limb(-42, -4) },
+    foot_L: { dir: vec(0, -0.38, 0.925) },
+    foot_R: { dir: vec(0, -0.38, 0.925) },
+    spine: { dir: vec(0, 0.92, 0.38) },
+    ...armsOut(70, 35),
+  },
+  hips: [0, -0.24, 0],
+};
+
 /** Somersault tuck for a backflip: knees drawn up, arms out for balance. */
 POSES.flipTuck = {
   bones: {

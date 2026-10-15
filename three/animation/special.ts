@@ -1,6 +1,6 @@
 import { POSES, mirrorPose } from "../rig/poses";
 import type { Pose } from "../rig/pose";
-import { edgeLean, flight, inertiaSchedule, landingDip, landingSkid, preRotationAngle, rollToward, rotationProfile, SKID_CAP, SKID_TAU, VAULT_TIME, verticalVelocityForAirTime } from "../physics/jump";
+import { edgeLean, flight, inertiaSchedule, landingSkid, preRotationAngle, rollToward, rotationProfile, SKID_CAP, SKID_TAU, VAULT_TIME, verticalVelocityForAirTime } from "../physics/jump";
 import { clamp01, easeInOut, easeOut, headingOf, linear, TWO_PI, type RootState, type Timeline, type TraceSample } from "./timeline";
 
 export type SpecialId = "split-jump" | "walley" | "inside-axel" | "backflip";
@@ -38,6 +38,8 @@ const LOAD = 0.4;
 const LAND = 0.55;
 const EXIT = 1.1;
 const LEAN_RAMP = 0.3;
+/** Height of the centre of mass above the blades in the tuck, the pivot of the somersault. */
+const CM_HEIGHT = 0.9;
 
 /** Non-listed jumps and the backflip, built like a listed jump but without a Scale of Values code. */
 export function specialTimeline(id: SpecialId): Timeline {
@@ -86,9 +88,14 @@ export function specialTimeline(id: SpecialId): Timeline {
     if (t < tLand) {
       const ta = t - tTakeoff;
       const u = ta / T;
-      const pitch = spec.flips ? -spec.flips * TWO_PI * easeInOut(u) : 0;
-      // the somersault folds the body over its root, which rides above the ballistic path
-      return { x: f.x(ta), y: f.y(ta) + (spec.flips ? 0.4 * Math.sin(Math.PI * u) : 0), z: 0, yaw: facing + pre + spin.angle(ta), pitch };
+      if (spec.flips) {
+        // the somersault turns about the centre of mass, which rides the ballistic path; the root
+        // (the blades) swings around it, so the feet pass overhead and come back down under the body
+        const pitch = -spec.flips * TWO_PI * easeInOut(u);
+        const yaw = facing;
+        return { x: f.x(ta) - CM_HEIGHT * Math.sin(pitch) * Math.sin(yaw), y: f.y(ta) + CM_HEIGHT * (1 - Math.cos(pitch)), z: -CM_HEIGHT * Math.sin(pitch) * Math.cos(yaw), yaw, pitch };
+      }
+      return { x: f.x(ta), y: f.y(ta), z: 0, yaw: facing + pre + spin.angle(ta), pitch: 0 };
     }
     const tl = t - tLand;
     const phi = (tl * SPEED * 0.9) / RADIUS;
@@ -96,7 +103,8 @@ export function specialTimeline(id: SpecialId): Timeline {
     const z = exitCentreZ - exitSign * RADIUS * Math.cos(phi);
     const yaw = facing + pre + airTurns * TWO_PI + landingSkid(tl, skid, spin.omegaLanding) + (spec.landsForward ? -phi : phi);
     const onEdge = easeInOut(clamp01((tl - 0.1) / LEAN_RAMP)) * (1 - easeInOut(clamp01((t - (duration - LEAN_RAMP)) / LEAN_RAMP)));
-    return { x, y: landingDip(tl, f.vy), z, yaw, roll: rollToward(yaw, D - x, exitCentreZ - z, lean) * onEdge };
+    // the absorption is the landing knee in the poses; the root (the blades) stays on the ice
+    return { x, y: 0, z, yaw, roll: rollToward(yaw, D - x, exitCentreZ - z, lean) * onEdge };
   };
 
   // forward glides are authored on the left foot, back glides, the pick and the launch on the right:
@@ -110,18 +118,33 @@ export function specialTimeline(id: SpecialId): Timeline {
   const landFoot: TraceSample["foot"] = spec.flips ? "both" : spec.landsForward ? (leftFoot ? "R" : "L") : "R";
   const landPose = spec.landsForward ? (landFoot === "L" ? POSES.glideFO : mirrorPose(POSES.glideFO)) : POSES.land;
   const exitPose = spec.landsForward ? landPose : POSES.glideBO;
-  const keys = [
-    { t: 0, pose: glide },
-    { t: tLoad - 0.2, pose: glide },
-    { t: tLoad + LOAD * 0.55, pose: prep, ease: easeInOut },
-    { t: tTakeoff, pose: launch, ease: easeOut },
-    { t: tTakeoff + tuck.tuckIn, pose: POSES[spec.airPose], ease: easeOut },
-    { t: tTakeoff + tuck.openOut, pose: POSES[spec.airPose], ease: linear },
-    { t: tLand, pose: POSES.open, ease: easeOut },
-    { t: tLand + 0.14, pose: landPose, ease: easeOut },
-    { t: tExit + 0.5, pose: exitPose, ease: easeInOut },
-    { t: duration, pose: exitPose, ease: linear },
-  ];
+  const keys = spec.flips
+    ? [
+        // two feet throughout: a backward two-foot glide, a deep crouch with the arms back, the throw, the tuck, the open and a two-foot landing
+        { t: 0, pose: POSES.stand },
+        { t: tLoad - 0.2, pose: POSES.stand },
+        { t: tLoad + LOAD * 0.6, pose: POSES.flipLoad, ease: easeInOut },
+        { t: tTakeoff, pose: POSES.flipLaunch, ease: easeOut },
+        { t: tTakeoff + tuck.tuckIn, pose: POSES[spec.airPose], ease: easeOut },
+        { t: tTakeoff + tuck.openOut, pose: POSES[spec.airPose], ease: linear },
+        { t: tLand - 0.04, pose: POSES.flipLaunch, ease: easeOut },
+        { t: tLand + 0.12, pose: POSES.flipLand, ease: easeOut },
+        { t: tLand + 0.4, pose: POSES.flipLand, ease: linear },
+        { t: tExit + 0.5, pose: POSES.stand, ease: easeInOut },
+        { t: duration, pose: POSES.stand, ease: linear },
+      ]
+    : [
+        { t: 0, pose: glide },
+        { t: tLoad - 0.2, pose: glide },
+        { t: tLoad + LOAD * 0.55, pose: prep, ease: easeInOut },
+        { t: tTakeoff, pose: launch, ease: easeOut },
+        { t: tTakeoff + tuck.tuckIn, pose: POSES[spec.airPose], ease: easeOut },
+        { t: tTakeoff + tuck.openOut, pose: POSES[spec.airPose], ease: linear },
+        { t: tLand, pose: POSES.open, ease: easeOut },
+        { t: tLand + 0.14, pose: landPose, ease: easeOut },
+        { t: tExit + 0.5, pose: exitPose, ease: easeInOut },
+        { t: duration, pose: exitPose, ease: linear },
+      ];
   const trace: TraceSample[] = [];
   for (let t = 0; t < tTakeoff; t += 1 / 40) {
     const r = root(t);
