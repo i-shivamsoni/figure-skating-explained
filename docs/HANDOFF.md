@@ -20,9 +20,9 @@ Vercel project `figure-skating-explained` (team `<vercel team>`), linked via `.v
 Deploy with `vercel deploy --prod --yes` (preview: `vercel deploy --yes`; previews sit behind
 Vercel auth, production is public). The Vercel CLI is 54.x and nags to upgrade; ignore it.
 
-State at the time of writing (updated 15 Oct 06:00 IST): see §10 for the overhaul; 283 vitest
-tests green, 21 Playwright tests green, typecheck and lint clean, production redeployed after
-commit `a619c8c`.
+State at the time of writing (updated 18 Oct 2026, evening IST): see §10 for the overhaul and the
+stroking rebuild; 353 vitest tests green, 21 Playwright tests green, typecheck and lint clean,
+production redeployed after the stroking commit.
 
 ## 2. The user and the working agreement
 
@@ -355,6 +355,47 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
   are tuned with `scratchpad/hair/render_heads.py`-style Blender close-ups and `/dev/pose?cam=head`
   screenshots. The woman's cap (`hair_cap`) is untouched and still the ellipsoid: give it the same
   treatment if she gets the same complaint.
+- **Stroking rebuilt (18 Oct 2026, user feedback: "make it realistic", "no option for back
+  skating", "no option for sprint and run", "only the right leg is used when I hold an arrow key",
+  "see the movements are correct biomechanically"):**
+  - `three/rig/poses-stroking.ts` generates every stroking pose from a shape (`strokePose`:
+    knee, trunk lean, reach, push, arm style; `foot` L/R/both; `backward`; `look`; `cross`): the
+    skating knee is bent over a flat blade with the hips over it, the free leg finishes its push
+    behind and out with a pointed toe (ahead of the body for the backward C-cut push), the knee is
+    deepest as the feet pass and rises a little in the glide, the head looks over a shoulder when
+    backward, and on a held turn the strokes are **crossovers** (the outside foot crosses over, the
+    inside leg under-pushes and finishes across, the inside arm leads, the head turns into the
+    circle). Seventeen representative poses are registered in `POSES` so `tests/poses.test.ts`
+    covers them; `tests/stroking.test.ts` validates every gear × foot × direction × crossover pose
+    and every blended pose of each link.
+  - `three/animation/stroking.ts`: the **gears** `coast` 1.3 m/s (two-foot glide), `stroke` 3.5,
+    `run` 5.2 (progressive runs), `sprint` 7.0 (deep knees, arms pumping), each with a cadence
+    (`period`) and a shape; `strokeKeys` builds a link's pose keys as a two-stroke cycle that
+    continues past both ends of the link, with a `phase` carried from link to link, so that the
+    0.8 s steered segments no longer restart the cycle (that was why only one leg ever moved).
+  - `three/animation/place.ts`: `IceState` (speed, roll, facing, exact yaw, phase) is what one
+    segment hands to the next (`startOf`/`endOf`/`pointAt` return it; the travel heading is now the
+    tangent, extrapolated from two chords, not the last chord). `linkTimeline` ramps the speed
+    (`ACCEL` 2.5, `BRAKE` 6 m/s²), leans into the arc by atan(v·ω/g) via `rollToward` (eased in from
+    the arriving lean), skates `backward` (facing away from the travel, half turns at the start or
+    end when the facing has to change: a landed jump strokes on backward and turns forward over
+    half a second, no snap), eases out any residual facing, and labels the trace edges (outside on
+    the inner foot of an arc, inside on the outer). `clampRate` caps the steering so the lean stays
+    under `LEAN_MAX` 35°; `linkPhaseAt` reads the cycle phase.
+  - `three/animation/program.ts`: `Steer { rate, speed, backward }`, `setGear(gear | ±1)`,
+    `setBackward`; the idle reserves the braking distance before the boards; `safeLink` slows down
+    rather than leaning past 50°; `linkInto` arrives at the element's authored entry speed.
+  - `three/rig/rig.ts`: `applyPose(pose, ground, roll, pitch)` pins the lowest blade along world
+    up, so a leaning body pivots on its blade instead of sinking an edge 3 cm (the Actor passes the
+    root's roll and pitch).
+  - UI: `app/rink/SteerPad.tsx` (hold-to-turn buttons, the gear, the backward toggle; works by
+    touch) sits bottom-right of the rink; keys: ← → hold to turn, ↑ ↓ change gear, B toggles
+    backward; the HUD names the gear ("Sprinting backward"). The old hold-↑-for-fast semantics are
+    gone (`SPEED_FAST`/`SPEED_SLOW` removed).
+  - Verified by screenshots (`drive.mts`-style Playwright script that holds keys on `/rink`, plus
+    `/dev/pose?pose=strokeGlide|crossGlide|sprintGlide|backGlide|sprintRecover|crossRecover`).
+    Known gaps: no toe-pick starts, no hockey stop, the backward crossover is the same construction
+    mirrored (not separately tuned), hands are not posed in the arm swing.
 - **Pending, in priority order:**
   1. Content pages onto the new primitives (plan Wave 3, agents 3A/3B); Compare and FlipVsLutz
      still carry their own camera selects; the drawer could get a live preview stage.

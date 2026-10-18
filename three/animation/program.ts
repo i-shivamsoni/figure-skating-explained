@@ -1,6 +1,7 @@
 import { createStore } from "zustand";
 import { buildTimeline, captionFor, toElementSpecs, type ViewerSpec } from "./catalog";
-import { EDGE_MARGIN, endOf, extentOf, keepInRink, linkTimeline, placeTimeline, placementAfter, roomAhead, startOf, STROKE_SPEED, wrapAngle, type IcePoint, type LinkOptions } from "./place";
+import { brakingDistance, clampRate, EDGE_MARGIN, endOf, extentOf, keepInRink, linkPhaseAt, linkTimeline, placeTimeline, placementAfter, roomAhead, startOf, STROKE_SPEED, wrapAngle, type IcePoint, type IceState, type LinkOptions, type LinkTimeline } from "./place";
+import { GEAR_BY_ID, gearFor, shiftGear, type Gear } from "./stroking";
 import { headingOf } from "./timeline";
 import { insideRink } from "./rinkSize";
 import type { Timeline } from "./timeline";
@@ -36,23 +37,23 @@ export const CENTRE_ICE: IcePoint = { x: -8, z: 0, heading: Math.PI / 2 };
 /** How many finished segments keep their traces on the ice. */
 export const MAX_MARKS = 40;
 
-/** Arrow-key steering while the skater is stroking between elements. */
+/** Steering while the skater is stroking between elements (arrow keys or the pad on the rink). */
 export interface Steer {
-  /** Turn rate in radians per second; positive turns to the skater's left. */
+  /** Turn rate in radians per second; positive turns to the travel's left. */
   rate: number;
-  /** Stroking speed in metres per second. */
+  /** Stroking speed in metres per second (the gears in ./stroking give the named speeds). */
   speed: number;
+  /** Skate backward. */
+  backward: boolean;
 }
 
 export const STEER_RATE = 1.1;
-export const SPEED_FAST = STROKE_SPEED * 1.4;
-export const SPEED_SLOW = 1.3;
 /** Length of one steered stroking segment. */
 const STEER_SECONDS = 0.8;
 
 export interface ProgramState {
-  /** Where the skater will be when the current segment ends. */
-  position: IcePoint;
+  /** Where the skater will be, and how she will be moving, when the current segment ends. */
+  position: IceState;
   steer: Steer;
   /** Bumps whenever the steering changes, so the player can cut the current wander short. */
   steerVersion: number;
@@ -70,9 +71,12 @@ export interface ProgramState {
   perform: (spec: ViewerSpec) => void;
   removeQueued: (index: number) => void;
   /** The current segment ended (or is cut short at `now`): start the next one. */
-  advance: (now?: IcePoint) => void;
+  advance: (now?: IceState) => void;
   setRotations: (n: number) => void;
-  setSteer: (rate: number, speed: number) => void;
+  setSteer: (rate: number, speed: number, backward?: boolean) => void;
+  /** Pick a gear by name, or step up (+1) / down (−1) from the current one. */
+  setGear: (gear: Gear | 1 | -1) => void;
+  setBackward: (backward: boolean) => void;
   resurface: () => void;
   reset: (at?: IcePoint) => void;
 }
@@ -83,30 +87,41 @@ export interface ProgramState {
  */
 const BOARD_CLEARANCE = EDGE_MARGIN + 0.3;
 
-function turnSeconds(p: IcePoint, turn: number, comfortable: number): number {
+function turnSeconds(p: IcePoint, turn: number, comfortable: number, speed = STROKE_SPEED): number {
   const a = Math.abs(turn);
   if (a < 1e-6) return comfortable;
   // the arc reaches R·sin(φ) along the old heading and R·(1 − cos φ) to the side it turns to
   const ahead = Math.max(0.3, roomAhead(p, p.heading, 0) - BOARD_CLEARANCE);
   const side = Math.max(0.3, roomAhead(p, p.heading + Math.sign(turn) * (Math.PI / 2), 0) - BOARD_CLEARANCE);
   const radiusMax = Math.min(ahead / Math.sin(Math.min(a, Math.PI / 2)), side / (1 - Math.cos(Math.min(a, Math.PI))));
-  return Math.max(0.6, Math.min(comfortable, (radiusMax * a) / STROKE_SPEED));
+  return Math.max(0.6, Math.min(comfortable, (radiusMax * a) / speed));
 }
 
-/** A stroking link that stays on the ice right up to the boards: the arc is tightened until every trace sample is inside (corners defeat the straight-line guards). */
-function safeLink(at: IcePoint, opts: LinkOptions & { turn: number; seconds: number }): Timeline {
+/** Past this lean a tighter arc is not an option: the link slows down instead. */
+const LEAN_HARD = (50 * Math.PI) / 180;
+
+/** A stroking link that stays on the ice right up to the boards: the arc is tightened until every trace sample is inside (corners defeat the straight-line guards), slowing down before the lean gets absurd. */
+function safeLink(at: IceState, opts: LinkOptions & { turn: number; seconds: number }): LinkTimeline {
   const onIce = (tl: Timeline) => tl.trace.every((t) => insideRink(t.x, t.z, EDGE_MARGIN));
-  // tighten the arc; when even the tightest arc at stroking speed would cross the boards (nose to the
+  // tighten the arc; when even the tightest arc at this speed would cross the boards (nose to the
   // glass), slow right down and turn almost on the spot
-  for (const speed of [opts.speed ?? STROKE_SPEED, 2.0, 1.2, 0.7, 0.4]) {
+  const first = opts.speed ?? STROKE_SPEED;
+  for (const speed of [first, ...[2.0, 1.2, 0.7, 0.4].filter((v) => v < first)]) {
     let link = linkTimeline(at, { ...opts, speed });
-    for (let seconds = opts.seconds * 0.8; seconds >= 0.25 && !onIce(link); seconds *= 0.8) link = linkTimeline(at, { ...opts, speed, seconds });
     if (onIce(link)) return link;
+    for (let seconds = opts.seconds * 0.8; seconds >= 0.25; seconds *= 0.8) {
+      if (Math.atan((speed * Math.abs(opts.turn)) / seconds / 9.81) > LEAN_HARD) break;
+      link = linkTimeline(at, { ...opts, speed, seconds });
+      if (onIce(link)) return link;
+    }
   }
-  return linkTimeline(at, { ...opts, speed: 0.4, seconds: 0.25 });
+  return linkTimeline(at, { ...opts, speed: 0.4, seconds: 0.25, ramp: false });
 }
 
-const NO_STEER: Steer = { rate: 0, speed: STROKE_SPEED };
+const NO_STEER: Steer = { rate: 0, speed: STROKE_SPEED, backward: false };
+
+/** Skating backward she looks over the shoulder on the inside of the turn (the right one on a straight). */
+const lookFor = (turn: number): "L" | "R" => (turn < -1e-6 ? "L" : "R");
 
 /** Beyond this distance from centre ice the unsteered wander drifts back toward the middle; steering overrides it, right up to the boards. */
 const HOME_RADIUS = 13;
@@ -130,9 +145,13 @@ export function staysOnIce(tl: Timeline, margin = EDGE_MARGIN): boolean {
  * centre ice, then every 15°) after which the element's real path, placed at the link's end, stays
  * on the ice; the heading with the most room is the fallback.
  */
-function linkInto(position: IcePoint, tl: Timeline): Timeline {
+function linkInto(position: IceState, tl: Timeline, steer: Steer): LinkTimeline {
+  const start = startOf(tl);
+  // arrive at the speed the element was authored for (a sprint slows down for a jump entry, a crawl picks up)
+  const speed = Math.min(6, Math.max(1.5, start.speed));
   const comfortable = (turn: number) => 1.6 + Math.abs(turn) * 0.8;
-  const make = (turn: number) => safeLink(position, { turn, seconds: turnSeconds(position, turn, comfortable(turn)), endBackward: startOf(tl).facingBackward, endPose: tl.keys[0]?.pose });
+  const make = (turn: number) =>
+    safeLink(position, { turn, seconds: turnSeconds(position, turn, comfortable(turn), speed), speed, backward: steer.backward, endBackward: start.facingBackward, endPose: tl.keys[0]?.pose, look: lookFor(turn) });
   const candidates = [0, wrapAngle(headingOf(-position.x, -position.z) - position.heading), ...Array.from({ length: 24 }, (_, i) => wrapAngle((i * Math.PI) / 12))].sort((a, b) => Math.abs(a) - Math.abs(b));
   const tried = new Set<number>();
   for (const turn of candidates) {
@@ -147,10 +166,11 @@ function linkInto(position: IcePoint, tl: Timeline): Timeline {
   return make(keepInRink(position, 8 + extentOf(tl)).turn);
 }
 
-function idle(at: IcePoint, wander: 1 | -1, steer: Steer = NO_STEER): Playing {
-  const steered = steer.rate !== 0 || steer.speed !== STROKE_SPEED;
-  // steering may take her to the boards: only the next segment's length plus one tight turn is reserved
-  const ahead = steered ? steer.speed * STEER_SECONDS + 0.8 : 10;
+function idle(at: IceState, wander: 1 | -1, steer: Steer = NO_STEER): Playing {
+  const speed = steer.speed;
+  const steered = steer.rate !== 0 || speed !== STROKE_SPEED;
+  // steering may take her to the boards: the next segment's length, the distance to brake and one tight turn are reserved
+  const ahead = steered ? speed * STEER_SECONDS + brakingDistance(speed) + 0.8 : 10;
   const k = keepInRink(at, ahead);
   const seconds = steered ? STEER_SECONDS : 3;
   let free = wander * 0.5;
@@ -158,8 +178,8 @@ function idle(at: IcePoint, wander: 1 | -1, steer: Steer = NO_STEER): Playing {
     const home = wrapAngle(headingOf(-at.x, -at.z) - at.heading);
     free = Math.sign(home || 1) * Math.min(0.6, Math.abs(home));
   }
-  const turn = k.turn || (steered ? steer.rate * seconds : free);
-  return { kind: "idle", timeline: safeLink(at, { turn, seconds: turnSeconds(at, turn, seconds), speed: steer.speed }) };
+  const turn = k.turn || (steered ? clampRate(steer.rate, speed) * seconds : free);
+  return { kind: "idle", timeline: safeLink(at, { turn, seconds: turnSeconds(at, turn, seconds, speed), speed, backward: steer.backward, look: lookFor(turn) }) };
 }
 
 export function createProgramStore(start: IcePoint = CENTRE_ICE) {
@@ -178,12 +198,24 @@ export function createProgramStore(start: IcePoint = CENTRE_ICE) {
     perform: (spec) => set((s) => ({ queue: [...s.queue, spec] })),
     removeQueued: (index) => set((s) => ({ queue: s.queue.filter((_, i) => i !== index) })),
     setRotations: (rotations) => set({ rotations }),
-    setSteer: (rate, speed) =>
-      set((s) => (s.steer.rate === rate && s.steer.speed === speed ? {} : { steer: { rate, speed }, steerVersion: s.steerVersion + 1 })),
+    setSteer: (rate, speed, backward) =>
+      set((s) => {
+        const back = backward ?? s.steer.backward;
+        return s.steer.rate === rate && s.steer.speed === speed && s.steer.backward === back ? {} : { steer: { rate, speed, backward: back }, steerVersion: s.steerVersion + 1 };
+      }),
+    setGear: (gear) => {
+      const s = get();
+      const id = typeof gear === "number" ? shiftGear(gearFor(s.steer.speed).id, gear) : gear;
+      s.setSteer(s.steer.rate, GEAR_BY_ID[id].speed);
+    },
+    setBackward: (backward) => {
+      const s = get();
+      s.setSteer(s.steer.rate, s.steer.speed, backward);
+    },
     advance: (now) => {
       const s = get();
       const done = s.playing;
-      const position = now ?? endOf(done.timeline);
+      const position: IceState = now ?? { ...endOf(done.timeline), phase: done.kind === "element" ? 0 : linkPhaseAt(done.timeline, done.timeline.duration) };
       const marks = [...s.marks, done.timeline].slice(-MAX_MARKS);
       const performed = done.kind === "element" && done.spec;
       const history = performed ? [...s.history, { id: s.nextId, spec: done.spec!, timeline: done.timeline, caption: done.caption ?? "", value: done.value }] : s.history;
@@ -198,7 +230,7 @@ export function createProgramStore(start: IcePoint = CENTRE_ICE) {
       if (s.queue.length > 0) {
         const [next, ...queue] = s.queue;
         const tl = buildTimeline(next);
-        const link = linkInto(position, tl);
+        const link = linkInto(position, tl, s.steer);
         set({ position, marks, history, nextId, queue, pending: next, playing: { kind: "link", timeline: link, caption: `Next: ${captionFor(next).caption}` } });
         return;
       }

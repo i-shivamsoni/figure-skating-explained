@@ -83,7 +83,7 @@ export function Palette({ program }: { program: ProgramStore }) {
           <Button variant="primary" className="w-full" onClick={() => perform(jumpSpec)}>
             Perform {captionFor(jumpSpec).caption}
           </Button>
-          <p className="text-xs text-muted">Keys 1 to 6 perform T, S, Lo, F, Lz and A at the chosen rotations. Arrow keys steer between elements.</p>
+          <p className="text-xs text-muted">Keys 1 to 6 perform T, S, Lo, F, Lz and A at the chosen rotations. Between elements the arrow keys steer: left and right turn, up and down change gear (coast, stroke, run, sprint), B skates backward.</p>
         </TabPanel>
         <TabPanel id="spins" active={tab === "spins"} scope="palette" className="space-y-2">
           <Segmented<SpinLevel> label="Level" size="sm" value={level} onChange={setLevel} options={LEVELS.map((l) => ({ id: l, label: String(l) }))} />

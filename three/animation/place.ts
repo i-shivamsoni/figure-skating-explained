@@ -1,7 +1,8 @@
-import { mirrorPose, POSES } from "../rig/poses";
 import type { Pose } from "../rig/pose";
-import { clamp01, easeInOut, headingOf, TWO_PI, type IceArrow, type PoseKey, type RootState, type Timeline, type TraceSample } from "./timeline";
+import { rollToward } from "../physics/jump";
+import { clamp01, easeInOut, headingOf, TWO_PI, type IceArrow, type RootState, type Timeline, type TraceSample } from "./timeline";
 import { insideRink } from "./rinkSize";
+import { CROSSOVER_RATE, gearFor, STROKE_MIN_SPEED, strokeKeys } from "./stroking";
 
 /**
  * Placing elements on the rink. Every timeline is authored around its own origin (take-off point,
@@ -20,6 +21,20 @@ export interface IcePoint {
   x: number;
   z: number;
   heading: number;
+}
+
+/** Where a skater is and how she is moving: the state one segment hands to the next. */
+export interface IceState extends IcePoint {
+  /** Metres per second along the heading. */
+  speed?: number;
+  /** Edge lean, as RootState.roll. */
+  roll?: number;
+  /** Facing away from the direction of travel. */
+  facingBackward?: boolean;
+  /** The exact facing (RootState.yaw); a link eases any difference from its own ideal facing out over its first moments. */
+  yaw?: number;
+  /** Strokes into the two-stroke cycle (0–2), so stroking carries on across links. */
+  phase?: number;
 }
 
 /** Wraps an angle into [−π, π). */
@@ -68,7 +83,7 @@ export function placeTimeline(tl: Timeline, p: Placement): Timeline {
 
 const DT = 0.04;
 
-function travel(tl: Timeline, t0: number, t1: number): number {
+function chord(tl: Timeline, t0: number, t1: number): number {
   const a = tl.root(t0);
   const b = tl.root(t1);
   const dx = b.x - a.x;
@@ -76,18 +91,50 @@ function travel(tl: Timeline, t0: number, t1: number): number {
   return Math.hypot(dx, dz) < 1e-4 ? tl.heading : headingOf(dx, dz);
 }
 
-/** Where a timeline begins, which way it travels, and whether the skater faces away from that travel (skating backward). */
-export function startOf(tl: Timeline): IcePoint & { facingBackward: boolean } {
-  const r = tl.root(0);
-  const heading = travel(tl, 0, Math.min(tl.duration, DT));
-  return { x: r.x, z: r.z, heading, facingBackward: Math.abs(wrapAngle(r.yaw - heading)) > Math.PI / 2 };
+/**
+ * The direction of travel at `t`: the chord over the DT window around it, extrapolated to `t`
+ * from a second chord when the window cannot be centred (at either end), which is exact on an
+ * arc of constant curvature and leaves no snap between the tangent and the next segment.
+ */
+function travel(tl: Timeline, t: number): number {
+  const T = tl.duration;
+  if (T < 2 * DT + 1e-9) return chord(tl, 0, T);
+  if (t <= DT) {
+    const c1 = chord(tl, 0, DT);
+    const c2 = chord(tl, DT, 2 * DT);
+    return c1 - 0.5 * wrapAngle(c2 - c1);
+  }
+  if (t >= T - DT) {
+    const c1 = chord(tl, T - DT, T);
+    const c2 = chord(tl, T - 2 * DT, T - DT);
+    return c1 + 0.5 * wrapAngle(c1 - c2);
+  }
+  return chord(tl, t - DT / 2, t + DT / 2);
 }
 
-/** Where a timeline ends and which way it is travelling then. */
-export function endOf(tl: Timeline): IcePoint & { facingBackward: boolean } {
+function speedBetween(tl: Timeline, t0: number, t1: number): number {
+  if (t1 <= t0) return 0;
+  const a = tl.root(t0);
+  const b = tl.root(t1);
+  return Math.hypot(b.x - a.x, b.z - a.z) / (t1 - t0);
+}
+
+export type IceEnd = IceState & { speed: number; roll: number; facingBackward: boolean; yaw: number };
+
+/** Where a timeline begins, which way it travels and how fast, and whether the skater faces away from that travel (skating backward). */
+export function startOf(tl: Timeline): IceEnd {
+  const r = tl.root(0);
+  const t1 = Math.min(tl.duration, DT);
+  const heading = travel(tl, 0);
+  return { x: r.x, z: r.z, heading, speed: speedBetween(tl, 0, t1), roll: r.roll ?? 0, yaw: r.yaw, facingBackward: Math.abs(wrapAngle(r.yaw - heading)) > Math.PI / 2 };
+}
+
+/** Where a timeline ends, which way it is travelling then and how fast. */
+export function endOf(tl: Timeline): IceEnd {
   const r = tl.root(tl.duration);
-  const heading = travel(tl, Math.max(0, tl.duration - DT), tl.duration);
-  return { x: r.x, z: r.z, heading, facingBackward: Math.abs(wrapAngle(r.yaw - heading)) > Math.PI / 2 };
+  const t0 = Math.max(0, tl.duration - DT);
+  const heading = travel(tl, tl.duration);
+  return { x: r.x, z: r.z, heading, speed: speedBetween(tl, t0, tl.duration), roll: r.roll ?? 0, yaw: r.yaw, facingBackward: Math.abs(wrapAngle(r.yaw - heading)) > Math.PI / 2 };
 }
 
 /** The placement that starts `tl` exactly at `from`, travelling in its direction. */
@@ -101,84 +148,152 @@ export function placementAfter(tl: Timeline, from: IcePoint): Placement {
 
 /** Stroking speed between elements, metres per second. */
 export const STROKE_SPEED = 3.5;
-/** One stroke (push and glide) on each foot, seconds. */
+/** One stroke (push and glide) on each foot at stroking speed, seconds. */
 export const STROKE_PERIOD = 0.9;
+/** How hard the skater pushes to speed up and how hard she can brake, metres per second squared. */
+export const ACCEL = 2.5;
+export const BRAKE = 6;
+const G = 9.81;
+/** The steepest edge lean steering may ask for (a turn at speed leans the body by atan(v·ω/g)). */
+export const LEAN_MAX = (35 * Math.PI) / 180;
+
+/** The turn rate `rate` limited so the lean at `speed` stays within LEAN_MAX. */
+export function clampRate(rate: number, speed: number): number {
+  const max = (G * Math.tan(LEAN_MAX)) / Math.max(speed, 1);
+  return Math.sign(rate) * Math.min(Math.abs(rate), max);
+}
+
+/** Metres needed to brake to a standstill from `speed`. */
+export function brakingDistance(speed: number): number {
+  return (speed * speed) / (2 * BRAKE);
+}
 
 export interface LinkOptions {
   /** Change of heading over the link, radians (positive turns left, like yaw). */
   turn?: number;
   seconds?: number;
-  /** Turn to skate backward in the last half second (for an element that starts on a back edge). */
+  /** Stroke backward (facing away from the travel) through the link. */
+  backward?: boolean;
+  /** The facing the next element needs at the end; a half turn in the last half second gets there. Defaults to `backward`. */
   endBackward?: boolean;
   /** The next element's first pose, blended into over the last half second. */
   endPose?: Pose;
-  /** Metres per second; STROKE_SPEED by default. */
+  /** Metres per second to settle at; STROKE_SPEED by default. */
   speed?: number;
+  /** Ramp the speed from `from.speed` (default); false jumps straight to `speed`. */
+  ramp?: boolean;
+  /** Which shoulder to look over when skating backward. */
+  look?: "L" | "R";
+}
+
+/** A stroking link carries its stroke cycle so the next link can continue it. */
+export interface LinkTimeline extends Timeline {
+  period: number;
+  cycleStart: number;
+  phaseSeconds: number;
+}
+
+/** Strokes into the two-stroke cycle (0–2) at time t of a link (0 for anything else). */
+export function linkPhaseAt(tl: Timeline, t: number): number {
+  const link = tl as Partial<LinkTimeline>;
+  if (link.period === undefined || link.cycleStart === undefined || link.phaseSeconds === undefined) return 0;
+  const c = (t - link.cycleStart + link.phaseSeconds) / link.period;
+  return ((c % 2) + 2) % 2;
 }
 
 /**
- * A stroking link that starts at `from`, travels at STROKE_SPEED on a constant arc through `turn`,
- * and ends facing the way the next element needs. Used between elements on the rink and for the
- * idle loop.
+ * A stroking link that starts at `from` (with its speed, lean and facing), travels on a
+ * constant-rate arc through `turn` while the speed ramps to `speed`, leans into the arc, strokes
+ * on alternate feet (or coasts when slow), and ends facing the way the next element needs. Used
+ * between elements on the rink and for the idle loop.
  */
-export function linkTimeline(from: IcePoint, { turn = 0, seconds = 2, endBackward = false, endPose, speed = STROKE_SPEED }: LinkOptions = {}): Timeline {
+export function linkTimeline(from: IceState, { turn = 0, seconds = 2, backward = false, endBackward = backward, endPose, speed = STROKE_SPEED, ramp = true, look }: LinkOptions = {}): LinkTimeline {
   const T = Math.max(0.25, seconds);
-  const v = speed;
+  const v1 = speed;
+  const v0 = ramp ? (from.speed ?? v1) : v1;
+  const dv = v1 - v0;
+  const acc = dv >= 0 ? ACCEL : -BRAKE;
+  const tRamp = Math.abs(dv) / Math.abs(acc);
+  const speedAt = (t: number) => (t < tRamp ? v0 + acc * t : v1);
   const w = turn / T;
   const h0 = from.heading;
-  const turnStart = Math.max(0.1, T - 0.6);
-  const turnEnd = Math.max(turnStart + 0.1, T - 0.2);
+  const headingAt = (t: number) => h0 + w * t;
+  const startBackward = from.facingBackward ?? false;
+  const turnIn: [number, number] | null = startBackward !== backward ? [0, Math.min(0.5, T * 0.6)] : null;
+  const turnStart = Math.max(T * 0.4, T - 0.6);
+  const turnOut: [number, number] | null = endBackward !== backward ? [turnStart, Math.max(turnStart + 0.1, T - 0.2)] : null;
+  const f0 = startBackward ? Math.PI : 0;
+  const fm = backward ? Math.PI : 0;
+  const fe = endBackward ? Math.PI : 0;
+  // whatever facing she arrived with (a landing's check-out, say) is eased out rather than snapped
+  const residual = from.yaw === undefined ? 0 : wrapAngle(from.yaw - (h0 + f0));
+  const yawAt = (t: number) => {
+    let yaw = headingAt(t) + f0 + residual * (1 - easeInOut(clamp01(t / 0.4)));
+    if (turnIn) yaw += (fm - f0) * easeInOut(clamp01((t - turnIn[0]) / (turnIn[1] - turnIn[0])));
+    if (turnOut) yaw += (fe - fm) * easeInOut(clamp01((t - turnOut[0]) / (turnOut[1] - turnOut[0])));
+    return yaw;
+  };
+  // the lean into the arc, eased in from whatever lean the skater arrived with
+  const r0 = from.roll ?? 0;
+  const rollAt = (t: number) => {
+    const h = headingAt(t);
+    const s = Math.sign(w);
+    const target = rollToward(yawAt(t), s * Math.cos(h), -s * Math.sin(h), Math.atan((speedAt(t) * Math.abs(w)) / G));
+    return r0 + (target - r0) * easeInOut(clamp01(t / 0.35));
+  };
+  // the path: integrate the ramping speed along the turning heading
+  const N = Math.max(8, Math.ceil(T * 120));
+  const dt = T / N;
+  const xs = new Float64Array(N + 1);
+  const zs = new Float64Array(N + 1);
+  let x = from.x;
+  let z = from.z;
+  for (let i = 0; i <= N; i++) {
+    xs[i] = x;
+    zs[i] = z;
+    const tm = (i + 0.5) * dt;
+    const vm = speedAt(tm);
+    const hm = headingAt(tm);
+    x += vm * dt * Math.sin(hm);
+    z += vm * dt * Math.cos(hm);
+  }
   const root = (time: number): RootState => {
     const t = Math.max(0, Math.min(T, time));
-    let x: number;
-    let z: number;
-    if (Math.abs(w) < 1e-6) {
-      x = from.x + v * t * Math.sin(h0);
-      z = from.z + v * t * Math.cos(h0);
-    } else {
-      x = from.x + (v / w) * (Math.cos(h0) - Math.cos(h0 + w * t));
-      z = from.z + (v / w) * (Math.sin(h0 + w * t) - Math.sin(h0));
-    }
-    const heading = h0 + w * t;
-    let yaw = heading;
-    if (endBackward) yaw += Math.PI * easeInOut(clamp01((t - turnStart) / (turnEnd - turnStart)));
-    return { x, y: 0, z, yaw };
+    const u = t / dt;
+    const i = Math.min(N - 1, Math.floor(u));
+    const f = u - i;
+    return { x: xs[i] + (xs[i + 1] - xs[i]) * f, y: 0, z: zs[i] + (zs[i + 1] - zs[i]) * f, yaw: yawAt(t), roll: rollAt(t) };
   };
-  const glideF = POSES.glideFO;
-  const glideB = POSES.glideBO;
-  const last = endPose ?? (endBackward ? glideB : glideF);
-  // stroking: feet together on the push, a glide on the left, together, a glide on the right…
-  // (the trace alternates feet on the same period); coasting slowly is a two-foot glide
-  const together = POSES.stand;
-  const glides = [glideF, mirrorPose(glideF)];
-  const strokes = v >= STROKE_SPEED * 0.6;
-  const settle = endBackward ? turnStart : Math.max(0.05, T - 0.5);
-  const keys: PoseKey[] = [{ t: 0, pose: strokes ? together : glideF }];
-  for (let i = 0, t0 = 0; strokes && t0 + STROKE_PERIOD * 0.5 < settle; i++, t0 += STROKE_PERIOD) {
-    keys.push({ t: t0 + STROKE_PERIOD * 0.5, pose: glides[i % 2], ease: easeInOut });
-    if (t0 + STROKE_PERIOD < settle) keys.push({ t: t0 + STROKE_PERIOD, pose: together, ease: easeInOut });
-  }
-  if (endBackward) {
-    keys.push({ t: turnStart, pose: glideF, ease: easeInOut });
-    keys.push({ t: turnEnd, pose: glideB, ease: easeInOut });
-  } else keys.push({ t: settle, pose: glideF, ease: easeInOut });
-  keys.push({ t: T, pose: last, ease: easeInOut });
+  const strokes = v1 >= STROKE_MIN_SPEED;
+  // a sustained curve is skated with crossovers toward its centre (on the skater's left when turning left and facing forward)
+  const cross = strokes && Math.abs(w) >= CROSSOVER_RATE ? (w > 0 !== backward ? "L" : "R") : undefined;
+  const cycle = strokeKeys({ T, speed: v1, backward, startBackward, endBackward, phase: from.phase ?? 0, turnIn, turnOut, endPose, look, cross });
+  const keys = cycle.keys;
   const trace: TraceSample[] = [];
   for (let i = 0; i <= Math.round(T * 40); i++) {
     const t = i / 40;
     const r = root(t);
-    trace.push({ t, x: r.x, z: r.z, foot: strokes ? (Math.floor(t / STROKE_PERIOD) % 2 === 0 ? "L" : "R") : "both", edge: strokes ? "outside" : "flat" });
+    const foot = cycle.footAt(t);
+    const facingBack = Math.abs(wrapAngle(r.yaw - headingAt(t))) > Math.PI / 2;
+    // on an arc the skating foot rides the edge nearer the centre: outside on the inner foot, inside on the outer
+    const centreOnLeft = w > 0 !== facingBack;
+    const edge = foot === "both" ? "flat" : Math.abs(w) < 1e-6 ? "outside" : (foot === "L") === centreOnLeft ? "outside" : "inside";
+    trace.push({ t, x: r.x, z: r.z, foot, edge });
   }
+  const gear = strokes ? gearFor(v1) : gearFor(0);
   return {
     id: "link",
-    title: "Stroking",
+    title: `${gear.verb}${backward ? " backward" : ""}`,
     duration: T,
     keys,
     root,
-    markers: [{ t: 0, label: "Stroking", detail: "arrow keys steer: left and right turn, up strokes harder, down coasts" }],
+    markers: [{ t: 0, label: `${gear.verb}${backward ? " backward" : ""}`, detail: "← → turn · ↑ ↓ change gear · B skates backward" }],
     trace,
     focus: { x: from.x, z: from.z },
     heading: h0,
+    period: cycle.period,
+    cycleStart: cycle.cycleStart,
+    phaseSeconds: cycle.phaseSeconds,
   };
 }
 
@@ -222,11 +337,13 @@ export function keepInRink(p: IcePoint, ahead: number, margin = EDGE_MARGIN): { 
   return { heading: best.heading, turn: best.turn };
 }
 
-/** Where the skater is at time t and which way she is travelling. */
-export function pointAt(tl: Timeline, t: number): IcePoint {
+/** Where the skater is at time t, which way she is travelling, how fast, her lean, her facing and her stroke phase. */
+export function pointAt(tl: Timeline, t: number): IceEnd & { phase: number } {
   const r = tl.root(t);
   const t0 = Math.max(0, Math.min(tl.duration - DT, t));
-  return { x: r.x, z: r.z, heading: travel(tl, t0, Math.min(tl.duration, t0 + DT)) };
+  const t1 = Math.min(tl.duration, t0 + DT);
+  const heading = travel(tl, t);
+  return { x: r.x, z: r.z, heading, speed: speedBetween(tl, t0, t1), roll: r.roll ?? 0, yaw: r.yaw, facingBackward: Math.abs(wrapAngle(r.yaw - heading)) > Math.PI / 2, phase: linkPhaseAt(tl, t) };
 }
 
 /** How far the element reaches from its start, in metres (the longest leg of its root path). */

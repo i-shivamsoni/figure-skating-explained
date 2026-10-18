@@ -1,4 +1,4 @@
-import { Bone, Object3D, Quaternion, Vector3 } from "three";
+import { Bone, Euler, Object3D, Quaternion, Vector3 } from "three";
 import { BONES, POSABLE, TAIL_CHILD, type BoneName } from "./bones";
 import { resolvePose, type PosableBone } from "./limits";
 import type { Pose, Vec3 } from "./pose";
@@ -16,6 +16,9 @@ const _qAim = new Quaternion();
 const _qTwist = new Quaternion();
 const _v = new Vector3();
 const _v2 = new Vector3();
+const _up = new Vector3();
+const _qUp = new Quaternion();
+const _euler = new Euler();
 
 /** Hips raised this far above rest (lifts, the twist catch) are not on the ice: the ground clamp fades out between these offsets. */
 const LIFT_FADE_FROM = 0.06;
@@ -84,8 +87,8 @@ export class SkaterRig {
     }
   }
 
-  /** Lowest blade point of the pose just applied, in skater space (0 = the ice). */
-  lowestBladeY(): number {
+  /** Lowest blade point of the pose just applied, in skater space (0 = the ice), measured along `up` (world up in skater space; +Y unless the body is leaning). */
+  lowestBladeY(up?: Vector3): number {
     for (const name of this.order) {
       const b = this.bones.get(name)!;
       const p = this.posedPos.get(name)!;
@@ -96,7 +99,8 @@ export class SkaterRig {
     let low = Infinity;
     for (const bp of this.bladePoints) {
       _v.copy(bp.local).applyQuaternion(this.worldQ.get(bp.bone)!).add(this.posedPos.get(bp.bone)!);
-      if (_v.y < low) low = _v.y;
+      const h = up ? _v.dot(up) : _v.y;
+      if (h < low) low = h;
     }
     return low;
   }
@@ -139,7 +143,7 @@ export class SkaterRig {
    * shifting the whole body: 1 on the ice, fading to 0 in flight (the caller passes the height)
    * and for poses whose hips are lifted off the ice (pair lifts).
    */
-  applyPose(pose: Pose, ground = 1) {
+  applyPose(pose: Pose, ground = 1, roll = 0, pitch = 0) {
     const resolved = resolvePose(pose, this.restDirFn);
     const hips = this.bones.get("hips")!;
     const off = resolved.hips;
@@ -181,10 +185,15 @@ export class SkaterRig {
     const w = ground * (lift <= LIFT_FADE_FROM ? 1 : lift >= LIFT_FADE_TO ? 0 : (LIFT_FADE_TO - lift) / (LIFT_FADE_TO - LIFT_FADE_FROM));
     this.groundShift = 0;
     if (w > 0) {
-      const low = this.lowestBladeY();
+      // the body may be leaning on an edge (or somersaulting): the ice is still below along world up,
+      // so the lowest blade is found, and lifted, along that direction in skater space
+      const tilted = roll !== 0 || pitch !== 0;
+      if (tilted) _up.set(0, 1, 0).applyQuaternion(_qUp.setFromEuler(_euler.set(pitch, 0, roll, "YXZ")).invert());
+      const low = this.lowestBladeY(tilted ? _up : undefined);
       if (Number.isFinite(low) && Math.abs(low) > 1e-5) {
         this.groundShift = -low * w;
-        _v.set(0, this.groundShift, 0).applyQuaternion(this.hipsOffsetQ);
+        if (tilted) _v.copy(_up).multiplyScalar(this.groundShift).applyQuaternion(this.hipsOffsetQ);
+        else _v.set(0, this.groundShift, 0).applyQuaternion(this.hipsOffsetQ);
         hips.position.add(_v);
       }
     }

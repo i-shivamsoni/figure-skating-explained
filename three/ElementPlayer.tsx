@@ -139,8 +139,9 @@ export function Actor({ timeline, store, partner = false, onEnd }: { timeline: T
     g.position.set(root.x, root.y, root.z);
     g.rotation.set(root.pitch ?? 0, root.yaw, root.roll ?? 0, "YXZ");
     const keys = partner ? { ...timeline, keys: track!.keys } : timeline;
-    // on the ice the lowest blade is pinned to the surface; the clamp fades out over the first 25 cm of flight
-    h.rig.applyPose(poseAt(keys, t, (b) => h.rig.restDir(b)), Math.max(0, Math.min(1, 1 - root.y / 0.25)));
+    // on the ice the lowest blade is pinned to the surface (under the body's lean, so an edge does not sink);
+    // the clamp fades out over the first 25 cm of flight
+    h.rig.applyPose(poseAt(keys, t, (b) => h.rig.restDir(b)), Math.max(0, Math.min(1, 1 - root.y / 0.25)), root.roll ?? 0, root.pitch ?? 0);
   });
   return (
     <group ref={groupRef}>
