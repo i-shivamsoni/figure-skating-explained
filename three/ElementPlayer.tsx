@@ -303,7 +303,11 @@ export function CameraRig({ timeline, store, container, focus }: { timeline: Tim
     if (camera.position.y < MIN_CAMERA_HEIGHT) camera.position.y = MIN_CAMERA_HEIGHT;
     if (controls) controls.update();
     else camera.lookAt(_target);
-    const attr = `${s.preset} ${s.track ? "track" : "fixed"} ${camera.position.distanceTo(controls ? controls.target : _target).toFixed(1)}`;
+    // preset, tracking, distance, then the view direction (azimuth and elevation in degrees) for tests and diagnosis
+    _delta.copy(camera.position).sub(controls ? controls.target : _target);
+    const azimuth = (Math.atan2(_delta.x, _delta.z) * 180) / Math.PI;
+    const elevation = (Math.atan2(_delta.y, Math.hypot(_delta.x, _delta.z)) * 180) / Math.PI;
+    const attr = `${s.preset} ${s.track ? "track" : "fixed"} ${_delta.length().toFixed(1)} az ${azimuth.toFixed(0)} el ${elevation.toFixed(0)}`;
     if (attr !== lastAttr.current) {
       lastAttr.current = attr;
       container?.current?.setAttribute("data-camera", attr);

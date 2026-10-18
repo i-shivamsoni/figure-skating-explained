@@ -3,8 +3,33 @@
 import { Suspense, type ReactNode } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Environment, Lightformer, OrbitControls } from "@react-three/drei";
+import { BackSide } from "three";
 import { Rink } from "./Rink";
 import { Arena } from "./Arena";
+
+/**
+ * The lighting environment: rig panels and a soft sky over a dark arena backdrop, rendered once
+ * into a cube map. It is one module-level element on purpose: drei re-renders the cube map (and
+ * three regenerates the PMREM) whenever the children change identity, which a fresh JSX tree on
+ * every Stage re-render did at each segment of the rink. The backdrop sphere is what the cube
+ * camera sees where there is no panel; without it the void took the renderer's clear colour,
+ * which is black for the first render (before onCreated sets it) and pale blue afterwards, so
+ * the whole scene changed brightness a few seconds after loading.
+ */
+const ENVIRONMENT = (
+  <Environment resolution={128} frames={1}>
+    <mesh scale={100}>
+      <sphereGeometry args={[1, 24, 16]} />
+      <meshBasicMaterial color="#141c28" side={BackSide} toneMapped={false} />
+    </mesh>
+    <Lightformer form="rect" intensity={2.2} color="#fff6ea" position={[4, 6, 5]} scale={[8, 6, 1]} target={[0, 1, 0]} />
+    <Lightformer form="rect" intensity={1.1} color="#dbe9ff" position={[-6, 4, -3]} scale={[6, 5, 1]} target={[0, 1, 0]} />
+    <Lightformer form="ring" intensity={0.8} color="#ffffff" position={[0, 8, 0]} scale={[6, 6, 1]} target={[0, 0, 0]} />
+    <Lightformer form="rect" intensity={0.5} color="#cfe3f5" position={[0, 0.5, 8]} scale={[10, 2, 1]} target={[0, 1, 0]} />
+    {/* a soft sky over everything, so metal (the blades) reflects brightness from low angles instead of the void */}
+    <Lightformer form="rect" intensity={0.55} color="#eef4fb" position={[0, 14, 0]} rotation-x={Math.PI / 2} scale={[60, 60, 1]} />
+  </Environment>
+);
 
 export interface OrbitOptions {
   /** Fired when the viewer starts dragging or zooming. */
@@ -44,14 +69,7 @@ export function Stage({ children, camera, controls = true, orbit, arena = false,
       }}
     >
       <hemisphereLight args={["#ffffff", "#b8cfe0", 0.55]} />
-      <Environment resolution={128} frames={1}>
-        <Lightformer form="rect" intensity={2.2} color="#fff6ea" position={[4, 6, 5]} scale={[8, 6, 1]} target={[0, 1, 0]} />
-        <Lightformer form="rect" intensity={1.1} color="#dbe9ff" position={[-6, 4, -3]} scale={[6, 5, 1]} target={[0, 1, 0]} />
-        <Lightformer form="ring" intensity={0.8} color="#ffffff" position={[0, 8, 0]} scale={[6, 6, 1]} target={[0, 0, 0]} />
-        <Lightformer form="rect" intensity={0.5} color="#cfe3f5" position={[0, 0.5, 8]} scale={[10, 2, 1]} target={[0, 1, 0]} />
-        {/* a soft sky over everything, so metal (the blades) reflects brightness from low angles instead of the void */}
-        <Lightformer form="rect" intensity={0.55} color="#eef4fb" position={[0, 14, 0]} rotation-x={Math.PI / 2} scale={[60, 60, 1]} />
-      </Environment>
+      {ENVIRONMENT}
       <directionalLight
         position={[6, 10, 4]}
         intensity={1.4}

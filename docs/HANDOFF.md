@@ -409,6 +409,19 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
     `/dev/pose?pose=strokeGlide|crossGlide|sprintGlide|backGlide|sprintRecover|crossRecover`).
     Known gaps: no toe-pick starts, no hockey stop, the backward crossover is the same construction
     mirrored (not separately tuned), hands are not posed in the arm swing.
+- **Colours changing a few seconds after load (18 Oct 2026, user screenshots; the earlier
+  "colours dull out" report had the same cause):** `three/Stage.tsx` builds the lighting
+  environment once as a module-level element (`ENVIRONMENT`). drei's `Environment` with
+  `frames={1}` renders its cube map inside a layout effect keyed on `children`, so the fresh JSX
+  tree on every Stage re-render (every rink segment) re-rendered it and three regenerated the
+  PMREM each time (`pmremVersion` 1, 2, 3…); and the cube render clears to the renderer's clear
+  colour, which is black on the first render (before `onCreated` sets `#eaf3fa`) and pale blue on
+  every later one, so the first environment was a dark void with bright panels and all later ones
+  a bright haze: the ice went from 219 to 227 mean brightness at the first segment boundary. Now a
+  dark backdrop sphere (`#141c28`, BackSide) sits inside the environment so the void is defined,
+  and the element identity never changes. Diagnosed with a Playwright burst that read the camera
+  direction (`data-camera` now ends with `az N el N`, degrees) and the environment's
+  `pmremVersion` per frame; the glass (3 % opacity), the shadow map and the camera were ruled out.
 - **Pending, in priority order:**
   1. Content pages onto the new primitives (plan Wave 3, agents 3A/3B); Compare and FlipVsLutz
      still carry their own camera selects; the drawer could get a live preview stage.
