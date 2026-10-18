@@ -40,7 +40,9 @@ export function Decoder() {
         ) : (
           <>
             <p className="text-lg font-semibold">{result.summary}</p>
-            <p className="mt-1 font-mono text-3xl font-semibold">{result.baseValue.toFixed(2)}</p>
+            <p className="mt-1 font-mono text-3xl font-semibold" data-testid="decoded-value">
+              {result.baseValue.toFixed(2)}
+            </p>
             <p className="text-xs uppercase tracking-wide text-muted">base value</p>
             <ul className="mt-3 space-y-2 text-sm">
               {result.parts.map((p, i) => (

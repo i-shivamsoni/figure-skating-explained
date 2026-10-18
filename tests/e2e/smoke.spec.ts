@@ -28,22 +28,24 @@ test("the 3D viewer mounts and the rotation counter moves", async ({ page }) => 
 test("the decoder reads protocol codes", async ({ page }) => {
   await page.goto("/decoder");
   const input = page.getByLabel("Element code");
+  const value = page.getByTestId("decoded-value");
   await input.fill("4Lz+3T");
-  await expect(page.getByText("15.70", { exact: true })).toBeVisible();
+  await expect(value).toHaveText("15.70");
   await input.fill("FCCoSp4V");
-  await expect(page.getByText("3.15", { exact: true })).toBeVisible();
+  await expect(value).toHaveText("3.15");
   await input.fill("3A+REP");
-  await expect(page.getByText("6.40", { exact: true })).toBeVisible();
+  await expect(value).toHaveText("6.40");
 });
 
 test("the calculator warns about a repetition violation", async ({ page }) => {
   await page.goto("/calculator");
   await expect(page.getByText("Total segment score")).toBeVisible();
   // add a third quad Lutz: two solo 4Lz already means +REP; a third attempt is illegal
-  await page.getByLabel("Jump").first().selectOption("Lz");
-  await page.getByLabel("Rotations").first().selectOption("4");
+  const jump = page.getByRole("combobox", { name: "Jump", exact: true }).first();
+  await jump.selectOption("Lz");
+  await page.getByRole("combobox", { name: "Rotations", exact: true }).first().selectOption("4");
   await page.getByRole("button", { name: "Add", exact: true }).click();
-  await page.getByLabel("Jump").first().selectOption("Lz");
+  await jump.selectOption("Lz");
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByText(/quad Lutz may be attempted at most twice/)).toBeVisible();
 });
@@ -97,4 +99,60 @@ test("the grouped nav opens its menus on desktop and its sheet on a phone", asyn
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Open menu" }).click();
   await expect(page.locator("#mobile-nav").getByRole("link", { name: /Calculator/ })).toBeVisible();
+});
+
+test("the home page teases the rink and sends you in", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("canvas")).toHaveCount(1);
+  await page.waitForSelector('body[data-skater-ready="1"]', { timeout: 30_000 });
+  await expect(page.locator("[data-rink-mode=teaser]")).toBeVisible();
+  await expect(page.getByTestId("steer-pad")).toHaveCount(0);
+  await page.getByTestId("enter-rink").click();
+  await expect(page).toHaveURL(/\/rink$/, { timeout: 30_000 });
+});
+
+test("the rink explains what you just saw and hands the protocol to the calculator", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("fse-rink-intro", "1"));
+  await page.goto("/rink");
+  await page.waitForSelector('body[data-skater-ready="1"]', { timeout: 30_000 });
+  await expect(page.getByTestId("dock-perform")).toBeVisible();
+  await page.getByTestId("perform-jump").click(); // the default: triple Lutz
+  const card = page.getByTestId("learn-card").first();
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  await expect(card.getByRole("link", { name: /About the Lutz/ })).toHaveAttribute("href", "/jumps/lutz");
+  await expect(card.getByRole("link", { name: /How it is scored/ })).toHaveAttribute("href", "/scoring#base-value");
+  await page.getByTestId("tab-right").click();
+  await expect(page.getByTestId("rink-total")).toHaveText("5.90");
+  await expect(page.getByTestId("open-calculator")).toHaveAttribute("href", /codes=3Lz/);
+});
+
+test("on a phone the rink keeps the ice visible under a collapsed sheet", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => localStorage.setItem("fse-rink-intro", "1"));
+  await page.goto("/rink");
+  await page.waitForSelector('body[data-skater-ready="1"]', { timeout: 30_000 });
+  await expect(page.locator("[data-sheet=collapsed]")).toBeVisible();
+  const ice = (await page.locator("canvas").first().boundingBox())!;
+  expect(ice.height).toBeGreaterThan(844 * 0.45);
+  await expect(page.getByTestId("steer-pad")).toBeVisible();
+  await page.getByRole("button", { name: "Perform", exact: true }).click();
+  await expect(page.locator("[data-sheet=open]")).toBeVisible();
+  await expect(page.getByTestId("perform-jump")).toBeVisible();
+});
+
+test("the calculator loads a list of codes from the rink", async ({ page }) => {
+  await page.goto("/calculator?codes=4Lz,CCoSp4");
+  await expect(page.getByTestId("calculator-imported")).toContainText("2 elements");
+  await expect(page.getByText("15.70", { exact: true })).toBeVisible();
+});
+
+test("compare has one camera control and the lessons preselect from the rink's links", async ({ page }) => {
+  await page.goto("/compare");
+  await page.waitForSelector('body[data-skater-ready="1"]', { timeout: 30_000 });
+  await expect(page.getByRole("button", { name: /^Camera:/ })).toHaveCount(1);
+  await page.goto("/steps?turn=bracket");
+  await expect(page.getByRole("button", { name: "Bracket ★" })).toHaveAttribute("aria-pressed", "true");
+  await page.goto("/");
+  await page.getByRole("button", { name: "Elements" }).click();
+  await expect(page.getByRole("menuitem", { name: /Compare/ })).toBeVisible();
 });

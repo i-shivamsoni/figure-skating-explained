@@ -20,9 +20,9 @@ Vercel project `figure-skating-explained` (team `<vercel team>`), linked via `.v
 Deploy with `vercel deploy --prod --yes` (preview: `vercel deploy --yes`; previews sit behind
 Vercel auth, production is public). The Vercel CLI is 54.x and nags to upgrade; ignore it.
 
-State at the time of writing (updated 18 Oct 2026, evening IST): see §10 for the overhaul and the
-stroking rebuild; 360 vitest tests green, 21 Playwright tests green, typecheck and lint clean,
-production redeployed after the boards commit (braking and lean-limited arcs).
+State at the time of writing (updated 19 Oct 2026, early morning IST): see §10 for the overhaul,
+the stroking rebuild and the UI/UX redesign (rink as the hub); 367 vitest tests, 26 Playwright
+tests, typecheck and lint clean, production redeployed after the redesign.
 
 ## 2. The user and the working agreement
 
@@ -155,8 +155,10 @@ production redeployed after the boards commit (braking and lean-limited arcs).
   `app/jumps/FlipVsLutz.tsx` (two players on one clock via `onStore`),
   `app/spins/SpinExplorer.tsx` (family, level, V, feature toggles, variation selects, code and
   value, "what counts for the level", revolutions counted), `app/calculator/Calculator.tsx`.
-- Pages: `/`, `/jumps`, `/jumps/[slug]`, `/spins`, `/spins/[code]`, `/steps`, `/choreo`,
-  `/pairs`, `/pairs/[id]`, `/scoring`, `/calculator`, `/compare`, `/decoder`, `/sources`;
+- Pages: `/` (teaser rink + doors), `/rink` (the hub), `/jumps`, `/jumps/[slug]`, `/spins`,
+  `/spins/[code]`, `/steps` (`?turn=`), `/choreo` (`?move=`), `/pairs`, `/pairs/[id]`, `/scoring`
+  (anchors `#base-value #goe #levels #components #deductions`), `/calculator` (`?codes=`),
+  `/compare`, `/decoder`, `/sources` (`#changes #glossary`);
   dev labs `/dev/pose|jump|spin|step|pair` (404 in production unless `SHOW_DEV_LABS=1`;
   `/dev/pose?pose=<name>&cam=iso|front|side|back|head|card|cardLow[&bare=1]`).
 
@@ -434,13 +436,57 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
   and the element identity never changes. Diagnosed with a Playwright burst that read the camera
   direction (`data-camera` now ends with `az N el N`, degrees) and the environment's
   `pmremVersion` per frame; the glass (3 % opacity), the shadow map and the camera were ruled out.
+- **UI/UX redesign, the rink as the hub (19 Oct 2026, inline, commits fd8c798 … see `git log`;
+  plan in `<plan file>`):** the user asked for a UI/UX audit
+  and a redo so that visitors "go through the rink, then see the elements and the scoring".
+  Decisions taken with them: home keeps a short landing whose hero is a **teaser** rink (a
+  looping mini program with captions, values and a protocol ticker, no controls, one "Enter the
+  rink" button; the user rejected a second interactive rink on the home page), everything in
+  scope, all inline.
+  - Shell: `components/ui/{Sheet,Disclosure}.tsx`, `lib/{useInView,useMediaQuery,useLocalFlag}.ts`,
+    `components/{ValueCard,ElementCard,LessonLayout,LessonTabs,SignNotes,ShortcutsDialog}.tsx`,
+    `PageHeader compact`, `Tabs size/wrap`, `Chip href`, `Hud placement/bottomClass`,
+    `ElementViewer lazy` (poster until in view; the page's main viewer passes `lazy={false}`).
+    Nav: Rink · Elements (with Compare) · Scoring; footer: Sources, changes, glossary, keyboard
+    shortcuts (`?` opens the panel). The player bar is one row on phones (time and camera label
+    hidden under `sm`), so every HUD bottom offset is `bottom-12` by default.
+  - Rink (`app/rink/*`): `RinkApp mode="page"|"teaser"`; two independent docks (Perform, Score)
+    with edge tabs when closed on `sm+`; on phones a non-modal bottom `Sheet` whose peek bar
+    carries the compact `SteerPad` (one cycling gear button) and the running total; HUD marker
+    top-centre; `learnFor(spec)` in `three/animation/catalog.ts` feeds the `LearnCard` ("What you
+    just saw": code, value, blurb, "About the …" → lesson page, "How it is scored" → `/scoring#…`),
+    shown in the Score dock for the selected or last element and as a toast when the dock is
+    closed; `Protocol` has the total explained, "Open in the calculator" (`/calculator?codes=`),
+    clickable rows; `Palette` on `Tabs` (wrapping) with `Segmented` rows, values on every item,
+    the chosen call/edge sign explained in the ISU's words (`SignNotes`, after the user asked
+    "what are < << ! e"), a Programs tab (`programs.ts`: three mini programs); `Intro.tsx` first-visit
+    card (`localStorage fse-rink-intro`, reopenable from the shortcuts panel). Tests:
+    `tests/learn.test.ts`.
+  - Element pages: viewer first with a compact header, `LessonGrid` (sticky rail with `ValueCard`
+    and "Perform on the rink"), controls as `Segmented`/`Chip`, long text on `LessonTabs`;
+    `/jumps` index on `ElementCard`s with Watch and Perform, the calling rules in a `Disclosure`,
+    anchors `#signs` and `#not-listed`; `FlipVsLutz` and `Compare` lost their own camera controls
+    (the left player's menu drives both) and mount lazily; `/spins` keeps the builder first, the
+    four small viewers became `SpinGallery`; `TurnExplorer`/`ChoreoExplorer`/`SpecialExplorer`
+    preselect from `?turn=`/`?move=`/`?special=` (wrapped in `Suspense`).
+  - Scoring: `elementSpecFromCode`/`elementSpecsFromCodes` in `lib/decoder/parse.ts`
+    (`tests/decoder.test.ts`); the calculator has a sticky score panel, a card list and a fixed
+    total bar under `md`, start-from chips, add-element on tabs; `/scoring` has the anchor chips.
+  - Verified by screenshots at 1280 and 390 (scratchpad `a/`), the e2e suite (26 tests: teaser,
+    learn card and calculator hand-off, phone sheet with the ice ≥ 45 % of the viewport, codes
+    import, single camera control, preselects, grouped nav) and the unit suite.
+  - Gotchas met: `cn` is a plain join, so never pass conflicting utilities (give components a prop
+    instead); Tailwind only sees literal class strings (no template literals); the React compiler
+    lint forbids `setState` directly in an effect (use subscriptions, lazy state or
+    `useSyncExternalStore`); `getByLabel` also matches a tab panel's `aria-labelledby`.
 - **Pending, in priority order:**
-  1. Content pages onto the new primitives (plan Wave 3, agents 3A/3B); Compare and FlipVsLutz
-     still carry their own camera selects; the drawer could get a live preview stage.
+  1. Stills for the home and index `ElementCard`s (pose-lab shots into `public/elements/`), the
+     drawer's live preview stage, hair-style stills (`public/looks/`).
   2. Review finding [2] above; `sitStand` retune.
-  3. Stills for the hair-style cards in the drawer (`public/looks/`), if wanted.
-  4. Hair is rigid on the head (a long ponytail or loose hair passes through the back in a layback);
+  3. Hair is rigid on the head (a long ponytail or loose hair passes through the back in a layback);
      hair physics is a later item.
+  4. Rink: combination jumps and a step sequence as performable elements; a program timer with
+     SP/FS limits; shareable protocol URLs.
 - **User feedback during the night, verbatim themes:** "blades sink in the ice" (fixed),
   "horrible ui" on the rink (panels/fullscreen/phone rebuilt), "give arrow keys for direction"
   (done), colours "dull out" sometimes (the arena glass was tinted and the follow camera often
