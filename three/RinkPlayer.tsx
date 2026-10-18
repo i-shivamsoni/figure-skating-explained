@@ -8,6 +8,7 @@ import { createPlayerStore } from "./animation/store";
 import { pointAt } from "./animation/place";
 import type { ProgramStore } from "./animation/program";
 import { cn } from "@/components/ui/cn";
+import { useUiStore } from "@/lib/uiStore";
 
 /**
  * The freeplay rink: the arena, the skater performing the program store's segments one after
@@ -54,6 +55,7 @@ export function RinkPlayer({ program, className, children }: { program: ProgramS
         s.toggle();
       } else if (e.key === "f" || e.key === "F") toggleFullscreen();
       else if (e.key === "t" || e.key === "T") s.setTrack(!s.track);
+      else if (e.key === "?") useUiStore.getState().openShortcuts();
     },
     [store, toggleFullscreen],
   );

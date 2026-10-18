@@ -8,3 +8,5 @@ export { Drawer, type DrawerProps } from "./Drawer";
 export { Toolbar, ToolbarSeparator } from "./Toolbar";
 export { Swatches, type Swatch, type SwatchesProps } from "./Swatches";
 export { cn } from "./cn";
+export { Sheet, type SheetProps } from "./Sheet";
+export { Disclosure, type DisclosureProps } from "./Disclosure";

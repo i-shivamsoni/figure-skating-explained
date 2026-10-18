@@ -76,6 +76,7 @@ export function ElementPlayer({ timeline, autoplay = true, initialTime = 0, came
       else if (e.key === "f" || e.key === "F") toggleFullscreen();
       else if (e.key === "c" || e.key === "C") s.setPreset(CYCLE[(CYCLE.indexOf(s.preset) + 1) % CYCLE.length]);
       else if (e.key === "t" || e.key === "T") s.setTrack(!s.track);
+      else if (e.key === "?") useUiStore.getState().openShortcuts();
     },
     [store, toggleFullscreen],
   );
@@ -317,7 +318,7 @@ export function CameraRig({ timeline, store, container, focus }: { timeline: Tim
 }
 
 /** Marker, rotation counter, value pop, arrow legend and caption over the canvas. */
-export function Hud({ timeline, store, extra, caption, value, controls = true }: { timeline: Timeline; store: PlayerStore; extra?: ReactNode; caption?: string; value?: number; controls?: boolean }) {
+export function Hud({ timeline, store, extra, caption, value, controls = true, placement = "corner" }: { timeline: Timeline; store: PlayerStore; extra?: ReactNode; caption?: string; value?: number; controls?: boolean; placement?: "corner" | "top" }) {
   const time = useStore(store, (s) => s.time);
   const ready = useStore(store, (s) => s.ready);
   const marker = markerAt(timeline, time);
@@ -336,8 +337,9 @@ export function Hud({ timeline, store, extra, caption, value, controls = true }:
   const activeArrows = (timeline.arrows ?? []).filter((a) => time >= a.from && time <= a.to);
   return (
     <div className="pointer-events-none absolute inset-0 text-sm">
-      <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2 sm:p-3">
-        <div className="max-w-[62%] rounded-lg bg-surface/85 px-3 py-1.5 shadow backdrop-blur">
+      <div className={cn("absolute inset-x-0 top-0 gap-2 p-2 sm:p-3", placement === "top" ? "grid grid-cols-[1fr_auto_1fr] items-start" : "flex items-start justify-between")}>
+        {placement === "top" && <span />}
+        <div className={cn("rounded-lg bg-surface/85 px-3 py-1.5 shadow backdrop-blur", placement === "top" ? "max-w-[min(60vw,28rem)] text-center" : "max-w-[62%]")}>
           {!ready && <p className="text-muted">Loading skater…</p>}
           {ready && marker && (
             <>
