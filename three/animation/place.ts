@@ -157,15 +157,41 @@ const G = 9.81;
 /** The steepest edge lean steering may ask for (a turn at speed leans the body by atan(v·ω/g)). */
 export const LEAN_MAX = (35 * Math.PI) / 180;
 
+/** The briskest turn a skater makes however slowly she is moving, radians per second: a step turn at the boards, not a pirouette. */
+export const TURN_RATE_MAX = 1.6;
+
+/** The fastest turn (radians per second) at `speed`: the lean stays within LEAN_MAX and the rate within TURN_RATE_MAX. */
+export function maxTurnRate(speed: number): number {
+  return Math.min(TURN_RATE_MAX, (G * Math.tan(LEAN_MAX)) / Math.max(speed, 1));
+}
+
 /** The turn rate `rate` limited so the lean at `speed` stays within LEAN_MAX. */
 export function clampRate(rate: number, speed: number): number {
-  const max = (G * Math.tan(LEAN_MAX)) / Math.max(speed, 1);
-  return Math.sign(rate) * Math.min(Math.abs(rate), max);
+  return Math.sign(rate) * Math.min(Math.abs(rate), maxTurnRate(speed));
 }
 
 /** Metres needed to brake to a standstill from `speed`. */
 export function brakingDistance(speed: number): number {
   return (speed * speed) / (2 * BRAKE);
+}
+
+/** The tightest arc a skater can hold at `speed`: v / maxTurnRate, so v²/(g·tan θ) when the lean limits her (about 7 m sprinting) and v/TURN_RATE_MAX when the step-turn rate does (about 2 m stroking). */
+export function minRadius(speed: number): number {
+  return Math.max(0.05, speed / maxTurnRate(speed));
+}
+
+/**
+ * True when the skater at `p`, moving at `speed`, can carry on turning at full lean to at least
+ * one side without leaving the ice: the circle of the tightest arc, tangent to her heading, lies
+ * inside the boards. A steered segment is only accepted when it ends in such a state, so she is
+ * never boxed in and never asked for a tighter arc than the lean allows.
+ */
+export function canTurnAway(p: IcePoint, speed: number, margin = EDGE_MARGIN): boolean {
+  const R = minRadius(speed);
+  const lx = Math.cos(p.heading);
+  const lz = -Math.sin(p.heading);
+  // a few millimetres of slack: the circle a later segment follows is integrated, not analytic
+  return insideRink(p.x + R * lx, p.z + R * lz, margin + R + 0.005) || insideRink(p.x - R * lx, p.z - R * lz, margin + R + 0.005);
 }
 
 export interface LinkOptions {

@@ -3,7 +3,7 @@ import { GEARS, GEAR_BY_ID, gearFor, shiftGear } from "@/three/animation/strokin
 import { strokePose } from "@/three/rig/poses-stroking";
 import { defaultRest, describeViolations, validatePose } from "@/three/rig/limits";
 import { poseFrames } from "@/three/rig/limits";
-import { clampRate, endOf, LEAN_MAX, linkPhaseAt, linkTimeline, pointAt, startOf, STROKE_SPEED, wrapAngle, type IceState } from "@/three/animation/place";
+import { canTurnAway, clampRate, endOf, LEAN_MAX, linkPhaseAt, linkTimeline, minRadius, pointAt, startOf, STROKE_SPEED, wrapAngle, type IceState } from "@/three/animation/place";
 import { poseAt } from "@/three/animation/timeline";
 import { createProgramStore } from "@/three/animation/program";
 import { insideRink } from "@/three/animation/rinkSize";
@@ -222,7 +222,19 @@ describe("the program with gears and backward skating", () => {
     expect(store.getState().playing.timeline.title).toBe("Coasting");
   });
 
-  it("sprints to the boards and stays on the ice there, in every direction", () => {
+  it("the tightest arc follows the lean limit, and a safe state is one a full-lean circle fits from", () => {
+    near(minRadius(7), 49 / (G * Math.tan(LEAN_MAX)), 1e-9);
+    expect(minRadius(7)).toBeGreaterThan(6);
+    expect(minRadius(STROKE_SPEED)).toBeLessThan(2.5);
+    expect(canTurnAway({ x: 0, z: 0, heading: 0 }, 7)).toBe(true);
+    // 3 m from the side boards, heading straight at them: fine when stroking, not when sprinting
+    expect(canTurnAway({ x: 0, z: 12, heading: 0 }, STROKE_SPEED)).toBe(true);
+    expect(canTurnAway({ x: 0, z: 12, heading: 0 }, 7)).toBe(false);
+    // along the boards 1 m in: a stroking skater can still arc away toward the middle
+    expect(canTurnAway({ x: 0, z: 14, heading: Math.PI / 2 }, STROKE_SPEED)).toBe(true);
+  });
+
+  it("sprints with a held turn: stays on the ice, never leans past the limit, never flips round in one segment", () => {
     for (const start of [
       { x: 0, z: 9, heading: 0 },
       { x: 20, z: 0, heading: Math.PI / 2 },
@@ -230,18 +242,48 @@ describe("the program with gears and backward skating", () => {
     ]) {
       const store = createProgramStore(start);
       const s = store.getState();
-      s.setGear("sprint");
       s.setSteer(1.1, GEAR_BY_ID.sprint.speed);
       let fastest = 0;
-      for (let i = 0; i < 25; i++) {
+      for (let i = 0; i < 30; i++) {
         s.advance();
         const tl = store.getState().playing.timeline;
+        expect(tl.duration, `fallback hit at ${JSON.stringify(start)} step ${i}`).toBeGreaterThan(0.5);
         for (const sample of tl.trace) expect(insideRink(sample.x, sample.z, 0.3), `${JSON.stringify(start)} ${sample.x.toFixed(1)}, ${sample.z.toFixed(1)}`).toBe(true);
+        for (let k = 0; k <= 20; k++) expect(Math.abs(tl.root((tl.duration * k) / 20).roll ?? 0)).toBeLessThanOrEqual(LEAN_MAX + 0.02);
+        expect(Math.abs(wrapAngle(endOf(tl).heading - startOf(tl).heading))).toBeLessThan(Math.PI * 0.6);
         fastest = Math.max(fastest, endOf(tl).speed);
-        if (i === 6) s.setSteer(0, GEAR_BY_ID.sprint.speed);
+        if (i === 8) s.setSteer(0, GEAR_BY_ID.sprint.speed);
       }
       expect(fastest).toBeGreaterThan(6);
     }
+  });
+
+  it("sprinting straight at the boards, she brakes to the glass instead of swerving early", () => {
+    const store = createProgramStore({ x: -20, z: 0, heading: Math.PI / 2 });
+    const s = store.getState();
+    s.setSteer(0, GEAR_BY_ID.sprint.speed);
+    let closest = Infinity;
+    let speedNearBoards = Infinity;
+    let headingHeld = true;
+    let reached = false;
+    for (let i = 0; i < 30; i++) {
+      s.advance();
+      const tl = store.getState().playing.timeline;
+      expect(tl.duration).toBeGreaterThan(0.5);
+      for (const sample of tl.trace) expect(insideRink(sample.x, sample.z, 0.3)).toBe(true);
+      const e = endOf(tl);
+      const gap = 30 - e.x;
+      if (gap < closest) {
+        closest = gap;
+        speedNearBoards = e.speed;
+      }
+      // she keeps her line until the last two metres; only there is a turn allowed
+      if (gap < 2) reached = true;
+      if (!reached && Math.abs(wrapAngle(e.heading - Math.PI / 2)) > 0.05) headingHeld = false;
+    }
+    expect(closest).toBeLessThan(1.5);
+    expect(speedNearBoards).toBeLessThan(1.5);
+    expect(headingHeld).toBe(true);
   });
 
   it("carries speed, lean, facing and stroke phase from one segment to the next", () => {

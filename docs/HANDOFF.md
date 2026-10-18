@@ -21,8 +21,8 @@ Deploy with `vercel deploy --prod --yes` (preview: `vercel deploy --yes`; previe
 Vercel auth, production is public). The Vercel CLI is 54.x and nags to upgrade; ignore it.
 
 State at the time of writing (updated 18 Oct 2026, evening IST): see §10 for the overhaul and the
-stroking rebuild; 353 vitest tests green, 21 Playwright tests green, typecheck and lint clean,
-production redeployed after the stroking commit.
+stroking rebuild; 355 vitest tests green, 21 Playwright tests green, typecheck and lint clean,
+production redeployed after the boards commit (braking and lean-limited arcs).
 
 ## 2. The user and the working agreement
 
@@ -392,6 +392,19 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
     touch) sits bottom-right of the rink; keys: ← → hold to turn, ↑ ↓ change gear, B toggles
     backward; the HUD names the gear ("Sprinting backward"). The old hold-↑-for-fast semantics are
     gone (`SPEED_FAST`/`SPEED_SLOW` removed).
+  - **The boards (user screenshot of a sprinting U-turn: "does skaters take such sharp turn",
+    "not going till the edge"):** a steered segment is accepted only if its trace is on the ice
+    and it ends in a state from which a full-lean arc still fits (`canTurnAway`: the circle of
+    radius `minRadius(v)` = v / `maxTurnRate(v)` tangent to the heading lies inside the boards;
+    `maxTurnRate` is the lean limit `g·tan 35° / v` capped at `TURN_RATE_MAX` 1.6 rad/s, so about
+    7 m at a sprint and 2 m stroking). `steeredLink` in program.ts: a held turn is skated as asked,
+    tighter toward the same side up to that rate, slower only if no arc fits; pointed straight at
+    the boards she **brakes instead of swerving** (speeds 5.2 → 3.5 → 2.0 → 1.2 → 0.7 → 0.4), reaches
+    within about 0.8 m of the glass, and turns on the spot there; if neither fits she holds the
+    tightest arc at her present speed toward the open side (always possible after an accepted
+    segment). The old "turn 10 m early with a 0.6 s U-turn" reserve is gone. Tests pin: no lean
+    past 35°, no segment turning more than 0.6π, the straight sprint braking to under 1.5 m/s
+    within 1.5 m of the boards with the heading held until the last 2 m.
   - Verified by screenshots (`drive.mts`-style Playwright script that holds keys on `/rink`, plus
     `/dev/pose?pose=strokeGlide|crossGlide|sprintGlide|backGlide|sprintRecover|crossRecover`).
     Known gaps: no toe-pick starts, no hockey stop, the backward crossover is the same construction

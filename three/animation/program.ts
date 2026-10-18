@@ -1,6 +1,6 @@
 import { createStore } from "zustand";
 import { buildTimeline, captionFor, toElementSpecs, type ViewerSpec } from "./catalog";
-import { brakingDistance, clampRate, EDGE_MARGIN, endOf, extentOf, keepInRink, linkPhaseAt, linkTimeline, placeTimeline, placementAfter, roomAhead, startOf, STROKE_SPEED, wrapAngle, type IcePoint, type IceState, type LinkOptions, type LinkTimeline } from "./place";
+import { canTurnAway, EDGE_MARGIN, endOf, extentOf, keepInRink, linkPhaseAt, linkTimeline, maxTurnRate, placeTimeline, placementAfter, roomAhead, startOf, STROKE_SPEED, wrapAngle, type IcePoint, type IceState, type LinkOptions, type LinkTimeline } from "./place";
 import { GEAR_BY_ID, gearFor, shiftGear, type Gear } from "./stroking";
 import { headingOf } from "./timeline";
 import { insideRink } from "./rinkSize";
@@ -166,19 +166,83 @@ function linkInto(position: IceState, tl: Timeline, steer: Steer): LinkTimeline 
   return make(keepInRink(position, 8 + extentOf(tl)).turn);
 }
 
+/** Speeds a steered skater drops to, in order, when the boards leave no room at the speed she wants. */
+const BRAKE_STEPS = [5.2, 3.5, 2.0, 1.2, 0.7, 0.4];
+
+/**
+ * One steered segment. A held turn is skated as asked, tighter toward the same side up to the
+ * lean limit if the boards demand it, and slower only when no arc at this speed fits. Pointed
+ * straight at the boards she brakes rather than swerving (as a skater does), right down to a
+ * crawl at the glass. When neither is possible she holds the tightest arc she can at her present
+ * speed toward the open side (the previous segment ended where such an arc fits, so one always
+ * does), and only at a crawl does she turn on the spot. Every accepted segment stays on the ice
+ * and ends where a full-lean arc still fits, so the next segment always has an answer.
+ */
+function steeredLink(at: IceState, steer: Steer): LinkTimeline {
+  const T = STEER_SECONDS;
+  const v0 = at.speed ?? 0;
+  const onIce = (tl: Timeline) => tl.trace.every((s) => insideRink(s.x, s.z, EDGE_MARGIN));
+  const fits = (tl: LinkTimeline) => {
+    if (!onIce(tl)) return false;
+    const e = endOf(tl);
+    return canTurnAway(e, e.speed);
+  };
+  const make = (rate: number, speed: number, ramp = true) => linkTimeline(at, { turn: rate * T, seconds: T, speed, ramp, backward: steer.backward, look: lookFor(rate) });
+  const speeds = [steer.speed, ...BRAKE_STEPS.filter((v) => v < steer.speed)];
+  const want = steer.rate;
+  if (want !== 0) {
+    const side = Math.sign(want);
+    for (const speed of speeds) {
+      // the lean is highest at the fastest moment of the segment, whichever way the speed ramps
+      const max = maxTurnRate(Math.max(v0, speed));
+      const rates: number[] = [];
+      for (let r = Math.min(Math.abs(want), max); r < max; r += 0.25) rates.push(r);
+      rates.push(max);
+      for (const r of rates) {
+        const tl = make(side * r, speed);
+        if (fits(tl)) return tl;
+      }
+    }
+  } else {
+    for (const speed of speeds) {
+      const tl = make(0, speed);
+      if (fits(tl)) return tl;
+    }
+  }
+  const left = roomAhead(at, at.heading + Math.PI / 2, 0);
+  const right = roomAhead(at, at.heading - Math.PI / 2, 0);
+  const sides = left >= right ? [1, -1] : [-1, 1];
+  if (v0 > 0.3) {
+    for (const side of sides) {
+      const tl = make(side * maxTurnRate(v0), v0, false);
+      if (fits(tl)) return tl;
+    }
+  }
+  for (const speed of [...speeds].reverse()) {
+    const max = maxTurnRate(Math.max(v0, speed));
+    for (let r = Math.min(0.4, max); ; r = Math.min(max, r + 0.4)) {
+      for (const side of sides) {
+        const tl = make(side * r, speed);
+        if (fits(tl)) return tl;
+      }
+      if (r >= max) break;
+    }
+  }
+  return linkTimeline(at, { turn: keepInRink(at, 3).turn, seconds: 0.25, speed: 0.4, ramp: false, backward: steer.backward });
+}
+
 function idle(at: IceState, wander: 1 | -1, steer: Steer = NO_STEER): Playing {
   const speed = steer.speed;
-  const steered = steer.rate !== 0 || speed !== STROKE_SPEED;
-  // steering may take her to the boards: the next segment's length, the distance to brake and one tight turn are reserved
-  const ahead = steered ? speed * STEER_SECONDS + brakingDistance(speed) + 0.8 : 10;
-  const k = keepInRink(at, ahead);
-  const seconds = steered ? STEER_SECONDS : 3;
+  if (steer.rate !== 0 || speed !== STROKE_SPEED) return { kind: "idle", timeline: steeredLink(at, steer) };
+  // the unsteered wander: a gentle curve, homing to centre ice beyond HOME_RADIUS, turning before the boards
+  const k = keepInRink(at, 10);
+  const seconds = 3;
   let free = wander * 0.5;
-  if (!steered && Math.hypot(at.x, at.z) > HOME_RADIUS) {
+  if (Math.hypot(at.x, at.z) > HOME_RADIUS) {
     const home = wrapAngle(headingOf(-at.x, -at.z) - at.heading);
     free = Math.sign(home || 1) * Math.min(0.6, Math.abs(home));
   }
-  const turn = k.turn || (steered ? clampRate(steer.rate, speed) * seconds : free);
+  const turn = k.turn || free;
   return { kind: "idle", timeline: safeLink(at, { turn, seconds: turnSeconds(at, turn, seconds, speed), speed, backward: steer.backward, look: lookFor(turn) }) };
 }
 
