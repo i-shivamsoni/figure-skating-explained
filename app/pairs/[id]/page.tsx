@@ -93,10 +93,10 @@ export default async function PairElementPage({ params }: { params: Promise<{ id
   const goe = PAIR_GOE_GUIDELINES.find((g) => g.elementType === GOE_FOR[fam.id]);
   return (
     <>
-      <PageHeader eyebrow="Pair Skating" title={fam.name} intro={<p>{fam.definition}</p>} />
+      <PageHeader compact eyebrow="Pair Skating" title={fam.name} intro={<p>{fam.definition}</p>} />
       {VIEWERS[fam.id] && (
-        <Section>
-          <PairExplorer presets={VIEWERS[fam.id]!} camera="side" height={460} />
+        <Section className="pt-0">
+          <PairExplorer presets={VIEWERS[fam.id]!} camera="side" />
           <p className="mt-2 text-sm text-muted">The Woman is the primary skater; the Man rides the partner track. Use the camera menu to orbit, and scrub to see the hold, the counted revolutions and the dismount.</p>
         </Section>
       )}

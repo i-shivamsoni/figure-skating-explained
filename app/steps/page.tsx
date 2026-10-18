@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Card, PageHeader, Section, Sig } from "@/components/Page";
 import { SourceNote } from "@/components/SourceNote";
 import { ValueTable } from "@/components/ValueTable";
@@ -14,19 +15,15 @@ export default function StepsPage() {
   return (
     <>
       <PageHeader
+        compact
         eyebrow="Step sequence"
         title="Turns and steps, drawn on the ice"
-        intro={
-          <>
-            <p>
-              A step sequence is judged by what the blade does. Turns change the direction of skating on one foot; steps move from one foot to the other. Six of them count as difficult: twizzles, brackets, loops, counters, rockers and choctaws. The level comes from how many different difficult turns and steps appear, in both rotational directions, with body movement and in clusters of three.
-            </p>
-            <p>The overhead camera below shows the tracing: blue is an outside edge, orange an inside edge.</p>
-          </>
-        }
+        intro={<p>A step sequence is judged by what the blade does: turns change direction on one foot, steps move to the other foot, and six of them count as difficult (★). Seen from overhead, blue is an outside edge and orange an inside edge.</p>}
       />
-      <Section>
-        <TurnExplorer />
+      <Section className="pt-0">
+        <Suspense fallback={null}>
+          <TurnExplorer />
+        </Suspense>
       </Section>
       <Section title="The vocabulary">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

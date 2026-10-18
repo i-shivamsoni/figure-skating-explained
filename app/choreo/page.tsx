@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Card, PageHeader, Section, Sig } from "@/components/Page";
 import { SourceNote } from "@/components/SourceNote";
 import { ValueTable } from "@/components/ValueTable";
@@ -15,16 +16,15 @@ export default function ChoreoPage() {
   return (
     <>
       <PageHeader
+        compact
         eyebrow="Choreographic elements"
         title="Fixed value, judged on quality"
-        intro={
-          <p>
-            Two elements of the Free Skating have no levels at all. The technical panel only confirms that a choreographic sequence or a choreographic spin happened; the judges then score it purely on Grade of Execution, with each grade worth ±0.50 instead of 10% of the base value.
-          </p>
-        }
+        intro={<p>The choreographic sequence and the choreographic spin have no levels: the technical panel only confirms they happened, and the judges score them on Grade of Execution alone, each grade worth ±0.50.</p>}
       />
-      <Section title="Movements of a choreographic sequence">
-        <ChoreoExplorer />
+      <Section className="pt-0">
+        <Suspense fallback={null}>
+          <ChoreoExplorer />
+        </Suspense>
       </Section>
       <Section>
         <div className="grid gap-4 md:grid-cols-2">

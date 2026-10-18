@@ -1,8 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ElementViewer } from "@/components/ElementViewer";
+import { ControlRow, LessonGrid, VIEWER_HEIGHT } from "@/components/LessonLayout";
+import { ValueCard } from "@/components/ValueCard";
+import { Chip } from "@/components/ui/Chip";
+import { Segmented } from "@/components/ui/Segmented";
+import { Select } from "@/components/ui/Select";
 import { SPIN_FAMILIES } from "@/data/spins";
 import { SOV, hasCode } from "@/lib/scoring/sov";
 import { spinCode, spinFeatureNotes, spinFromSpec, spinPositions, spinRevolutions, VARIATION_POSE, VARIATIONS_FOR, type BasicPosition, type SpinFeatures, type SpinLevel } from "@/three/animation/spins";
@@ -10,19 +14,11 @@ import { spinCode, spinFeatureNotes, spinFromSpec, spinPositions, spinRevolution
 const LEVELS: SpinLevel[] = ["B", 1, 2, 3, 4];
 const POSITION_NAMES: Record<BasicPosition, string> = { camel: "Camel", sit: "Sit", upright: "Upright", layback: "Layback" };
 
-function Toggle({ on, onChange, children, disabled, title }: { on: boolean; onChange: (v: boolean) => void; children: React.ReactNode; disabled?: boolean; title?: string }) {
-  return (
-    <button type="button" onClick={() => onChange(!on)} aria-pressed={on} disabled={disabled} title={title} className={`rounded-md border px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-40 ${on ? "border-accent bg-accent-soft font-medium text-accent-strong" : "border-border bg-surface hover:border-accent"}`}>
-      {children}
-    </button>
-  );
-}
-
 /**
  * Builds any spin family with the level features that change what you see: the flying entry and
  * its difficult variation, the change of foot by step or by jump, a clear change of edge, a
- * difficult variation per position, eight revolutions, a difficult entrance and windmills. Shows
- * the protocol code with its base value and what the technical panel would count for the level.
+ * difficult variation per position, eight revolutions, a difficult entrance and windmills. The
+ * rail shows the protocol code with its base value and what the technical panel would count.
  */
 export function SpinExplorer({ family: initialFamily, defaultLevel = 4 }: { family: string; defaultLevel?: SpinLevel }) {
   const [family, setFamily] = useState(initialFamily);
@@ -49,150 +45,128 @@ export function SpinExplorer({ family: initialFamily, defaultLevel = 4 }: { fami
   const notes = useMemo(() => spinFeatureNotes(fam.code, features), [fam.code, features]);
   const revs = useMemo(() => spinRevolutions(spinFromSpec(fam.code, features)), [fam.code, features]);
   const firstIsCamel = positions[0] === "camel";
-  return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-      <div>
-        <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
-          <label className="flex items-center gap-1">
-            Family
-            <select
-              value={fam.code}
-              onChange={(e) => {
-                // toggles hidden for the new family must not carry state
-                setFamily(e.target.value);
-                setDifficultEntrance(false);
-                setWindmills(false);
-                setChangeByJump(false);
-                setDifficultFly(false);
-              }}
-              className="rounded border border-border bg-surface px-1 py-0.5 font-mono"
-              aria-label="Spin family"
-            >
-              {SPIN_FAMILIES.map((f) => (
-                <option key={f.code} value={f.code}>
-                  {f.code} · {f.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <span className="ml-2 text-muted">Level</span>
-          {LEVELS.map((l) => (
-            <button key={l} type="button" onClick={() => setLevel(l)} aria-pressed={l === level} className={`rounded-md border px-2.5 py-1 font-mono ${l === level ? "border-accent bg-accent-soft font-medium text-accent-strong" : "border-border bg-surface hover:border-accent"}`}>
-              {l}
-            </button>
-          ))}
-          <Toggle on={v} onChange={setV} disabled={!vExists && !v} title={vExists ? "Reduced value" : "No V row for this code in the Scale of Values"}>
-            V · reduced value
-          </Toggle>
-        </div>
-        <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-muted">Features</span>
-          <Toggle on={changeOfEdge} onChange={setChangeOfEdge}>Clear change of edge</Toggle>
-          <Toggle on={eightRevolutions} onChange={setEightRevolutions}>8 revolutions</Toggle>
-          {fam.changeOfFoot && <Toggle on={changeByJump} onChange={setChangeByJump}>Change of foot by jump</Toggle>}
-          {fam.flying && (
-            <Toggle on={difficultFly} onChange={setDifficultFly} disabled={v} title={v ? "A stepped-over entry has no flying feature" : undefined}>
-              Difficult variation of flying entry
-            </Toggle>
-          )}
-          {!fam.flying && <Toggle on={difficultEntrance} onChange={setDifficultEntrance}>Difficult entrance · travelling threes</Toggle>}
-          {!fam.flying && firstIsCamel && <Toggle on={windmills} onChange={setWindmills}>Windmills ×3</Toggle>}
-          {positions.map((pos) => (
-            <label key={pos} className="flex items-center gap-1">
-              {POSITION_NAMES[pos]} variation
-              <select value={variations[pos] ?? ""} onChange={(e) => setVariations({ ...variations, [pos]: e.target.value || undefined })} className="rounded border border-border bg-surface px-1 py-0.5" aria-label={`${POSITION_NAMES[pos]} variation`}>
-                <option value="">none</option>
-                {VARIATIONS_FOR[pos].map((id) => (
-                  <option key={id} value={id}>
-                    {VARIATION_POSE[id].name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ))}
-        </div>
-        <ElementViewer spec={spec} height={480} camera="side" />
-      </div>
-      <aside className="space-y-3">
-        <div className="rounded-xl border border-border bg-surface p-4">
-          <p className="text-xs uppercase tracking-wide text-muted">Protocol code</p>
-          <p className="font-mono text-3xl font-semibold" data-testid="spin-code">
-            {code}
-          </p>
-          <Link href={`/rink?perform=${encodeURIComponent(code)}`} className="mt-1 inline-block text-sm font-medium text-accent hover:underline">
-            Perform it on the rink →
-          </Link>
-          <p className="mt-1 text-sm text-muted">
+  const counted = notes.features.filter((f) => f.counted).length;
+  const rail = (
+    <>
+      <ValueCard
+        code={code}
+        testId="spin"
+        name={
+          <>
             {fam.name}, Level {level}
             {v && ", reduced value"}
-          </p>
-          {entry ? (
-            <>
-              <p className="mt-3 text-xs uppercase tracking-wide text-muted">Base value</p>
-              <p className="font-mono text-2xl font-semibold" data-testid="spin-value">
-                {entry.base.toFixed(2)}
-              </p>
-              <table className="mt-2 w-full text-xs">
-                <tbody>
-                  {[5, 3, 1, -1, -3, -5].map((g) => (
-                    <tr key={g} className="border-t border-border">
-                      <td className="py-1 font-mono text-muted">GOE {g > 0 ? `+${g}` : g}</td>
-                      <td className="py-1 text-right font-mono">{(entry.base + entry.goe[g + 5]).toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          ) : (
-            <p className="mt-3 text-sm text-highlight">Not in the Scale of Values: this code has no V row.</p>
-          )}
-        </div>
-        <div className="rounded-xl border border-border bg-surface p-4 text-sm">
-          <p className="font-semibold">What counts for the level</p>
-          <ol className="mt-2 space-y-1.5">
-            {notes.features.length === 0 && <li className="text-muted">No level features: the spin is Basic (B) however well it is done.</li>}
-            {notes.features.map((f, i) => (
-              <li key={`${f.number}-${i}`} className="flex gap-2">
-                <span className={`mt-0.5 inline-block h-4 w-4 shrink-0 rounded-full text-center text-[10px] leading-4 ${f.counted ? "bg-accent text-white" : "bg-border text-muted"}`}>{f.counted ? "✓" : "–"}</span>
-                <span>
-                  <span className="font-medium">
-                    {f.number}. {f.name}
-                  </span>
-                  {f.mandatory && <span className="ml-1 rounded-full bg-accent px-1.5 py-0.5 text-[10px] text-white">unlocks Level 4</span>}
-                  <span className="block text-xs text-muted">{f.note}</span>
+          </>
+        }
+        entry={entry}
+        missing="Not in the Scale of Values: this code has no V row."
+      />
+      <div className="rounded-xl border border-border bg-surface p-4 text-sm">
+        <p className="font-semibold">What counts for the level</p>
+        <ol className="mt-2 space-y-1.5">
+          {notes.features.length === 0 && <li className="text-muted">No level features: the spin is Basic (B) however well it is done.</li>}
+          {notes.features.map((f, i) => (
+            <li key={`${f.number}-${i}`} className="flex gap-2">
+              <span className={`mt-0.5 inline-block h-4 w-4 shrink-0 rounded-full text-center text-[10px] leading-4 ${f.counted ? "bg-accent text-white" : "bg-border text-muted"}`}>{f.counted ? "✓" : "–"}</span>
+              <span>
+                <span className="font-medium">
+                  {f.number}. {f.name}
                 </span>
+                {f.mandatory && <span className="ml-1 rounded-full bg-accent px-1.5 py-0.5 text-[10px] text-white">unlocks Level 4</span>}
+                <span className="block text-xs text-muted">{f.note}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-3 text-xs text-muted">
+          {counted} feature{counted === 1 ? "" : "s"} counted: supports Level {notes.supported}
+          {!notes.mandatoryCounted && counted >= 4 && " (Level 4 also needs one of the six mandatory features)"}. The code above uses the level you picked.
+        </p>
+        <p className="mt-3 font-semibold">Revolutions counted</p>
+        <ul className="mt-1 space-y-0.5 text-xs">
+          {revs.phases
+            .filter((p) => p.basic || p.label.startsWith("Change of foot") || p.label.startsWith("Windmill"))
+            .map((p, i) => (
+              <li key={i} className="flex justify-between gap-2">
+                <span>
+                  {p.label}
+                  {p.basic && <span className="text-muted"> · {p.foot === "L" ? "left" : "right"} foot</span>}
+                </span>
+                <span className="font-mono">{p.basic ? `${p.held} rev` : ""}</span>
               </li>
             ))}
-          </ol>
-          <p className="mt-3 text-xs text-muted">
-            {notes.features.filter((f) => f.counted).length} feature{notes.features.filter((f) => f.counted).length === 1 ? "" : "s"} counted: supports Level {notes.supported}
-            {!notes.mandatoryCounted && notes.features.filter((f) => f.counted).length >= 4 && " (Level 4 also needs one of the six mandatory features)"}. The code above uses the level you picked.
-          </p>
-          <p className="mt-3 font-semibold">Revolutions counted</p>
-          <ul className="mt-1 space-y-0.5 text-xs">
-            {revs.phases
-              .filter((p) => p.basic || p.label.startsWith("Change of foot") || p.label.startsWith("Windmill"))
-              .map((p, i) => (
-                <li key={i} className="flex justify-between gap-2">
-                  <span>
-                    {p.label}
-                    {p.basic && <span className="text-muted"> · {p.foot === "L" ? "left" : "right"} foot</span>}
-                  </span>
-                  <span className="font-mono">{p.basic ? `${p.held} rev` : ""}</span>
-                </li>
-              ))}
-            <li className="mt-1 flex justify-between gap-2 border-t border-border pt-1 text-muted">
-              <span>
-                {revs.perFoot.L > 0 && `left foot ${revs.perFoot.L.toFixed(1)}`}
-                {revs.perFoot.L > 0 && revs.perFoot.R > 0 && " · "}
-                {revs.perFoot.R > 0 && `right foot ${revs.perFoot.R.toFixed(1)}`}
-              </span>
-              <span className="font-mono">{revs.total.toFixed(1)} in all</span>
-            </li>
-          </ul>
-          <p className="mt-2 text-xs text-muted">A position counts after two revolutions; a change of foot needs three before and after it; the Short Program spin combination needs six on each foot.</p>
+          <li className="mt-1 flex justify-between gap-2 border-t border-border pt-1 text-muted">
+            <span>
+              {revs.perFoot.L > 0 && `left foot ${revs.perFoot.L.toFixed(1)}`}
+              {revs.perFoot.L > 0 && revs.perFoot.R > 0 && " · "}
+              {revs.perFoot.R > 0 && `right foot ${revs.perFoot.R.toFixed(1)}`}
+            </span>
+            <span className="font-mono">{revs.total.toFixed(1)} in all</span>
+          </li>
+        </ul>
+        <p className="mt-2 text-xs text-muted">A position counts after two revolutions; a change of foot needs three before and after it; the Short Program spin combination needs six on each foot.</p>
+      </div>
+    </>
+  );
+  return (
+    <LessonGrid rail={rail}>
+      <div className="mb-3 space-y-2">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <Select
+            label="Family"
+            className="max-sm:w-full"
+            value={fam.code}
+            onChange={(e) => {
+              // toggles hidden for the new family must not carry state
+              setFamily(e.target.value);
+              setDifficultEntrance(false);
+              setWindmills(false);
+              setChangeByJump(false);
+              setDifficultFly(false);
+            }}
+            options={SPIN_FAMILIES.map((f) => ({ value: f.code, label: `${f.code} · ${f.name}` }))}
+          />
+          <ControlRow label="Level" className="gap-x-2">
+            <Segmented<SpinLevel> label="Level" value={level} onChange={setLevel} options={LEVELS.map((l) => ({ id: l, label: String(l) }))} />
+            <Chip onClick={() => setV(!v)} active={v} disabled={!vExists && !v} title={vExists ? "Reduced value" : "No V row for this code in the Scale of Values"}>
+              V · reduced value
+            </Chip>
+          </ControlRow>
         </div>
-      </aside>
-    </div>
+        <ControlRow label="Features">
+          <Chip onClick={() => setChangeOfEdge(!changeOfEdge)} active={changeOfEdge}>
+            Clear change of edge
+          </Chip>
+          <Chip onClick={() => setEightRevolutions(!eightRevolutions)} active={eightRevolutions}>
+            8 revolutions
+          </Chip>
+          {fam.changeOfFoot && (
+            <Chip onClick={() => setChangeByJump(!changeByJump)} active={changeByJump}>
+              Change of foot by jump
+            </Chip>
+          )}
+          {fam.flying && (
+            <Chip onClick={() => setDifficultFly(!difficultFly)} active={difficultFly} disabled={v} title={v ? "A stepped-over entry has no flying feature" : undefined}>
+              Difficult variation of flying entry
+            </Chip>
+          )}
+          {!fam.flying && (
+            <Chip onClick={() => setDifficultEntrance(!difficultEntrance)} active={difficultEntrance}>
+              Difficult entrance · travelling threes
+            </Chip>
+          )}
+          {!fam.flying && firstIsCamel && (
+            <Chip onClick={() => setWindmills(!windmills)} active={windmills}>
+              Windmills ×3
+            </Chip>
+          )}
+        </ControlRow>
+        <ControlRow label="Variations">
+          {positions.map((pos) => (
+            <Select key={pos} dense label={POSITION_NAMES[pos]} value={variations[pos] ?? ""} onChange={(e) => setVariations({ ...variations, [pos]: e.target.value || undefined })} options={[{ value: "", label: "none" }, ...VARIATIONS_FOR[pos].map((id) => ({ value: id, label: VARIATION_POSE[id].name }))]} />
+          ))}
+        </ControlRow>
+      </div>
+      <ElementViewer spec={spec} height={VIEWER_HEIGHT} camera="side" lazy={false} />
+    </LessonGrid>
   );
 }

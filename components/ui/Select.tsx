@@ -22,7 +22,7 @@ export function Select({ label, options, hideLabel, dense, className, id, ...res
   return (
     <label htmlFor={selectId} className={cn("inline-flex items-center gap-1.5 text-sm", className)}>
       <span className={hideLabel ? "sr-only" : "text-muted"}>{label}</span>
-      <select id={selectId} className={cn("focus-ring max-w-full rounded-lg border border-border bg-surface px-2", dense ? "h-8 text-xs" : "h-9 text-sm")} {...rest}>
+      <select id={selectId} className={cn("focus-ring min-w-0 max-w-full flex-1 rounded-lg border border-border bg-surface px-2", dense ? "h-8 text-xs" : "h-9 text-sm")} {...rest}>
         {options.map((o) => (
           <option key={o.value} value={o.value} disabled={o.disabled}>
             {o.label}

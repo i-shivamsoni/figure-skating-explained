@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Card, PageHeader, Section, Sig } from "@/components/Page";
 import { SourceNote } from "@/components/SourceNote";
 import { ElementViewer } from "@/components/ElementViewer";
 import { ValueTable } from "@/components/ValueTable";
 import { SPIN_CLARIFICATIONS, SPIN_FAMILIES, SPIN_LEVEL_FEATURES, SPIN_LEVEL_RULES, SPIN_POSITIONS, SPIN_REQUIREMENTS, VARIATION_CATEGORIES, V_SIGN_CASES } from "@/data/spins";
 import { SpinExplorer } from "./SpinExplorer";
+import { SpinGallery } from "./SpinGallery";
+import { Chip } from "@/components/ui/Chip";
+import { Disclosure } from "@/components/ui/Disclosure";
 
 export const metadata: Metadata = {
   title: "Spins",
@@ -42,24 +44,20 @@ export default function SpinsPage() {
   return (
     <>
       <PageHeader
+        compact
         eyebrow="Spins"
         title="Three positions, ten variations, four levels"
         intro={
-          <>
-            <p>
-              Every spin is built from three basic positions: camel, sit and upright. The layback, the sideways leaning spin and the Biellmann are all upright spins in the rules. A position only counts once it has been held for two revolutions, and the technical panel then counts features (difficult variations, a change of foot by jump, a change of edge, eight revolutions and so on) to award Level 1 to 4.
-            </p>
-            <p>The code tells you everything: <Sig>FCCoSp4V</Sig> is a flying (F) change-foot (C) combination (Co) spin (Sp) at Level 4 with reduced value (V).</p>
-          </>
+          <p>
+            Camel, sit and upright are the basic positions; the layback and the Biellmann are uprights in the rules. The code tells you everything: <Sig>FCCoSp4V</Sig> is a flying (F) change-foot (C) combination (Co) spin (Sp) at Level 4 with reduced value (V). Build one below and watch the code and value follow.
+          </p>
         }
       />
-      <Section title="Build a spin">
+      <Section className="pt-0">
         <SpinExplorer family="CCoSp" />
-        <p className="mt-2 text-sm text-muted">Choose any of the twenty families, a level and the features that change what you see: a flying entry and its difficult variation, a change of foot by step or by jump, a clear change of edge (the lean and the trace colour flip), a difficult variation in each position, eight revolutions, travelling threes, windmills. The protocol code, its base value and the features the technical panel would count follow along.</p>
+        <p className="mt-2 text-sm text-muted">Any of the twenty families, a level and the features that change what you see: a flying entry and its difficult variation, a change of foot by step or by jump, a clear change of edge (the lean and the trace colour flip), a difficult variation in each position, eight revolutions, travelling threes, windmills.</p>
       </Section>
       <Section title="The positions and their difficult variations">
-        <ElementViewer spec={{ kind: "spin", code: "variations" }} height={460} camera="free" />
-        <p className="mt-2 text-sm text-muted">One continuous spin cycling through the ten variation categories, seen from an orbiting camera so every position is read side-on at some point. Real spins hold each for at least two revolutions; only two difficult variations count toward the level in any one spin. The stills below show each position from a fixed angle.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {SPIN_POSITIONS.filter((p) => POSE_IMAGE[p.id]).map((p) => (
             <Card key={p.id} className="flex gap-3">
@@ -90,6 +88,10 @@ export default function SpinsPage() {
         </div>
         <SourceNote refs={[{ doc: "tpSingles", where: "Spins: Categories of difficult variations" }, { doc: "rules2026", where: "Rule 610" }]} className="mt-3" />
       </Section>
+      <Section title="Every variation in one spin">
+        <ElementViewer spec={{ kind: "spin", code: "variations" }} height={460} camera="free" />
+        <p className="mt-2 text-sm text-muted">One continuous spin cycling through the ten variation categories, seen from an orbiting camera so every position is read side-on at some point. Real spins hold each for at least two revolutions; only two difficult variations count toward the level in any one spin.</p>
+      </Section>
       <Section title="Level features">
         <ol className="grid gap-2 md:grid-cols-2">
           {SPIN_LEVEL_FEATURES.map((f) => (
@@ -109,29 +111,8 @@ export default function SpinsPage() {
         </ul>
         <SourceNote refs={[{ doc: "tpSingles", where: "Spins: Level features" }, { doc: "comm2788", where: "I" }]} className="mt-2" />
       </Section>
-      <Section title="Windmills, flying entries and changes of foot">
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <ElementViewer spec={{ kind: "spin", code: "FCSp" }} height={360} camera="side" />
-            <p className="mt-2 text-sm text-muted">Flying camel: a clear jump with a butterfly air position, landing straight into the camel. No rotation on the ice before take-off.</p>
-          </div>
-          <div>
-            <ElementViewer spec={{ kind: "spin", code: "windmills" }} height={360} camera="side" />
-            <p className="mt-2 text-sm text-muted">Windmills: three in a row, each close to a split, count as one feature and are one of the six that unlock Level 4.</p>
-          </div>
-        </div>
-      </Section>
-      <Section title="Popular names, special entries">
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <ElementViewer spec={{ kind: "spin", code: "shapes" }} height={360} camera="side" />
-            <p className="mt-2 text-sm text-muted">Pancake, doughnut, haircutter and headless: skaters’ names that the panel files under the ten official categories.</p>
-          </div>
-          <div>
-            <ElementViewer spec={{ kind: "spin", code: "FCSpToeArabian" }} height={360} camera="side" />
-            <p className="mt-2 text-sm text-muted">Toe Arabian entry: a horizontal butterfly from the toe pick, credited as a difficult fly or as a change of foot by jump.</p>
-          </div>
-        </div>
+      <Section title="Flying entries, windmills and special entries">
+        <SpinGallery />
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {SPIN_CLARIFICATIONS.map((c) => (
             <Card key={c.title}>
@@ -142,35 +123,39 @@ export default function SpinsPage() {
         </div>
         <SourceNote refs={[{ doc: "tpSingles", where: "Spins: Clarifications" }]} className="mt-3" />
       </Section>
-      <Section title="Reduced value (V)">
-        <p className="text-sm">The V sign cuts the base value to the row below the full code in the Scale of Values. It is used in exactly four situations:</p>
-        <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm">
-          {V_SIGN_CASES.map((c) => (
-            <li key={c}>{c}</li>
-          ))}
-        </ol>
-      </Section>
-      <Section title="Requirements">
-        <div className="grid gap-4 md:grid-cols-3">
-          {(["general", "shortProgram", "freeSkating"] as const).map((k) => (
-            <Card key={k}>
-              <h3 className="font-semibold">{k === "general" ? "All spins" : k === "shortProgram" ? "Short Program" : "Free Skating"}</h3>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-                {SPIN_REQUIREMENTS[k].map((r) => (
-                  <li key={r}>{r}</li>
-                ))}
-              </ul>
-            </Card>
-          ))}
+      <Section>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Disclosure title="Reduced value (V)" summary="four cases">
+            <p className="text-sm">The V sign cuts the base value to the row below the full code in the Scale of Values. It is used in exactly four situations:</p>
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm">
+              {V_SIGN_CASES.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ol>
+          </Disclosure>
+          <Disclosure title="Requirements" summary="all spins, SP, FS">
+            <div className="grid gap-4 text-sm">
+              {(["general", "shortProgram", "freeSkating"] as const).map((k) => (
+                <div key={k}>
+                  <h3 className="font-semibold">{k === "general" ? "All spins" : k === "shortProgram" ? "Short Program" : "Free Skating"}</h3>
+                  <ul className="mt-1 list-disc space-y-1 pl-5">
+                    {SPIN_REQUIREMENTS[k].map((r) => (
+                      <li key={r}>{r}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+            <SourceNote refs={[{ doc: "rules2026", where: "Rules 610-612" }, { doc: "tpSingles", where: "Spins" }]} className="mt-3" />
+          </Disclosure>
         </div>
-        <SourceNote refs={[{ doc: "rules2026", where: "Rules 610-612" }, { doc: "tpSingles", where: "Spins" }]} className="mt-3" />
       </Section>
       <Section title="Every spin code and its value">
         <div className="mb-3 flex flex-wrap gap-2">
           {SPIN_FAMILIES.map((f) => (
-            <Link key={f.code} href={`/spins/${f.code}`} className="rounded-full border border-border bg-surface px-3 py-1 font-mono text-sm hover:border-accent hover:text-accent">
-              {f.code}
-            </Link>
+            <Chip key={f.code} href={`/spins/${f.code}`} title={f.name}>
+              <span className="font-mono">{f.code}</span>
+            </Chip>
           ))}
         </div>
         <ValueTable codes={SPIN_FAMILIES.map((f) => `${f.code}4`)} labels={Object.fromEntries(SPIN_FAMILIES.map((f) => [`${f.code}4`, f.name]))} compact />

@@ -14,20 +14,16 @@ export default function PairsPage() {
   return (
     <>
       <PageHeader
+        compact
         eyebrow="Pair Skating"
         title="Two skaters, one element"
         intro={
-          <>
-            <p>
-              Pair Skating keeps the jumps and spins of singles, done side by side in unison, and adds the elements that need a partner: overhead lifts in five groups, the twist lift, throw jumps, death spirals and pair spins. Levels work as in singles, except that a pair is awarded the lower level achieved by the two partners.
-            </p>
-            <p>
-              Every code tells the story: <Sig>5RLi4</Sig> is a Group 5 reverse lasso lift at Level 4, <Sig>3Tw3</Sig> a triple twist at Level 3, <Sig>3LzTh</Sig> a throw triple Lutz, <Sig>FiDs4</Sig> a forward inside death spiral at Level 4.
-            </p>
-          </>
+          <p>
+            Pairs keep the jumps and spins of singles, side by side, and add the elements that need a partner: lifts in five groups, the twist lift, throw jumps, death spirals and pair spins. <Sig>5RLi4</Sig> is a Group 5 reverse lasso lift at Level 4, <Sig>3Tw3</Sig> a triple twist at Level 3, <Sig>3LzTh</Sig> a throw triple Lutz.
+          </p>
         }
       />
-      <Section>
+      <Section className="pt-0">
         <PairExplorer
           presets={[
             { id: "5RLi", label: "reverse lasso lift" },
@@ -37,7 +33,6 @@ export default function PairsPage() {
             { id: "PCoSp", label: "pair spin combination" },
           ]}
           camera="side"
-          height={460}
         />
       </Section>
       <Section>
