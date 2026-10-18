@@ -11,8 +11,8 @@ export const metadata: Metadata = {
 export default function DecoderPage() {
   return (
     <>
-      <PageHeader eyebrow="Decoder" title="Read a protocol code" intro={<p>Type the code exactly as it appears on a results protocol. Jumps join with +, signs follow the jump, spins end with a level, and markers such as REP, COMBO and SEQ explain what the panel decided.</p>} />
-      <Section>
+      <PageHeader compact eyebrow="Decoder" title="Read a protocol code" intro={<p>Type a code exactly as it appears on a results protocol and read it in plain language, with its base value.</p>} />
+      <Section className="pt-0">
         <Suspense fallback={null}>
           <Decoder />
         </Suspense>

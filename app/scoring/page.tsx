@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Card, PageHeader, Section, Sig } from "@/components/Page";
+import { Chip } from "@/components/ui/Chip";
 import { SourceNote } from "@/components/SourceNote";
 import { ScoringLab } from "./ScoringLab";
 import { GOE_GENERAL, GOE_GUIDELINES } from "@/data/goe";
@@ -16,21 +17,29 @@ export default function ScoringPage() {
   return (
     <>
       <PageHeader
+        compact
         eyebrow="ISU Judging System"
         title="How a program becomes a number"
         intro={
-          <>
-            <p>
-              Two panels score every program. The technical panel decides <em>what</em> was done: it names each element, its level and any signs such as <Sig>q</Sig>, <Sig>&lt;</Sig> or <Sig>e</Sig>, which fixes the base value. The judges decide <em>how well</em>: a Grade of Execution from -5 to +5 for each element, and three program component marks from 0.25 to 10.
-            </p>
-            <p>Total segment score = technical elements + program components − deductions.</p>
-          </>
+          <p>
+            The technical panel decides <em>what</em> was done (the element, its level, signs such as <Sig>q</Sig>, <Sig>&lt;</Sig> or <Sig>e</Sig>), which fixes the base value; the judges decide <em>how well</em>, with a Grade of Execution from -5 to +5 and three component marks. Total = technical elements + program components − deductions.
+          </p>
+        }
+        aside={
+          <nav aria-label="On this page" className="flex flex-wrap gap-1.5">
+            <Chip href="#base-value">Base value and GOE</Chip>
+            <Chip href="#goe">GOE guidelines</Chip>
+            <Chip href="#levels">Levels and bonus</Chip>
+            <Chip href="#components">Components</Chip>
+            <Chip href="#deductions">Deductions</Chip>
+          </nav>
         }
       />
-      <Section title="Try it: base value and GOE">
+      <Section id="base-value" title="Try it: base value and GOE" className="pt-0">
         <ScoringLab />
+        <p className="mt-2 text-sm text-muted">The rink shows every element at GOE 0, its base value alone. Here the slider and the nine judges show what the Grade of Execution does to it.</p>
       </Section>
-      <Section title="Grade of Execution">
+      <Section id="goe" title="Grade of Execution">
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
             <h3 className="font-semibold">Steps and starting GOE</h3>
@@ -80,7 +89,7 @@ export default function ScoringPage() {
         </div>
         <SourceNote refs={[{ doc: "comm2788", where: "II-IV" }, { doc: "rules2026", where: "Rule 353" }]} className="mt-3" />
       </Section>
-      <Section title="Levels, repetition and the second-half bonus">
+      <Section id="levels" title="Levels, repetition and the second-half bonus">
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
             <h3 className="font-semibold">Levels of difficulty</h3>
@@ -99,7 +108,7 @@ export default function ScoringPage() {
         </div>
         <SourceNote refs={[{ doc: "rules2026", where: "Rules 353, 504, 612" }, { doc: "tpSingles", where: "Jump Elements" }]} className="mt-3" />
       </Section>
-      <Section title="Program components">
+      <Section id="components" title="Program components">
         <div className="grid gap-4 md:grid-cols-3">
           {PROGRAM_COMPONENTS.map((c) => (
             <Card key={c.id}>
@@ -165,7 +174,7 @@ export default function ScoringPage() {
         </div>
         <SourceNote refs={[{ doc: "pcsChart" }, { doc: "pcsCriteria" }, { doc: "thinkingWords" }, { doc: "sov2786", where: "2. Program Components Factors" }]} className="mt-3" />
       </Section>
-      <Section title="Deductions">
+      <Section id="deductions" title="Deductions">
         <div className="overflow-x-auto rounded-xl border border-border">
           <table className="w-full text-sm">
             <thead className="bg-surface-2 text-left text-xs uppercase tracking-wide text-muted">

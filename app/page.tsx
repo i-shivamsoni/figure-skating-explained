@@ -27,11 +27,11 @@ export default function Home() {
             <p className="text-xs font-semibold tracking-widest text-accent uppercase">ISU rules, season 2026-27</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Figure skating, explained on the ice</h1>
           </div>
-          <p className="max-w-md text-sm text-muted">Pick an element and the skater performs it; every one lands in the protocol with its value and a card that says what you saw. Then open the lessons.</p>
+          <p className="max-w-md text-sm text-muted">Below, a skater runs through a short set and the protocol adds up. On the rink you steer her, perform any element and learn from what you see.</p>
         </div>
-        <div className="h-[70dvh] min-h-[420px] overflow-hidden rounded-2xl border border-border shadow-sm sm:h-[min(75dvh,720px)] sm:min-h-[480px]">
+        <div className="h-[62dvh] min-h-[400px] overflow-hidden rounded-2xl border border-border shadow-sm sm:h-[min(70dvh,680px)] sm:min-h-[460px]">
           <Suspense fallback={<div className="flex h-full items-center justify-center bg-[#0f1722] text-sm text-white/70">Loading the rink…</div>}>
-            <RinkApp mode="hero" />
+            <RinkApp mode="teaser" />
           </Suspense>
         </div>
       </section>

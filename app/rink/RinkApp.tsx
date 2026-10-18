@@ -1,14 +1,15 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ClipboardList, LayoutGrid, X } from "lucide-react";
+import { ArrowRight, ClipboardList, LayoutGrid, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useStore } from "zustand";
 import { JUMP_BY_ID } from "@/data/jumps";
 import type { JumpId } from "@/data/types";
 import { learnFor, specFromCode } from "@/three/animation/catalog";
-import { createProgramStore, programTotal, STEER_RATE, type Performed } from "@/three/animation/program";
+import { createProgramStore, programTotal, STEER_RATE, type Performed, type ProgramStore } from "@/three/animation/program";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { Sheet } from "@/components/ui/Sheet";
@@ -19,7 +20,6 @@ import { Intro } from "./Intro";
 import { LearnCard } from "./LearnCard";
 import { Palette } from "./Palette";
 import { Protocol } from "./Protocol";
-import { QuickStrip } from "./QuickStrip";
 import { SteerPad } from "./SteerPad";
 import { MINI_PROGRAMS } from "./programs";
 
@@ -51,19 +51,81 @@ const typing = (e: KeyLike) => ["INPUT", "SELECT", "TEXTAREA"].includes((e.targe
  * The freeplay rink. On a wide screen the Perform and Score docks sit on either side of the
  * ice, each with an edge tab when closed; on a phone both live in a bottom sheet whose peek bar
  * carries the steering pad and the running total. After every element a card says what it was
- * and links to its lesson. `mode="hero"` is the home page's embedded form: no dock open, a quick
- * strip of elements, and the hotkeys scoped to the rink (click the ice first) so the arrow keys
- * still scroll the page. `?perform=4Lz,CCoSp4` queues elements on arrival (page mode only); the
- * arrow keys steer (left and right turn, up and down change gear), B skates backward, 1–6 and
- * Q W E perform, R resurfaces.
+ * and links to its lesson. `?perform=4Lz,CCoSp4` queues elements on arrival; the arrow keys
+ * steer (left and right turn, up and down change gear), B skates backward, 1–6 and Q W E
+ * perform, R resurfaces.
+ *
+ * `mode="teaser"` is the home page's form: the skater performs a short set on a loop with the
+ * captions, values and a small protocol showing, no docks, no steering, no bar, and one button
+ * into the rink.
  */
-export function RinkApp({ mode = "page" }: { mode?: "page" | "hero" }) {
-  const hero = mode === "hero";
+export function RinkApp({ mode = "page" }: { mode?: "page" | "teaser" }) {
+  const teaser = mode === "teaser";
   const program = useMemo(() => createProgramStore(), []);
+  if (teaser) return <Teaser program={program} />;
+  return <Rink program={program} />;
+}
+
+/** The home page's rink: a looping set with nothing to operate but the way in. */
+function Teaser({ program }: { program: ProgramStore }) {
+  const history = useStore(program, (s) => s.history);
+  const total = programTotal(history);
+  const recent = history.slice(-3);
+  const set = MINI_PROGRAMS[0];
+  // perform the set, and again (on fresh ice) each time it is done
+  useEffect(() => {
+    const n = set.specs.length;
+    let nextAt = n;
+    const queueSet = (s = program.getState()) => set.specs.forEach((spec) => s.perform(spec));
+    queueSet();
+    const unsub = program.subscribe((s) => {
+      if (s.history.length >= nextAt && s.queue.length === 0 && !s.pending && s.playing.kind !== "element") {
+        nextAt = s.history.length + n;
+        s.resurface();
+        queueSet(s);
+      }
+    });
+    return unsub;
+  }, [program, set]);
+  return (
+    <div className="h-full" data-rink-mode="teaser">
+      <RinkPlayer program={program} className="h-full" controls={false} hud={{ placement: "top", bottomClass: "bottom-20" }}>
+        <div className="absolute inset-x-3 bottom-3 flex items-end justify-end gap-3 sm:justify-between">
+          <div className="min-w-0 max-w-[22rem] rounded-xl bg-surface/90 px-3 py-2 text-xs shadow backdrop-blur max-sm:hidden" data-testid="teaser-protocol">
+            <p className="text-[11px] font-semibold tracking-widest text-muted uppercase">Protocol</p>
+            {recent.length === 0 ? (
+              <p className="mt-0.5 text-muted">{set.title}: {set.blurb}</p>
+            ) : (
+              <ul className="mt-0.5 space-y-0.5">
+                {recent.map((h) => (
+                  <li key={h.id} className="flex justify-between gap-3">
+                    <span className="truncate">{h.caption}</span>
+                    <span className="font-mono tabular-nums">{h.value !== undefined ? h.value.toFixed(2) : "—"}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-1 flex justify-between gap-3 border-t border-border pt-1 font-semibold">
+              <span>Technical score</span>
+              <span className="font-mono tabular-nums">{total.toFixed(2)}</span>
+            </p>
+          </div>
+          <Link href="/rink" data-testid="enter-rink" className="focus-ring inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-accent px-4 text-base font-semibold text-white shadow-lg hover:bg-accent-strong sm:px-5">
+            Enter the rink
+            <ArrowRight className="h-5 w-5" />
+          </Link>
+        </div>
+      </RinkPlayer>
+    </div>
+  );
+}
+
+/** The full rink page. */
+function Rink({ program }: { program: ProgramStore }) {
   const params = useSearchParams();
   const seeded = useRef(false);
   const wide = useIsWide();
-  const [docks, setDocks] = useState<Record<DockId, boolean>>({ perform: !hero, score: false });
+  const [docks, setDocks] = useState<Record<DockId, boolean>>({ perform: true, score: false });
   const [sheetTab, setSheetTab] = useState<DockId>("perform");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -114,7 +176,7 @@ export function RinkApp({ mode = "page" }: { mode?: "page" | "hero" }) {
   }, [program]);
 
   useEffect(() => {
-    if (hero || seeded.current) return;
+    if (seeded.current) return;
     seeded.current = true;
     const list = params.get("perform");
     if (!list) return;
@@ -122,7 +184,7 @@ export function RinkApp({ mode = "page" }: { mode?: "page" | "hero" }) {
       const spec = specFromCode(code);
       if (spec) program.getState().perform(spec);
     }
-  }, [hero, params, program]);
+  }, [params, program]);
 
   // the turn keys and the pad's turn buttons share one set of held directions
   const held = useRef(new Set<TurnKey>());
@@ -175,36 +237,22 @@ export function RinkApp({ mode = "page" }: { mode?: "page" | "hero" }) {
   useEffect(() => {
     const down = (e: KeyboardEvent) => onDown(e);
     const up = (e: KeyboardEvent) => onUp(e);
-    if (!hero) {
-      window.addEventListener("keydown", down);
-      window.addEventListener("keyup", up);
-    }
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
     window.addEventListener("blur", release);
     return () => {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
       window.removeEventListener("blur", release);
     };
-  }, [hero, onDown, onUp, release]);
+  }, [onDown, onUp, release]);
 
   const closeDock = (id: DockId) => setDocks((d) => ({ ...d, [id]: false }));
   // a side dock is 20 rem wide plus its margin: the HUD's bottom row and the quick strip keep clear of it
   const hudBottom = wide ? cn("bottom-12", docks.perform && "pl-[21.5rem]", docks.score && "pr-[21.5rem]") : "bottom-24";
   const toastCard = toast && !scoreVisible && <LearnCard learn={learnFor(toast.spec)} onClose={() => setToast(null)} className={cn("absolute z-10 bg-surface/95 shadow-xl backdrop-blur", wide ? "bottom-14 left-1/2 w-[min(92%,24rem)] -translate-x-1/2" : "inset-x-2 bottom-28")} />;
   return (
-    <div
-      className={hero ? "h-full" : "h-[calc(100dvh-3.5rem)] min-h-[420px]"}
-      data-rink-mode={mode}
-      onKeyDown={hero ? (e) => onDown(e) : undefined}
-      onKeyUp={hero ? (e) => onUp(e) : undefined}
-      onBlur={
-        hero
-          ? (e) => {
-              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) release();
-            }
-          : undefined
-      }
-    >
+    <div className="h-[calc(100dvh-3.5rem)] min-h-[420px]" data-rink-mode="page">
       <RinkPlayer program={program} className="h-full" hud={{ placement: "top", bottomClass: hudBottom }}>
         {wide ? (
           <>
@@ -223,7 +271,6 @@ export function RinkApp({ mode = "page" }: { mode?: "page" | "hero" }) {
               <EdgeTab side="right" label={`Score ${total.toFixed(2)}`} icon={<ClipboardList className="h-4 w-4" />} onClick={openScore} />
             )}
             <SteerPad program={program} onTurn={turn} className="absolute right-3 bottom-14" />
-            {hero && <QuickStrip program={program} onProgram={showMe} className={cn("absolute bottom-14 max-w-[55%]", docks.perform ? "left-[21.5rem]" : "left-3")} />}
             {toastCard}
           </>
         ) : (

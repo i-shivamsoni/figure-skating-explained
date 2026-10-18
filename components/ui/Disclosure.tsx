@@ -15,7 +15,7 @@ export interface DisclosureProps {
 /** A native details/summary with the site's styling: long reference text folds away under a heading. */
 export function Disclosure({ title, summary, defaultOpen, id, children, className }: DisclosureProps) {
   return (
-    <details id={id} open={defaultOpen} className={cn("group rounded-xl border border-border bg-surface", className)}>
+    <details id={id} open={defaultOpen} className={cn("group scroll-mt-20 rounded-xl border border-border bg-surface", className)}>
       <summary className="focus-ring flex cursor-pointer list-none items-center gap-2 rounded-xl px-4 py-3 font-semibold select-none [&::-webkit-details-marker]:hidden">
         <ChevronRight className="h-4 w-4 shrink-0 text-muted transition-transform group-open:rotate-90" />
         <span className="min-w-0 flex-1">{title}</span>

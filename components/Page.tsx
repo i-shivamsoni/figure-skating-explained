@@ -19,7 +19,7 @@ export function PageHeader({ eyebrow, title, intro, compact = false, aside }: { 
 
 export function Section({ id, title, children, className = "" }: { id?: string; title?: string; children: ReactNode; className?: string }) {
   return (
-    <section id={id} className={`mx-auto max-w-6xl px-4 py-6 ${className}`}>
+    <section id={id} className={`mx-auto max-w-6xl px-4 py-6 ${id ? "scroll-mt-20" : ""} ${className}`}>
       {title && <h2 className="mb-3 text-xl font-semibold tracking-tight">{title}</h2>}
       {children}
     </section>

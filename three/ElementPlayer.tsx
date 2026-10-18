@@ -349,7 +349,7 @@ export function Hud({ timeline, store, extra, caption, value, controls = true, p
           )}
         </div>
         <div className="flex flex-col items-end gap-2">
-          {counter && <div className="rounded-lg bg-surface/85 px-3 py-1.5 font-mono text-base font-semibold shadow backdrop-blur tabular-nums">{counter}</div>}
+          {counter && <div className="rounded-lg bg-surface/85 px-3 py-1.5 font-mono text-base font-semibold whitespace-nowrap shadow backdrop-blur tabular-nums max-sm:text-sm">{counter}</div>}
           {value !== undefined && complete && (
             <div className="rounded-lg bg-accent px-3 py-1 font-mono text-lg font-semibold text-white shadow" style={{ transform: `scale(${0.8 + 0.2 * popIn})`, opacity: popIn }}>
               {value.toFixed(2)}

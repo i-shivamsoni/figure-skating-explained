@@ -166,3 +166,27 @@ export function decode(inputRaw: string): DecodedElement {
   const summary = jumps.length === 1 ? names[0] : `${sequence ? "Jump sequence" : "Jump combination"}: ${names.join(" + ")}`;
   return result(spec, summary, base);
 }
+
+/**
+ * The scored element a protocol code stands for (the calculator's `?codes=` import from the
+ * rink): jump elements with their combinations and markers, spins, step sequences,
+ * choreographic elements, and any other Scale of Values code (the pair elements) as a code
+ * element. Undefined when the code cannot be read or is not in the Scale of Values.
+ */
+export function elementSpecFromCode(raw: string): ElementSpec | undefined {
+  const code = raw.trim();
+  if (!code) return undefined;
+  const d = decode(code);
+  if (d.spec && d.errors.length === 0) return d.spec;
+  if (!d.spec && hasCode(code)) return { kind: "code", code };
+  return undefined;
+}
+
+/** Every readable element in a comma-separated list of codes. */
+export function elementSpecsFromCodes(list: string | null | undefined): ElementSpec[] {
+  if (!list) return [];
+  return list
+    .split(",")
+    .map(elementSpecFromCode)
+    .filter((s): s is ElementSpec => s !== undefined);
+}

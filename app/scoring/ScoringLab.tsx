@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { baseValueOf, goeValueOf, round2 } from "@/lib/scoring/sov";
 import { panelGoeValue, trimmedMean } from "@/lib/scoring/panel";
+import { Select } from "@/components/ui/Select";
 
 const SAMPLES: { code: string; label: string }[] = [
   { code: "4T", label: "Quad toe loop" },
@@ -28,16 +29,7 @@ export function ScoringLab() {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <div className="rounded-xl border border-border bg-surface p-4">
-        <label className="block text-sm">
-          Element
-          <select value={code} onChange={(e) => setCode(e.target.value)} className="mt-1 block w-full rounded border border-border bg-surface px-2 py-1">
-            {SAMPLES.map((s) => (
-              <option key={s.code} value={s.code}>
-                {s.code} · {s.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select label="Element" className="w-full" value={code} onChange={(e) => setCode(e.target.value)} options={SAMPLES.map((s) => ({ value: s.code, label: `${s.code} · ${s.label}` }))} />
         <label className="mt-3 block text-sm">
           Panel GOE: <span className="font-mono font-semibold">{goe > 0 ? `+${goe}` : goe}</span>
           <input type="range" min={-5} max={5} step={1} value={goe} onChange={(e) => setGoe(Number(e.target.value))} className="mt-1 block w-full accent-accent" />

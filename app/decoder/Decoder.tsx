@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { decode } from "@/lib/decoder/parse";
+import { Chip } from "@/components/ui/Chip";
 
 const EXAMPLES = ["4Lz+3T", "3A", "3F!q", "3Lz<+1Eu+3S", "2A+3T+SEQ", "4T<<", "3Lo+REP", "3Lz+COMBO", "FCCoSp4V", "LSp4", "CCSp3V", "StSq3", "ChSq1", "ChSp1", "4Tq+3T", "3Lze"];
 
@@ -26,11 +27,12 @@ export function Decoder() {
         </label>
         <div className="mt-3 flex flex-wrap gap-2">
           {EXAMPLES.map((e) => (
-            <button key={e} type="button" onClick={() => setInput(e)} className="rounded-full border border-border bg-surface px-2.5 py-1 font-mono text-xs hover:border-accent hover:text-accent">
-              {e}
-            </button>
+            <Chip key={e} onClick={() => setInput(e)} active={input.trim() === e}>
+              <span className="font-mono">{e}</span>
+            </Chip>
           ))}
         </div>
+        <p className="mt-3 text-xs text-muted">Jumps join with +, signs follow the jump, spins end with a level, and REP, COMBO and SEQ record what the panel decided.</p>
       </div>
       <div className="rounded-xl border border-border bg-surface p-4">
         {result.input === "" ? (
@@ -42,12 +44,10 @@ export function Decoder() {
             <p className="text-xs uppercase tracking-wide text-muted">base value</p>
             <ul className="mt-3 space-y-2 text-sm">
               {result.parts.map((p, i) => (
-                <li key={i} className="flex gap-3">
-                  <span className="w-20 shrink-0 font-mono font-semibold">{p.token}</span>
-                  <span>
-                    {p.description}
-                    {p.baseValue !== undefined && <span className="ml-1 font-mono text-xs text-muted">({p.baseValue.toFixed(2)})</span>}
-                  </span>
+                <li key={i} className="flex items-start gap-3 rounded-lg border border-border bg-surface-2/40 px-3 py-2">
+                  <span className="shrink-0 rounded-md border border-border bg-surface px-1.5 py-0.5 font-mono text-xs font-semibold">{p.token}</span>
+                  <span className="min-w-0 flex-1">{p.description}</span>
+                  {p.baseValue !== undefined && <span className="shrink-0 font-mono text-xs text-muted tabular-nums">{p.baseValue.toFixed(2)}</span>}
                 </li>
               ))}
             </ul>

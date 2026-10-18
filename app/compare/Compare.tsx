@@ -3,7 +3,9 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { buildTimeline, type ViewerSpec } from "@/three/animation/catalog";
-import type { CameraMode, PlayerStore } from "@/three/animation/store";
+import type { PlayerStore } from "@/three/animation/store";
+import { Chip } from "@/components/ui/Chip";
+import { Select } from "@/components/ui/Select";
 import { JUMPS } from "@/data/jumps";
 import { SPIN_PRESETS } from "@/three/animation/spins";
 import { TURN_SPECS, type TurnId } from "@/three/animation/steps";
@@ -37,7 +39,6 @@ const PAIRS: [string, string][] = [
 export function Compare() {
   const [left, setLeft] = useState("3F");
   const [right, setRight] = useState("3Lz");
-  const [camera, setCamera] = useState<CameraMode>("side");
   const optL = OPTIONS.find((o) => o.id === left) ?? OPTIONS[0];
   const optR = OPTIONS.find((o) => o.id === right) ?? OPTIONS[1];
   const tlL = useMemo(() => buildTimeline(optL.spec), [optL]);
@@ -62,41 +63,32 @@ export function Compare() {
   }, [storeL, storeR]);
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
-        <span className="text-muted">Pairs:</span>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-muted">Pairs to try</span>
         {PAIRS.map(([a, b]) => (
-          <button
+          <Chip
             key={a + b}
-            type="button"
+            active={left === a && right === b}
             onClick={() => {
               setLeft(a);
               setRight(b);
             }}
-            className="rounded-full border border-border bg-surface px-2.5 py-1 font-mono text-xs hover:border-accent hover:text-accent"
           >
-            {a} vs {b}
-          </button>
+            <span className="font-mono">
+              {a} vs {b}
+            </span>
+          </Chip>
         ))}
-        <label className="ml-auto flex items-center gap-1">
-          Camera
-          <select value={camera} onChange={(e) => setCamera(e.target.value as CameraMode)} className="rounded border border-border bg-surface px-1 py-0.5">
-            {(["side", "follow", "front", "overhead"] as CameraMode[]).map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <Side label="Left element" value={left} onChange={setLeft}>
-          <ElementPlayer key={tlL.id + camera} timeline={tlL} camera={camera} autoplay height={420} showControls onStore={onStoreL} />
+          <ElementPlayer key={tlL.id} timeline={tlL} camera="side" autoplay height={420} showControls onStore={onStoreL} />
         </Side>
         <Side label="Right element" value={right} onChange={setRight}>
-          <ElementPlayer key={tlR.id + camera} timeline={tlR} camera={camera} autoplay={false} height={420} showControls={false} onStore={onStoreR} />
+          <ElementPlayer key={tlR.id} timeline={tlR} camera="side" autoplay={false} height={420} showControls={false} onStore={onStoreR} />
         </Side>
       </div>
-      <p className="mt-2 text-xs text-muted">The left controls drive both viewers. Durations differ between elements, so the right side plays at a slightly different speed to stay in step.</p>
+      <p className="mt-2 text-xs text-muted">The left controls drive both viewers, the camera menu included: overhead to compare the edge curves, side for height and rotation. Durations differ between elements, so the right side plays at a slightly different speed to stay in step.</p>
     </div>
   );
 }
@@ -104,13 +96,7 @@ export function Compare() {
 function Side({ label, value, onChange, children }: { label: string; value: string; onChange: (v: string) => void; children: React.ReactNode }) {
   return (
     <div>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="mb-2 w-full rounded border border-border bg-surface px-2 py-1 text-sm" aria-label={label}>
-        {OPTIONS.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+      <Select label={label} hideLabel className="mb-2 w-full" value={value} onChange={(e) => onChange(e.target.value)} options={OPTIONS.map((o) => ({ value: o.id, label: o.label }))} />
       {children}
     </div>
   );
