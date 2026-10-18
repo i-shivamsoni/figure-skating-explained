@@ -1,8 +1,9 @@
-import Link from "next/link";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Card, PageHeader, Section } from "@/components/Page";
+import { ElementCard } from "@/components/ElementCard";
 import { SourceNote } from "@/components/SourceNote";
-import { ElementViewer } from "@/components/ElementViewer";
+import { Disclosure } from "@/components/ui/Disclosure";
 import { JUMPS, JUMP_CALLING_RULES, JUMP_SIGNS, ROTATION_NAMES } from "@/data/jumps";
 import { SpecialExplorer } from "./SpecialExplorer";
 import { FlipVsLutz } from "./FlipVsLutz";
@@ -18,33 +19,23 @@ export default function JumpsPage() {
   return (
     <>
       <PageHeader
+        compact
         eyebrow="Jump elements"
         title="Six jumps, five rotations, one landing"
-        intro={
-          <>
-            <p>
-              Every listed jump lands the same way: backward, on the right outside edge (for a counter-clockwise skater). What tells them apart is the take-off: which foot, which edge, forward or backward, and whether the other toe pick vaults the skater into the air. Difficulty rises from the toe loop to the Axel, and the base value roughly doubles with each extra rotation.
-            </p>
-            <p>Pick a jump to watch it in 3D, change the number of rotations and see what the technical panel’s signs do to the score.</p>
-          </>
-        }
+        intro={<p>Every listed jump lands the same way, backward on the right outside edge; the take-off tells them apart. Open one to watch it, change the rotations and the calls, or send it straight to the rink.</p>}
       />
-      <Section>
+      <Section className="pt-0">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {JUMPS.map((j) => (
-            <Link key={j.id} href={`/jumps/${j.slug}`} className="group">
-              <Card className="h-full transition-colors group-hover:border-accent">
-                <div className="flex items-baseline justify-between">
-                  <h2 className="text-lg font-semibold text-accent-strong">{j.name}</h2>
-                  <span className="font-mono text-sm text-muted">{j.id}</span>
-                </div>
-                <p className="mt-1 text-sm text-muted">{j.summary}</p>
-                <p className="mt-2 text-xs text-muted">
-                  Take-off: {j.takeOff.foot} {j.takeOff.direction} {j.takeOff.edge}
-                  {j.takeOff.toePick ? `, ${j.takeOff.toePickFoot} toe pick` : ", edge jump"}
-                </p>
-              </Card>
-            </Link>
+            <ElementCard
+              key={j.id}
+              href={`/jumps/${j.slug}`}
+              title={j.name}
+              id={j.id}
+              text={j.summary}
+              meta={`Take-off: ${j.takeOff.foot} ${j.takeOff.direction} ${j.takeOff.edge}${j.takeOff.toePick ? `, ${j.takeOff.toePickFoot} toe pick` : ", edge jump"}`}
+              performHref={`/rink?perform=${j.id === "Eu" ? "1Eu" : `3${j.id}`}`}
+            />
           ))}
         </div>
       </Section>
@@ -85,28 +76,9 @@ export default function JumpsPage() {
         </p>
         <SourceNote refs={[{ doc: "sov2786" }, { doc: "rules2026", where: "Rule 612" }]} className="mt-2" />
       </Section>
-      <Section title="Watch a quad Lutz">
-        <ElementViewer spec={{ kind: "jump", slug: "lutz", rotations: 4 }} height={460} camera="follow" />
-        <p className="mt-2 text-sm text-muted">The blue line is the back outside edge; the dashed arc is the flight; the counter shows revolutions in the air. Open the Lutz page to change rotations, add a q, &lt; or edge call; the Flip and the Lutz are compared on one clock below.</p>
-      </Section>
       <Section id="flip-vs-lutz" title="Flip vs Lutz: the edge is the difference">
         <FlipVsLutz />
         <SourceNote refs={[{ doc: "tpSingles", where: "Taking off from wrong edge (Flip/Lutz)" }, { doc: "comm2788", where: "IV, Jumps" }]} className="mt-3" />
-      </Section>
-      <Section title="What the technical panel calls">
-        <div className="grid gap-3 md:grid-cols-2">
-          {JUMP_CALLING_RULES.map((r) => (
-            <Card key={r.title}>
-              <h3 className="font-semibold">{r.title}</h3>
-              <p className="mt-1 text-sm">{r.rule}</p>
-            </Card>
-          ))}
-        </div>
-        <SourceNote refs={[{ doc: "tpSingles", where: "Jump Elements: Clarifications" }, { doc: "refJudges", where: "Jump Elements Q&A" }]} className="mt-3" />
-      </Section>
-      <Section id="not-listed" title="Jumps that are not in the Scale of Values">
-        <SpecialExplorer />
-        <SourceNote refs={[{ doc: "tpSingles", where: "Non-listed jumps" }, { doc: "deductionsChart", where: "Illegal elements (Novice)" }]} className="mt-3" />
       </Section>
       <Section id="signs" title="Signs that change the value">
         <div className="grid gap-3 md:grid-cols-2">
@@ -127,6 +99,25 @@ export default function JumpsPage() {
             </Card>
           ))}
         </div>
+      </Section>
+      <Section id="not-listed" title="Jumps that are not in the Scale of Values">
+        <Suspense fallback={null}>
+          <SpecialExplorer />
+        </Suspense>
+        <SourceNote refs={[{ doc: "tpSingles", where: "Non-listed jumps" }, { doc: "deductionsChart", where: "Illegal elements (Novice)" }]} className="mt-3" />
+      </Section>
+      <Section>
+        <Disclosure title="What the technical panel calls" summary={`${JUMP_CALLING_RULES.length} rules`}>
+          <div className="grid gap-3 md:grid-cols-2">
+            {JUMP_CALLING_RULES.map((r) => (
+              <div key={r.title} className="rounded-lg border border-border bg-surface-2/40 p-3">
+                <h3 className="font-semibold">{r.title}</h3>
+                <p className="mt-1 text-sm">{r.rule}</p>
+              </div>
+            ))}
+          </div>
+          <SourceNote refs={[{ doc: "tpSingles", where: "Jump Elements: Clarifications" }, { doc: "refJudges", where: "Jump Elements Q&A" }]} className="mt-3" />
+        </Disclosure>
       </Section>
     </>
   );

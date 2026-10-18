@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useStore } from "zustand";
-import { JUMP_BY_ID, JUMP_SIGNS, JUMPS, ROTATION_NAMES } from "@/data/jumps";
+import { JUMP_BY_ID, JUMPS, ROTATION_NAMES } from "@/data/jumps";
 import { SPIN_FAMILIES } from "@/data/spins";
 import type { JumpId, SpinFamily } from "@/data/types";
 import { captionFor, learnFor, type ViewerSpec } from "@/three/animation/catalog";
@@ -14,6 +13,7 @@ import { SPECIALS, type SpecialId } from "@/three/animation/special";
 import type { SpinLevel } from "@/three/animation/spins";
 import { CHOREO, TURN_SPECS, type ChoreoId, type TurnId } from "@/three/animation/steps";
 import { round2 } from "@/lib/scoring/sov";
+import { CALL_OPTIONS, EDGE_OPTIONS, SignNotes } from "@/components/SignNotes";
 import { Button } from "@/components/ui/Button";
 import { Segmented } from "@/components/ui/Segmented";
 import { TabPanel, Tabs } from "@/components/ui/Tabs";
@@ -27,19 +27,6 @@ const TABS = [
   { id: "other", label: "Other" },
   { id: "pairs", label: "Pairs" },
   { id: "programs", label: "Programs" },
-];
-const signName = (sign: string) => JUMP_SIGNS.find((x) => x.sign === sign)?.name ?? sign;
-/** The technical panel's rotation calls; the hints are the ISU names, the line under the row explains the chosen one. */
-const CALLS: { id: RotationCall; label: string; hint: string }[] = [
-  { id: "", label: "Clean", hint: "Fully rotated" },
-  { id: "q", label: "q", hint: signName("q") },
-  { id: "<", label: "<", hint: signName("<") },
-  { id: "<<", label: "<<", hint: signName("<<") },
-];
-const EDGES: { id: EdgeCallParam; label: string; hint: string }[] = [
-  { id: "", label: "Correct", hint: "Correct take-off edge" },
-  { id: "!", label: "!", hint: signName("!") },
-  { id: "e", label: "e", hint: signName("e") },
 ];
 const LEVELS: SpinLevel[] = ["B", 1, 2, 3, 4];
 const SPIN_GROUPS: { title: string; match: (f: SpinFamily) => boolean }[] = [
@@ -72,29 +59,6 @@ function ElementList({ items, onPick }: { items: Item[]; onPick: (id: string) =>
         </li>
       ))}
     </ul>
-  );
-}
-
-/** What the chosen call and edge signs mean, in the ISU's words; or, with none chosen, what the signs are. */
-function SignNotes({ signs }: { signs: string[] }) {
-  const chosen = signs.filter(Boolean).map((sign) => JUMP_SIGNS.find((x) => x.sign === sign)).filter((x) => x !== undefined);
-  return (
-    <div className="space-y-1 text-xs text-muted" data-testid="sign-notes">
-      {chosen.length === 0 ? (
-        <p>
-          q, &lt;, &lt;&lt;, ! and e are the technical panel&apos;s calls: a short rotation or a wrong take-off edge, each with its own effect on the value.
-        </p>
-      ) : (
-        chosen.map((s) => (
-          <p key={s.sign}>
-            <span className="font-mono font-semibold text-foreground">{s.sign}</span> <span className="font-medium text-foreground">{s.name}</span>: {s.meaning} {s.baseValueEffect}
-          </p>
-        ))
-      )}
-      <Link href="/jumps#signs" className="font-medium text-accent hover:underline">
-        What the signs mean →
-      </Link>
-    </div>
   );
 }
 
@@ -136,15 +100,15 @@ export function Palette({ program, onProgram }: { program: ProgramStore; onProgr
           </Row>
           {jump.listed && (
             <Row label="Call">
-              <Segmented<RotationCall> label="Rotation call" size="sm" value={call} onChange={setCall} options={CALLS} />
+              <Segmented<RotationCall> label="Rotation call" size="sm" value={call} onChange={setCall} options={CALL_OPTIONS} />
             </Row>
           )}
           {edgeJump && (
             <Row label="Edge">
-              <Segmented<EdgeCallParam> label="Edge call" size="sm" value={edge} onChange={setEdge} options={EDGES} />
+              <Segmented<EdgeCallParam> label="Edge call" size="sm" value={edge} onChange={setEdge} options={EDGE_OPTIONS} />
             </Row>
           )}
-          <SignNotes signs={[jump.listed ? call : "", edgeJump ? edge : ""]} />
+          <SignNotes always signs={[jump.listed ? call : "", edgeJump ? edge : ""]} />
           <Button variant="primary" className="w-full justify-between" onClick={() => perform(jumpSpec)} data-testid="perform-jump">
             <span>Perform {jumpLabel.caption}</span>
             {jumpLabel.value !== undefined && <span className="font-mono tabular-nums">{jumpLabel.value.toFixed(2)}</span>}

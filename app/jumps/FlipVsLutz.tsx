@@ -3,7 +3,9 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { buildTimeline, captionFor, type ViewerSpec } from "@/three/animation/catalog";
-import type { CameraMode, PlayerStore } from "@/three/animation/store";
+import type { PlayerStore } from "@/three/animation/store";
+import { ViewerPoster } from "@/components/ElementViewer";
+import { useInView } from "@/lib/useInView";
 
 const ElementPlayer = dynamic(() => import("@/three/ElementPlayer").then((m) => m.ElementPlayer), {
   ssr: false,
@@ -12,15 +14,17 @@ const ElementPlayer = dynamic(() => import("@/three/ElementPlayer").then((m) => 
 
 const FLIP: ViewerSpec = { kind: "jump", slug: "flip", rotations: 3 };
 const LUTZ: ViewerSpec = { kind: "jump", slug: "lutz", rotations: 3 };
-const CAMERAS: CameraMode[] = ["overhead", "side", "follow", "front"];
 
 /**
  * The Flip and the Lutz on one clock, aligned at the take-off: the same right toe pick, the same
  * counter-clockwise rotation, but the Flip's left back inside edge curves with the rotation and the
- * Lutz's left back outside edge curves against it. The left viewer's controls drive both.
+ * Lutz's left back outside edge curves against it. The left viewer's controls (and its camera menu)
+ * drive both. The players mount when the block scrolls into view.
  */
 export function FlipVsLutz({ height = 400 }: { height?: number }) {
-  const [camera, setCamera] = useState<CameraMode>("overhead");
+  const [ref, inView] = useInView<HTMLDivElement>();
+  const [forced, setForced] = useState(false);
+  const show = inView || forced;
   const flip = useMemo(() => buildTimeline(FLIP), []);
   const lutz = useMemo(() => buildTimeline(LUTZ), []);
   const flipLabel = useMemo(() => captionFor(FLIP), []);
@@ -44,28 +48,20 @@ export function FlipVsLutz({ height = 400 }: { height?: number }) {
     return unsub;
   }, [storeF, storeLz, offset]);
   return (
-    <div>
-      <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
-        <span className="text-muted">Camera</span>
-        {CAMERAS.map((c) => (
-          <button key={c} type="button" onClick={() => setCamera(c)} aria-pressed={c === camera} className={`rounded-full border px-2.5 py-1 text-xs ${c === camera ? "border-accent bg-accent-soft text-accent-strong" : "border-border bg-surface hover:border-accent"}`}>
-            {c}
-          </button>
-        ))}
-        <span className="ml-auto text-xs text-muted">The left controls drive both viewers; the take-offs are lined up.</span>
-      </div>
+    <div ref={ref}>
+      <p className="mb-3 text-xs text-muted">The left controls drive both viewers, the camera menu included; the take-offs are lined up. Start from the overhead camera to compare the edge curves.</p>
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <p className="mb-2 text-sm font-semibold">
             Flip <span className="font-mono text-muted">3F</span> · left back <span className="text-[#e0532f]">inside</span> edge
           </p>
-          <ElementPlayer key={`F-${camera}`} timeline={flip} camera={camera} autoplay height={height} showControls onStore={onStoreF} caption={flipLabel.caption} value={flipLabel.value} />
+          <div style={{ height }}>{show ? <ElementPlayer timeline={flip} camera="overhead" autoplay height={height} showControls onStore={onStoreF} caption={flipLabel.caption} value={flipLabel.value} /> : <ViewerPoster caption="the Flip and the Lutz together" onPlay={() => setForced(true)} />}</div>
         </div>
         <div>
           <p className="mb-2 text-sm font-semibold">
             Lutz <span className="font-mono text-muted">3Lz</span> · left back <span className="text-[#1f6fd6]">outside</span> edge
           </p>
-          <ElementPlayer key={`Lz-${camera}`} timeline={lutz} camera={camera} autoplay={false} height={height} showControls={false} onStore={onStoreLz} caption={lutzLabel.caption} value={lutzLabel.value} />
+          <div style={{ height }}>{show ? <ElementPlayer timeline={lutz} camera="overhead" autoplay={false} height={height} showControls={false} onStore={onStoreLz} caption={lutzLabel.caption} value={lutzLabel.value} /> : <ViewerPoster caption="the Lutz" onPlay={() => setForced(true)} />}</div>
         </div>
       </div>
       <div className="mt-3 grid gap-3 text-sm md:grid-cols-3">
