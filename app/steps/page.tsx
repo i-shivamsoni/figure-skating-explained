@@ -43,7 +43,7 @@ export default function StepsPage() {
         </div>
         <SourceNote refs={[{ doc: "tpSingles", where: "Step Sequence: Definition of Turns and Steps" }]} className="mt-3" />
       </Section>
-      <Section title="From variety to Level 4">
+      <Section id="levels" title="From variety to Level 4">
         <div className="overflow-x-auto rounded-xl border border-border">
           <table className="w-full text-sm">
             <thead className="bg-surface-2 text-left text-xs uppercase tracking-wide text-muted">

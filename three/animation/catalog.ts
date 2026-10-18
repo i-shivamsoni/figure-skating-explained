@@ -9,6 +9,8 @@ import { pairTimeline, PAIR_PRESETS, type PairId } from "./pairs";
 import type { Timeline } from "./timeline";
 import { ROTATION_NAMES } from "@/data/jumps";
 import { SPIN_FAMILIES } from "@/data/spins";
+import { PAIR_ELEMENT_BY_ID } from "@/data/pairs";
+import { CHOREO_SPIN } from "@/data/choreo";
 import { hasCode, baseValueOf } from "@/lib/scoring/sov";
 
 /** Serialisable description of what to animate, safe to pass from server components. */
@@ -124,4 +126,76 @@ export function specFromCode(raw: string): ViewerSpec | undefined {
   if (code in SPECIALS) return { kind: "special", id: code as SpecialId };
   if (code in PAIR_PRESETS) return { kind: "pair", id: code as PairId };
   return undefined;
+}
+
+/** What the rink shows after an element: where to read about it and where its value is explained. */
+export interface LearnLink {
+  /** Broadcast-style name, as in the caption. */
+  title: string;
+  /** The noun phrase after "About": "the Lutz", "the camel spin", "lifts". */
+  about: string;
+  href: string;
+  code?: string;
+  value?: number;
+  blurb: string;
+  /** Where the number is explained; undefined when the element is not scored on its own. */
+  scoringHref?: string;
+}
+
+const PAIR_FAMILY: Record<PairId, keyof typeof PAIR_ELEMENT_BY_ID> = {
+  "3Li": "lift",
+  "4Li": "lift",
+  "5RLi": "lift",
+  "3Tw": "twist",
+  "3LzTh": "throw",
+  FiDs: "deathSpiral",
+  BoDs: "deathSpiral",
+  PCoSp: "pairSpinCombination",
+  "3T+3T": "soloJump",
+};
+
+const sentence = (s: string) => `${s.charAt(0).toUpperCase()}${s.slice(1)}${/[.!?]$/.test(s) ? "" : "."}`;
+
+export function learnFor(spec: ViewerSpec): LearnLink {
+  const { caption, value } = captionFor(spec);
+  const scoringHref = value !== undefined ? "/scoring#base-value" : undefined;
+  switch (spec.kind) {
+    case "jump": {
+      const jump = JUMP_BY_SLUG[spec.slug] ?? JUMP_BY_SLUG.lutz;
+      const code = jump.id === "Eu" ? "1Eu" : `${spec.rotations}${jump.id}${spec.edge ?? ""}${spec.call ?? ""}`;
+      return { title: caption, about: `the ${jump.name}`, href: `/jumps/${jump.slug}`, code, value, blurb: jump.summary, scoringHref };
+    }
+    case "spin": {
+      const fam = SPIN_FAMILIES.find((f) => f.code === spec.code);
+      if (fam) {
+        const code = spec.features ? spinCode(spec.code, spec.features) : `${spec.code}4`;
+        return { title: caption, about: `the ${fam.name.toLowerCase()}`, href: `/spins/${fam.code}`, code, value, blurb: fam.description, scoringHref };
+      }
+      if (spec.code === "ChSp") return { title: caption, about: "the choreographic spin", href: "/choreo", code: "ChSp1", value, blurb: CHOREO_SPIN.summary, scoringHref };
+      return { title: caption, about: "spins", href: "/spins", value, blurb: `${SPIN_PRESETS[spec.code]?.title ?? spec.code}: one continuous spin that shows several positions.`, scoringHref };
+    }
+    case "turn": {
+      const t = TURN_SPECS[spec.id] ?? TURN_SPECS["three-turn"];
+      return {
+        title: caption,
+        about: `the ${t.label.toLowerCase()}`,
+        href: `/steps?turn=${spec.id}`,
+        blurb: `${sentence(t.detail)} ${t.difficult ? "One of the six difficult turns and steps that raise a step sequence's level." : "Not one of the difficult turns, but part of every step sequence."}`,
+        scoringHref: "/steps#levels",
+      };
+    }
+    case "choreo": {
+      const m = CHOREO[spec.id] ?? CHOREO.spiral;
+      return { title: caption, about: `the ${m.label.toLowerCase()}`, href: `/choreo?move=${spec.id}`, blurb: `${sentence(m.detail)} Movements like this make up a choreographic sequence, a fixed-value element scored by the judges alone.` };
+    }
+    case "special": {
+      const sp = SPECIALS[spec.id] ?? SPECIALS.walley;
+      return { title: caption, about: `the ${sp.label.toLowerCase()}`, href: `/jumps?special=${spec.id}#not-listed`, blurb: sentence(sp.detail) };
+    }
+    case "pair": {
+      const preset = PAIR_PRESETS[spec.id] ?? PAIR_PRESETS["3Tw"];
+      const fam = PAIR_ELEMENT_BY_ID[PAIR_FAMILY[preset.id as PairId] ?? "lift"];
+      return { title: caption, about: fam.name.toLowerCase(), href: `/pairs/${fam.id}`, code: preset.codes.join(" + "), value, blurb: fam.definition, scoringHref };
+    }
+  }
 }

@@ -20,8 +20,9 @@ export interface NavGroup {
 }
 export type NavEntry = NavItem | NavGroup;
 
-/** The site's four doors; Sources lives in the footer. */
+/** Rink first, then the lessons; Sources lives in the footer and the phone sheet. */
 export const NAV: NavEntry[] = [
+  { href: "/rink", label: "Rink", hint: "Steer the skater, perform elements, watch the score add up" },
   {
     label: "Elements",
     items: [
@@ -30,6 +31,7 @@ export const NAV: NavEntry[] = [
       { href: "/steps", label: "Steps", hint: "Turns, steps and the step sequence" },
       { href: "/choreo", label: "Choreo", hint: "Choreographic sequence and spin" },
       { href: "/pairs", label: "Pairs", hint: "Lifts, twists, throws, death spirals" },
+      { href: "/compare", label: "Compare", hint: "Two elements on one clock" },
     ],
   },
   {
@@ -40,8 +42,6 @@ export const NAV: NavEntry[] = [
       { href: "/decoder", label: "Decoder", hint: "Read a protocol code" },
     ],
   },
-  { href: "/rink", label: "Rink", hint: "Perform elements on a full rink" },
-  { href: "/compare", label: "Compare", hint: "Two elements, one clock" },
 ];
 
 const isGroup = (e: NavEntry): e is NavGroup => "items" in e;

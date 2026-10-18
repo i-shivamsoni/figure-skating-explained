@@ -318,7 +318,7 @@ export function CameraRig({ timeline, store, container, focus }: { timeline: Tim
 }
 
 /** Marker, rotation counter, value pop, arrow legend and caption over the canvas. */
-export function Hud({ timeline, store, extra, caption, value, controls = true, placement = "corner" }: { timeline: Timeline; store: PlayerStore; extra?: ReactNode; caption?: string; value?: number; controls?: boolean; placement?: "corner" | "top" }) {
+export function Hud({ timeline, store, extra, caption, value, controls = true, placement = "corner", bottomClass = "bottom-12" }: { timeline: Timeline; store: PlayerStore; extra?: ReactNode; caption?: string; value?: number; controls?: boolean; placement?: "corner" | "top"; /** Offset and padding of the bottom row (legend and caption) when the page lays panels over the player. */ bottomClass?: string }) {
   const time = useStore(store, (s) => s.time);
   const ready = useStore(store, (s) => s.ready);
   const marker = markerAt(timeline, time);
@@ -358,7 +358,7 @@ export function Hud({ timeline, store, extra, caption, value, controls = true, p
           {extra}
         </div>
       </div>
-      <div className={cn("absolute inset-x-0 grid grid-cols-[1fr_auto_1fr] items-end gap-2 px-2 sm:px-3", controls ? "bottom-12 max-sm:bottom-[5.6rem]" : "bottom-2")}>
+      <div className={cn("absolute inset-x-0 grid grid-cols-[1fr_auto_1fr] items-end gap-2 px-2 transition-[padding] sm:px-3", controls ? bottomClass : "bottom-2")}>
         <ul className="flex flex-col items-start gap-1">
           {ready &&
             activeArrows.map((a) => (
@@ -409,8 +409,8 @@ export function PlayerControls({ store, fullscreen, onFullscreen, showLoop = tru
   const presetLabel = CAMERA_PRESETS.find((c) => c.id === preset)?.label ?? preset;
   const nextSpeed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length] ?? 1;
   return (
-    <div role="toolbar" aria-label="Playback" className="absolute inset-x-0 bottom-0 flex flex-wrap items-center gap-x-1.5 gap-y-1 bg-surface/90 px-2 py-1.5 text-xs backdrop-blur">
-      <div className="flex min-w-0 flex-1 basis-60 items-center gap-1.5">
+    <div role="toolbar" aria-label="Playback" className="absolute inset-x-0 bottom-0 flex h-12 items-center gap-x-1.5 bg-surface/90 px-2 text-xs backdrop-blur">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">
         <IconButton size="sm" label={playing ? "Pause" : "Play"} onClick={api.toggle} className="bg-accent text-white hover:bg-accent-strong hover:text-white">
           {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
         </IconButton>
@@ -427,7 +427,7 @@ export function PlayerControls({ store, fullscreen, onFullscreen, showLoop = tru
           }}
           className="min-w-0 flex-1"
         />
-        <span className="shrink-0 font-mono whitespace-nowrap text-muted tabular-nums">
+        <span className="shrink-0 font-mono whitespace-nowrap text-muted tabular-nums max-sm:hidden">
           {time.toFixed(2)} / {duration.toFixed(2)} s
         </span>
       </div>
@@ -438,7 +438,7 @@ export function PlayerControls({ store, fullscreen, onFullscreen, showLoop = tru
         <div ref={menuRef} className="relative">
           <button type="button" aria-expanded={cameraOpen} aria-haspopup="dialog" aria-label={`Camera: ${presetLabel}`} onClick={() => setCameraOpen((o) => !o)} title="Camera" className="focus-ring inline-flex h-8 items-center gap-1 rounded-lg px-2 font-medium text-muted hover:bg-surface-2 hover:text-foreground">
             <CameraIcon className="h-4 w-4" />
-            <span>{presetLabel}</span>
+            <span className="max-sm:hidden">{presetLabel}</span>
           </button>
           {cameraOpen && (
             <div role="dialog" aria-label="Camera" className="absolute right-0 bottom-full z-10 mb-1 w-72 rounded-xl border border-border bg-surface p-2 shadow-lg">

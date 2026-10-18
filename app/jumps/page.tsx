@@ -104,11 +104,11 @@ export default function JumpsPage() {
         </div>
         <SourceNote refs={[{ doc: "tpSingles", where: "Jump Elements: Clarifications" }, { doc: "refJudges", where: "Jump Elements Q&A" }]} className="mt-3" />
       </Section>
-      <Section title="Jumps that are not in the Scale of Values">
+      <Section id="not-listed" title="Jumps that are not in the Scale of Values">
         <SpecialExplorer />
         <SourceNote refs={[{ doc: "tpSingles", where: "Non-listed jumps" }, { doc: "deductionsChart", where: "Illegal elements (Novice)" }]} className="mt-3" />
       </Section>
-      <Section title="Signs that change the value">
+      <Section id="signs" title="Signs that change the value">
         <div className="grid gap-3 md:grid-cols-2">
           {JUMP_SIGNS.map((s) => (
             <Card key={s.sign}>

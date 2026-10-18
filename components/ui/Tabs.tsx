@@ -15,11 +15,14 @@ export interface TabsProps {
   label: string;
   /** Pairs the tab list with its panels when a page has several. */
   scope?: string;
+  size?: "sm" | "md";
+  /** Wrap onto more rows instead of scrolling sideways (narrow docks). */
+  wrap?: boolean;
   className?: string;
 }
 
 /** A tab list with arrow-key navigation; render the matching TabPanel below it. */
-export function Tabs({ tabs, value, onChange, label, scope = "tabs", className }: TabsProps) {
+export function Tabs({ tabs, value, onChange, label, scope = "tabs", size = "md", wrap = false, className }: TabsProps) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     const i = tabs.findIndex((t) => t.id === value);
@@ -35,7 +38,7 @@ export function Tabs({ tabs, value, onChange, label, scope = "tabs", className }
     refs.current[j]?.focus();
   };
   return (
-    <div role="tablist" aria-label={label} onKeyDown={onKey} className={cn("flex gap-1 overflow-x-auto border-b border-border", className)}>
+    <div role="tablist" aria-label={label} onKeyDown={onKey} className={cn("flex gap-1 border-b border-border", wrap ? "flex-wrap" : "overflow-x-auto", className)}>
       {tabs.map((t, i) => (
         <button
           key={t.id}
@@ -49,7 +52,7 @@ export function Tabs({ tabs, value, onChange, label, scope = "tabs", className }
           aria-controls={`${scope}-panel-${t.id}`}
           tabIndex={t.id === value ? 0 : -1}
           onClick={() => onChange(t.id)}
-          className={cn("focus-ring -mb-px h-10 shrink-0 border-b-2 px-3 text-sm font-medium transition-colors", t.id === value ? "border-accent text-accent-strong" : "border-transparent text-muted hover:text-foreground")}
+          className={cn("focus-ring -mb-px shrink-0 border-b-2 font-medium transition-colors", size === "sm" ? "h-9 px-2.5 text-xs" : "h-10 px-3 text-sm", t.id === value ? "border-accent text-accent-strong" : "border-transparent text-muted hover:text-foreground")}
         >
           {t.label}
         </button>

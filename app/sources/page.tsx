@@ -29,14 +29,14 @@ export default function SourcesPage() {
           ))}
         </div>
       </Section>
-      <Section title="What changed for 2026-27">
+      <Section id="changes" title="What changed for 2026-27">
         <ul className="list-disc space-y-1 pl-5 text-sm">
           {CHANGES_2026_27.map((c) => (
             <li key={c}>{c}</li>
           ))}
         </ul>
       </Section>
-      <Section title="Glossary">
+      <Section id="glossary" title="Glossary">
         <dl className="grid gap-2 md:grid-cols-2">
           {GLOSSARY.map((g) => (
             <div key={g.term} className="rounded-lg border border-border bg-surface p-3 text-sm">

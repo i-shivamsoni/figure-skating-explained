@@ -2,26 +2,30 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useUiStore } from "@/lib/uiStore";
 
 const LINKS = [
   { href: "/sources", label: "Sources" },
-  { href: "/decoder", label: "Decoder" },
-  { href: "/compare", label: "Compare" },
-  { href: "/rink", label: "Rink" },
+  { href: "/sources#changes", label: "What changed for 2026-27" },
+  { href: "/sources#glossary", label: "Glossary" },
 ];
 
 export function SiteFooter() {
   const pathname = usePathname();
+  const openShortcuts = useUiStore((s) => s.openShortcuts);
   if (pathname === "/rink") return null;
   return (
     <footer className="mt-16 border-t border-border bg-surface">
       <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-muted">
-        <nav aria-label="Footer" className="mb-4 flex flex-wrap gap-x-5 gap-y-2">
+        <nav aria-label="Footer" className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2">
           {LINKS.map((l) => (
             <Link key={l.href} href={l.href} className="focus-ring rounded-md font-medium text-foreground hover:text-accent">
               {l.label}
             </Link>
           ))}
+          <button type="button" onClick={openShortcuts} className="focus-ring rounded-md font-medium text-foreground hover:text-accent">
+            Keyboard shortcuts
+          </button>
         </nav>
         <p>
           Rules, base values and definitions are paraphrased from the International Skating Union documents for the

@@ -15,7 +15,7 @@ import { useUiStore } from "@/lib/uiStore";
  * another, the marks they leave, and whatever panels the page lays over it (they stay in full
  * screen because they live inside the player).
  */
-export function RinkPlayer({ program, className, children }: { program: ProgramStore; className?: string; children?: ReactNode }) {
+export function RinkPlayer({ program, className, hud, children }: { program: ProgramStore; className?: string; /** HUD layout when the page lays docks over the player. */ hud?: { placement?: "corner" | "top"; bottomClass?: string }; children?: ReactNode }) {
   const playing = useStore(program, (s) => s.playing);
   const marks = useStore(program, (s) => s.marks);
   const queued = useStore(program, (s) => s.queue.length);
@@ -79,7 +79,7 @@ export function RinkPlayer({ program, className, children }: { program: ProgramS
         {tl.arrows && <IceArrows arrows={tl.arrows} store={store} />}
         <CameraRig timeline={tl} store={store} container={containerRef} />
       </Stage>
-      <Hud timeline={tl} store={store} caption={playing.caption} value={playing.value} />
+      <Hud timeline={tl} store={store} caption={playing.caption} value={playing.value} placement={hud?.placement} bottomClass={hud?.bottomClass} />
       {children}
       <PlayerControls store={store} fullscreen={fullscreen} onFullscreen={toggleFullscreen} showLoop={false} />
     </div>
