@@ -4,10 +4,13 @@ import { POSES, mirrorPose } from "./poses";
 /**
  * Stroking poses, generated from a shape (how deep the knee, how far the trunk leans, how far
  * the free leg reaches) so the same stroke can be easy, a progressive run or a flat-out sprint,
- * forward or backward. Forward stroking: the skating knee is bent over a flat blade, the free
- * leg finishes its push behind and out to the side, toe pointed, the trunk leans in with the
- * head up; the knee is deepest as the feet pass (the push starts there) and rises a little in the
- * glide. Backward stroking: the free leg finishes ahead of the body (the C-cut push) and the head
+ * forward or backward. Forward stroking: the skating knee is bent over a flat blade and the body
+ * is over it; the push is diagonal (a blade only grips sideways, so the pushing foot travels
+ * about 40° off the line of travel on its inside edge) with the sole on the ice until the leg is
+ * straight (the "push" stage, as far out as the bent skating leg allows), then the free leg lifts
+ * and finishes extended mostly behind with a modest turnout, toe pointed (the "glide" stage); the
+ * trunk leans in with the head up; the knee is deepest as the feet pass (the push starts there)
+ * and rises a little in the glide. Backward stroking: the free leg finishes ahead of the body (the C-cut push) and the head
  * looks over a shoulder in the direction of travel. On a sustained curve the strokes become
  * crossovers: the outside foot crosses over the inside one and the inside foot pushes under the
  * body on its outside edge, finishing extended across; the inside arm leads and the head turns
@@ -37,12 +40,17 @@ export interface StrokeParams extends StrokeShape {
   look?: "L" | "R";
   /** Crossovers on a curve: the side the circle's centre is on (the inside foot's side). */
   cross?: "L" | "R";
+  /** "push": the moment the straightened push leg leaves the ice; "glide" (default): the free leg lifted and extended. */
+  stage?: "push" | "glide";
 }
 
 /** The flat standing foot: the rest direction of the foot bone, which lies along the ice. */
 const FLAT: Vec3 = [0, -0.381, 0.924];
-const THIGH = 0.45;
-const SHIN = 0.43;
+export const THIGH = 0.45;
+export const SHIN = 0.43;
+const LEG = THIGH + SHIN;
+/** How far off the line of travel the push travels, degrees: a blade grips sideways, not along its length. */
+const PUSH_ANGLE = 40;
 const rad = (deg: number) => (deg * Math.PI) / 180;
 
 /** The trunk leaning `torso` degrees forward; `look` turns the head over a shoulder, `glance` turns it a little that way (into a circle). */
@@ -115,14 +123,35 @@ function freeLeg(side: "L" | "R", reach: number, sideDeg: number, backward: bool
   };
 }
 
-function drop(knee: number): number {
+/** How much lower the hip sits over a knee bent `knee` degrees than over a straight leg. */
+export function drop(knee: number): number {
   const a = rad(knee * 0.55);
   const b = rad(knee * 0.45);
   return THIGH * (1 - Math.cos(a)) + SHIN * (1 - Math.cos(b));
 }
 
+/**
+ * The push leg the moment it leaves the ice: straight, sole still on the ice, so it reaches
+ * exactly as far from vertical as the bent skating leg (knee `knee`) lets it. It travels
+ * PUSH_ANGLE off straight back (straight ahead, in the skater's frame, when backward); in a
+ * crossover the inside leg pushes under the body, across toward the outside.
+ */
+function pushLeg(side: "L" | "R", knee: number, backward: boolean, across: boolean): Pose["bones"] {
+  const theta = Math.acos(Math.max(0, Math.min(1, (LEG - drop(knee)) / LEG)));
+  const out = side === "L" ? 1 : -1;
+  const phi = rad(across ? 25 : PUSH_ANGLE);
+  const x = (across ? -out : out) * Math.sin(theta) * Math.sin(phi);
+  const z = (backward ? 1 : -1) * Math.sin(theta) * Math.cos(phi);
+  const dir = vec(x, -Math.cos(theta), z);
+  return {
+    [`thigh_${side}`]: { dir },
+    [`shin_${side}`]: { dir },
+    [`foot_${side}`]: { dir: FLAT },
+  };
+}
+
 /** A stroking pose from its shape. */
-export function strokePose({ foot, knee, torso, reach, push, arms: armStyle, backward = false, look, cross }: StrokeParams): Pose {
+export function strokePose({ foot, knee, torso, reach, push, arms: armStyle, backward = false, look, cross, stage = "glide" }: StrokeParams): Pose {
   const over = backward ? look ?? "R" : undefined;
   const lean = backward ? Math.min(torso, 8) : torso;
   const inside = cross;
@@ -139,25 +168,22 @@ export function strokePose({ foot, knee, torso, reach, push, arms: armStyle, bac
   }
   const free = foot === "L" ? "R" : "L";
   const out = free === "L" ? 1 : -1;
-  const glide = knee * 0.85;
-  if (outside && foot === outside) {
-    // on the crossed-over outside foot: it sits across under the body, the inside leg has pushed under on its outside edge and finishes across
-    return {
-      bones: { ...skatingLeg(foot, glide, 14), ...freeLeg(free, reach, -out * 18, backward), ...trunk(lean, over, inside), ...arms(armStyle, foot === "L" ? 1 : -1, inside) },
-      hips: [0.08 * toInside, -drop(glide), 0],
-    };
-  }
-  const shift = foot === "L" ? 0.05 : -0.05;
+  // the skating knee is still deep as the push ends and rises a little in the glide
+  const bend = stage === "push" ? knee : knee * 0.85;
+  const crossed = !!outside && foot === outside;
+  const other = stage === "push" ? pushLeg(free, bend, backward, crossed) : crossed ? freeLeg(free, reach, -out * 18, backward) : freeLeg(free, reach, out * (backward ? push * 0.6 : push), backward);
+  // on the crossed-over outside foot the leg sits across under the body and the hips ride inside the circle
+  const shift = crossed ? 0.08 * toInside : foot === "L" ? 0.05 : -0.05;
   return {
-    bones: { ...skatingLeg(foot, glide, 5), ...freeLeg(free, reach, out * (backward ? push * 0.6 : push), backward), ...trunk(lean, over, inside), ...arms(armStyle, foot === "L" ? 1 : -1, inside) },
-    hips: [shift, -drop(glide), 0],
+    bones: { ...skatingLeg(foot, bend, crossed ? 14 : 5), ...other, ...trunk(lean, over, inside), ...arms(armStyle, foot === "L" ? 1 : -1, inside) },
+    hips: [shift, -drop(bend), 0],
   };
 }
 
 /** Representative shapes, registered so the catalogue tests cover them; the gears in three/animation/stroking.ts own the live values. */
-const EASY: StrokeShape = { knee: 30, torso: 10, reach: 35, push: 28, arms: "out" };
-const RUN: StrokeShape = { knee: 42, torso: 18, reach: 42, push: 34, arms: "low" };
-const SPRINT: StrokeShape = { knee: 55, torso: 30, reach: 50, push: 40, arms: "swing" };
+const EASY: StrokeShape = { knee: 36, torso: 10, reach: 40, push: 22, arms: "out" };
+const RUN: StrokeShape = { knee: 50, torso: 18, reach: 46, push: 25, arms: "low" };
+const SPRINT: StrokeShape = { knee: 64, torso: 30, reach: 52, push: 28, arms: "swing" };
 const COAST: StrokeShape = { knee: 12, torso: 4, reach: 0, push: 0, arms: "out" };
 
 POSES.strokeGlide = strokePose({ ...EASY, foot: "L" });
@@ -177,3 +203,7 @@ POSES.crossRecover = strokePose({ ...EASY, foot: "both", cross: "L" });
 POSES.crossGlideInside = strokePose({ ...EASY, foot: "L", cross: "L" });
 POSES.backCrossGlide = strokePose({ ...EASY, foot: "L", cross: "R", backward: true });
 POSES.sprintCrossGlide = strokePose({ ...SPRINT, foot: "R", cross: "L" });
+POSES.strokePush = strokePose({ ...EASY, foot: "L", stage: "push" });
+POSES.sprintPush = strokePose({ ...SPRINT, foot: "L", stage: "push" });
+POSES.backPush = strokePose({ ...EASY, foot: "L", backward: true, stage: "push" });
+POSES.crossPush = strokePose({ ...EASY, foot: "R", cross: "L", stage: "push" });

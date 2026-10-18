@@ -21,7 +21,7 @@ Deploy with `vercel deploy --prod --yes` (preview: `vercel deploy --yes`; previe
 Vercel auth, production is public). The Vercel CLI is 54.x and nags to upgrade; ignore it.
 
 State at the time of writing (updated 18 Oct 2026, evening IST): see §10 for the overhaul and the
-stroking rebuild; 355 vitest tests green, 21 Playwright tests green, typecheck and lint clean,
+stroking rebuild; 360 vitest tests green, 21 Playwright tests green, typecheck and lint clean,
 production redeployed after the boards commit (braking and lean-limited arcs).
 
 ## 2. The user and the working agreement
@@ -405,6 +405,18 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
     segment). The old "turn 10 m early with a 0.6 s U-turn" reserve is gone. Tests pin: no lean
     past 35°, no segment turning more than 0.6π, the straight sprint braking to under 1.5 m/s
     within 1.5 m of the boards with the heading held until the last 2 m.
+  - **Push stage (user: "a human will push their leg straight behind, not at an angle?"):** the
+    push is diagonal by physics (a blade grips sideways), `PUSH_ANGLE` 40° off the line of travel,
+    and `strokePose({ stage: "push" })` (`pushLeg`) is the moment the straightened push leg leaves
+    the ice: sole flat on the ice, reaching exactly as far from vertical as the bent skating leg
+    allows (θ = acos((LEG − drop(knee)) / LEG), about 24° stroking and 35° sprinting). The cycle is
+    recover → push (0.3 P) → glide (0.45 P, free leg lifted behind with a modest turnout, `push`
+    22–28°, `reach` 40–52°, toe pointed) → hold (0.7 P) → recover. Before this the cycle blended
+    straight from feet-together to the lifted glide, so mid-push the straight free leg swept out
+    wide and the ground clamp lifted the body (two splayed straight legs at one height, the user's
+    screenshot). Knees deepened (stroke 36, run 50, sprint 64). `tests/stroking.test.ts` pins both
+    feet level at the push, the push leg straight, 30–50° off the line, behind when forward and
+    ahead when backward, and the reach following the knee.
   - Verified by screenshots (`drive.mts`-style Playwright script that holds keys on `/rink`, plus
     `/dev/pose?pose=strokeGlide|crossGlide|sprintGlide|backGlide|sprintRecover|crossRecover`).
     Known gaps: no toe-pick starts, no hockey stop, the backward crossover is the same construction

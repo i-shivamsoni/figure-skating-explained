@@ -23,9 +23,9 @@ export interface GearSpec extends StrokeShape {
 
 export const GEARS: GearSpec[] = [
   { id: "coast", label: "Coast", verb: "Coasting", hint: "Glide on two feet", speed: 1.3, period: 1.2, knee: 12, torso: 4, reach: 0, push: 0, arms: "out" },
-  { id: "stroke", label: "Stroke", verb: "Stroking", hint: "Easy stroking", speed: 3.5, period: 0.9, knee: 30, torso: 10, reach: 35, push: 28, arms: "out" },
-  { id: "run", label: "Run", verb: "Running", hint: "Progressive runs: quicker, deeper strokes", speed: 5.2, period: 0.7, knee: 42, torso: 18, reach: 42, push: 34, arms: "low" },
-  { id: "sprint", label: "Sprint", verb: "Sprinting", hint: "Flat out: deep knees, arms pumping", speed: 7, period: 0.55, knee: 55, torso: 30, reach: 50, push: 40, arms: "swing" },
+  { id: "stroke", label: "Stroke", verb: "Stroking", hint: "Easy stroking", speed: 3.5, period: 0.9, knee: 36, torso: 10, reach: 40, push: 22, arms: "out" },
+  { id: "run", label: "Run", verb: "Running", hint: "Progressive runs: quicker, deeper strokes", speed: 5.2, period: 0.7, knee: 50, torso: 18, reach: 46, push: 25, arms: "low" },
+  { id: "sprint", label: "Sprint", verb: "Sprinting", hint: "Flat out: deep knees, arms pumping", speed: 7, period: 0.55, knee: 64, torso: 30, reach: 52, push: 28, arms: "swing" },
 ];
 
 export const GEAR_BY_ID = Object.fromEntries(GEARS.map((g) => [g.id, g])) as Record<Gear, GearSpec>;
@@ -92,6 +92,7 @@ export function strokeKeys({ T, speed, backward, startBackward, endBackward, pha
   const coastPose = (back: boolean) => strokePose({ ...COAST, foot: "both", backward: back, look });
   const recover = strokePose({ ...gear, foot: "both", backward, look, cross });
   const glides = [strokePose({ ...gear, foot: "L", backward, look, cross }), strokePose({ ...gear, foot: "R", backward, look, cross })];
+  const pushes = [strokePose({ ...gear, foot: "L", backward, look, cross, stage: "push" }), strokePose({ ...gear, foot: "R", backward, look, cross, stage: "push" })];
   const cycleStart = turnIn ? turnIn[1] : 0;
   const phase0 = turnIn ? 0 : (((phase % 2) + 2) % 2) * P;
   const cycleTime = (t: number) => t - cycleStart + phase0;
@@ -108,16 +109,17 @@ export function strokeKeys({ T, speed, backward, startBackward, endBackward, pha
     keys.push({ t: cycleStart, pose: strokes ? recover : coastPose(backward), ease: easeInOut });
   }
   if (strokes) {
-    // push, glide, hold, recover: the cycle continues past both ends so that consecutive links share a pose at the seam
+    // push along the ice, lift into the glide, hold, recover: the cycle continues past both ends so that consecutive links share a pose at the seam
     const kFirst = Math.floor(-phase0 / P) - 1;
     for (let k = kFirst; ; k++) {
       const base = cycleStart - phase0 + k * P;
       if (base > Math.min(T, settle) + P) break;
-      const glide = glides[((k % 2) + 2) % 2];
+      const i = ((k % 2) + 2) % 2;
       const stroke: PoseKey[] = [
         { t: base, pose: recover, ease: easeInOut },
-        { t: base + 0.4 * P, pose: glide, ease: easeInOut },
-        { t: base + 0.65 * P, pose: glide, ease: easeInOut },
+        { t: base + 0.3 * P, pose: pushes[i], ease: easeInOut },
+        { t: base + 0.45 * P, pose: glides[i], ease: easeInOut },
+        { t: base + 0.7 * P, pose: glides[i], ease: easeInOut },
       ];
       for (const key of stroke) {
         if (turnIn && key.t <= cycleStart) continue;

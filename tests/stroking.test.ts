@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GEARS, GEAR_BY_ID, gearFor, shiftGear } from "@/three/animation/stroking";
-import { strokePose } from "@/three/rig/poses-stroking";
+import { drop, SHIN, strokePose, THIGH } from "@/three/rig/poses-stroking";
 import { defaultRest, describeViolations, validatePose } from "@/three/rig/limits";
 import { poseFrames } from "@/three/rig/limits";
 import { canTurnAway, clampRate, endOf, LEAN_MAX, linkPhaseAt, linkTimeline, minRadius, pointAt, startOf, STROKE_SPEED, wrapAngle, type IceState } from "@/three/animation/place";
@@ -32,7 +32,8 @@ describe("stroking poses", () => {
     const f = poseFrames(strokePose({ ...GEAR_BY_ID.sprint, foot: "L" }), rest);
     expect(f.get("thigh_L")!.dir[2]).toBeGreaterThan(0.3); // thigh forward: a bent knee
     expect(f.get("thigh_R")!.dir[2]).toBeLessThan(-0.5); // free leg behind
-    expect(f.get("thigh_R")!.dir[0]).toBeLessThan(-0.3); // and out to the right
+    expect(f.get("thigh_R")!.dir[0]).toBeLessThan(-0.2); // and a little out to the right (a modest turnout, not a wide swing)
+    expect(Math.abs(f.get("thigh_R")!.dir[0])).toBeLessThan(Math.abs(f.get("thigh_R")!.dir[2]) * 0.6); // more behind than out
     const b = poseFrames(strokePose({ ...GEAR_BY_ID.stroke, foot: "L", backward: true }), rest);
     expect(b.get("thigh_R")!.dir[2]).toBeGreaterThan(0.3); // free leg ahead of the body
   });
@@ -55,6 +56,30 @@ describe("stroking poses", () => {
     expect(f.get("thigh_R")!.dir[0]).toBeGreaterThan(0.1); // the right (outside) thigh crosses to the left
     expect(f.get("thigh_L")!.dir[0]).toBeLessThan(-0.15); // the left leg finishes across to the right
     expect(f.get("thigh_L")!.dir[2]).toBeLessThan(-0.4); // and behind
+  });
+
+  it("pushes with the sole on the ice until the leg is straight, diagonally off the line of travel", () => {
+    for (const gear of GEARS.filter((g) => g.id !== "coast")) {
+      for (const backward of [false, true]) {
+        const pose = strokePose({ ...gear, foot: "L", backward, stage: "push" });
+        const f = poseFrames(pose, rest);
+        const foot = (side: "L" | "R") => f.get(`thigh_${side}`)!.dir[1] * THIGH + f.get(`shin_${side}`)!.dir[1] * SHIN;
+        // both feet at the same height: the push foot has not left the ice
+        near(foot("L"), foot("R"), 0.015);
+        // the push leg is straight
+        const t = f.get("thigh_R")!.dir;
+        const sh = f.get("shin_R")!.dir;
+        near(t[0] * sh[0] + t[1] * sh[1] + t[2] * sh[2], 1, 0.02);
+        // and travels about 40° off the line of travel, behind when forward, ahead when backward
+        const angle = (Math.atan2(Math.abs(t[0]), Math.abs(t[2])) * 180) / Math.PI;
+        expect(angle).toBeGreaterThan(30);
+        expect(angle).toBeLessThan(50);
+        expect(Math.sign(t[2])).toBe(backward ? 1 : -1);
+        // the deeper the skating knee, the longer the push reaches
+        const theta = Math.acos(-t[1]);
+        near(theta, Math.acos((THIGH + SHIN - drop(gear.knee)) / (THIGH + SHIN)), 0.02);
+      }
+    }
   });
 
   it("gears step up and down and are found by speed", () => {
