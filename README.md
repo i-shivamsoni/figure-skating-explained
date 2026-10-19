@@ -99,8 +99,10 @@ lean, landing absorption); `tests/physics.test.ts` pins its behaviour.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Corrections to rule content are especially welcome:
-name the element, what the site shows, and what the ISU document says and where.
+See [CONTRIBUTING.md](CONTRIBUTING.md). The project is built with AI coding agents and expects
+contributors to use them; [AGENTS.md](AGENTS.md) is the entry point for an agent, and the
+contributing guide says what you remain responsible for. Corrections to rule content are
+especially welcome: name the element, what the site shows, and what the ISU document says and where.
 
 ## Licence and disclaimers
 
