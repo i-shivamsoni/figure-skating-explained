@@ -488,3 +488,12 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
   cloth styles and hair styles" (pending item 1).
 - Agents: the maintainer's usage hook needs a fresh snapshot (only they can refresh it) before
   any Agent or Workflow call; two at a time, 75 % cap.
+- **Open-source preparation (19 Oct 2026):** MIT licence (the copyright line carries the git
+  author's name; confirm before publishing), public README, CONTRIBUTING, CODE_OF_CONDUCT,
+  SECURITY, a GitHub Actions workflow (build → typecheck → lint → unit tests, then Playwright),
+  Dependabot, issue and pull request templates, and `scripts/fetch-isu.sh`. The ISU copies under
+  `docs/isu/` and the clips under `videos/` are untracked and gitignored. The history of the
+  working copy still contains those files and the docs before their scrub, so the public
+  repository must be pushed from a clone rewritten with `git filter-repo` (drop `videos/`,
+  `docs/isu/pdf/`, `docs/isu/text/`; replace the local strings), and the working copy should be
+  pointed at that rewritten history before anything else is pushed.
