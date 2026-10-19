@@ -5,6 +5,13 @@
   "description": "An interactive 3D guide to the elements of figure skating and how the ISU Judging System scores them, built from the ISU documents for the 2026-27 season.",
   "license": "MIT",
   "homepage": "https://figure-skating-explained.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/i-shivamsoni/figure-skating-explained.git"
+  },
+  "bugs": {
+    "url": "https://github.com/i-shivamsoni/figure-skating-explained/issues"
+  },
   "engines": {
     "node": ">=22"
   },
