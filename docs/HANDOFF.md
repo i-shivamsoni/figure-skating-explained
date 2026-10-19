@@ -16,7 +16,7 @@ skater (woman or man, with selectable costumes) performs every element; there is
 score calculator (singles and pairs), a side-by-side compare mode, a Flip-vs-Lutz block on one
 clock, an interactive spin builder, and a protocol-code decoder.
 
-Vercel project `figure-skating-explained` (team `<vercel team>`), linked via `.vercel/`.
+Vercel project `figure-skating-explained`, linked via the gitignored `.vercel/` folder (maintainer only).
 Deploy with `vercel deploy --prod --yes` (preview: `vercel deploy --yes`; previews sit behind
 Vercel auth, production is public). The Vercel CLI is 54.x and nags to upgrade; ignore it.
 
@@ -24,24 +24,23 @@ State at the time of writing (updated 19 Oct 2026, early morning IST): see §10 
 the stroking rebuild and the UI/UX redesign (rink as the hub); 367 vitest tests, 26 Playwright
 tests, typecheck and lint clean, production redeployed after the redesign.
 
-## 2. The user and the working agreement
+## 2. The maintainer and the working agreement
 
-- The user wants an implement → test → fix → commit loop with frequent
+- The maintainer wants an implement → test → fix → commit loop with frequent
   commits and everything implemented end to end (no scope trimming). Commits end with
   `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`.
-- The user judges the site by how **human and elegant** the skaters look (reference art in the
+- The maintainer judges the site by how **human and elegant** the skaters look (reference art in the
   gitignored `videos/` and `videos/photos/`: black sleeveless dress with a short flared skirt,
   black gloves, auburn low bun with a fringe, white lace-up skates for the woman; charcoal
   fitted shirt with rolled sleeves, slim black trousers, belt, gloves, dark quiff, black skates
   for the man) and by whether the elements are **distinguishable and anatomically right**
   ("Flip and Lutz look the same", "legs going outside the shoes", "no interactive menu for
   spins" were the complaints that drove the last rounds).
-- **Agents.** "ultracode" is on. The user allows up to **75 % of the 5-hour usage window**
-  (raised from 70 %). A PreToolUse hook (`<usage hook>`)
-  blocks Agent/Workflow calls when its usage snapshot is older than 5 minutes; only the user
-  may refresh it (`<refresh script>`). The standing rule from
-  the user: **if the hook blocks, stop and ask them to refresh; do not work around it.**
-- **Orchestration rules the user set** (Waves 0–3): the main session is the orchestrator and
+- **Agents.** "ultracode" is on. The maintainer allows up to **75 % of the 5-hour usage window**
+  (raised from 70 %). A PreToolUse hook on their machine blocks Agent/Workflow calls when its
+  usage snapshot is older than 5 minutes; only the maintainer can refresh it. The standing rule:
+  **if the hook blocks, stop and ask them to refresh; do not work around it.**
+- **Orchestration rules the maintainer set** (Waves 0–3): the main session is the orchestrator and
   verifies every agent claim with its own screenshots and `pnpm test` before committing; at
   most two agents run at once; every agent gets `isolation: "worktree"`, its own dev server
   (`pnpm dev --port 3001` / `3002` inside the worktree), builds GLBs in its worktree, and a
@@ -49,12 +48,13 @@ tests, typecheck and lint clean, production redeployed after the redesign.
   codes against, how to verify (which `/dev/pose` and element screenshots), and that its report
   must split **what it verified** from **what it only believes**. The orchestrator merges the
   worktree branches into `main`, rebuilds, runs the full suite, takes definition-of-done
-  screenshots, commits, and reports to the user between waves (screenshots, what each agent
+  screenshots, commits, and reports to the maintainer between waves (screenshots, what each agent
   verified, anything redone).
 
 ## 3. Sources
 
-- `links.md` lists the ISU URLs; `docs/isu/pdf/` and `docs/isu/text/` hold the 12 documents
+- `links.md` lists the ISU URLs; `scripts/fetch-isu.sh` downloads the 12 documents (not committed,
+  ISU copyright) into the gitignored `docs/isu/pdf/` and `docs/isu/text/`
   (Special Regulations & Technical Rules, singles and pairs Technical Panel handbooks, referees'
   handbook, component charts, deductions chart, RTD guidelines, Communication 2786 Scale of
   Values, Communication 2788 Levels and GOE). `docs/isu/README.md` indexes them. They are
@@ -202,7 +202,7 @@ SKATER=male node ... scripts/shot.mts ...   # the man
 CLIP="#id" node ... scripts/shot.mts ...    # screenshot one element only
 ```
 
-- Screenshots and Blender previews go to the session scratchpad (`/tmp/<session>/...`),
+- Screenshots and Blender previews go to a per-session temp folder,
   which does not survive a machine restart; view PNGs with the Read tool. Playwright scripts
   that drive the UI (select an Edge call, toggle spin features, set `localStorage.fse-skater`)
   live there too and are easy to rewrite (10–20 lines).
@@ -245,7 +245,7 @@ CLIP="#id" node ... scripts/shot.mts ...    # screenshot one element only
   skirt, boots with cuff/tongue/laces/hooks, closed hands, ruby costume recolour, GLB rebuild
   reproducible. Not verified by anyone: `--sleeves long`, `--skirt long|none`, `--neckline
   high`, non-default palettes never rendered; the man's finger packing judged in Blender only.
-- **Redone by me after the user's "legs going outside the shoes" (81f3f37):** the rig agent's
+- **Redone by me after the maintainer's "legs going outside the shoes" (81f3f37):** the rig agent's
   50–60° pointed feet swung the rigid boot shaft off the shin; fixed with the foot→shin boot
   weighting, the booted ankle limit (45° min) and the resolver's boot clamp; poses re-pointed
   to 50°.
@@ -261,20 +261,14 @@ CLIP="#id" node ... scripts/shot.mts ...    # screenshot one element only
 - **Wave 2 close (f834049):** stills regenerated, build, production deploy.
 - **Dev-origin fix (8584ec2):** see §5.
 
-## 8. In progress: Wave 3 review
+## 8. Wave 3 review (completed)
 
-A Workflow run (`wf_b84b04f1-323`) reviews `git diff 727cdf3..HEAD` with two lenses
-(biomechanics vs the ISU handbook and joint ranges; code correctness over the resolver, entry
-segments, spin spec builder, explorer, costumes, Blender script and tests), then two refuters
-per finding run two at a time; a finding counts as confirmed only if both fail to refute it.
-Its journal is at
-`~/.claude/projects/<project>/f09f0cc2-5c64-4da1-ba46-57c377d36180/subagents/workflows/wf_b84b04f1-323/journal.jsonl`
-(`started`/`result`/`log` lines; the final `return` holds `confirmed` with each finding's
-`adjustedFix`). Script:
-`~/.claude/projects/.../workflows/scripts/wave3-review-wf_b84b04f1-323.js` (resumable with
-`resumeFromRunId`). When it completes: apply **confirmed findings only** (inline, not with
-more agents unless large), re-run tests/typecheck/lint, re-shoot the affected poses or
-elements, commit, `pnpm build`, `vercel deploy --prod --yes`, and report to the user.
+A Workflow run reviewed `git diff 727cdf3..HEAD` with two lenses (biomechanics against the ISU
+handbook and the joint ranges; code correctness over the resolver, entry segments, spin spec
+builder, explorer, costumes, Blender script and tests), then two refuters per finding, two at a
+time; a finding counted as confirmed only if both failed to refute it.
+`docs/wave3-review-result.json` holds the result (paths relative to the repo root); what was
+applied is listed in §10 under "Wave 3 review".
 
 ## 9. Known gaps and ideas
 
@@ -289,11 +283,11 @@ elements, commit, `pnpm build`, `vercel deploy --prod --yes`, and report to the 
   modelled; the overhead camera is too high to read the 20 cm change-of-edge loops.
 - The `rotation.turns` HUD semantics and the Biellmann/layback judgement calls above may be
   revisited by the Wave 3 review.
-- Deferred by the user: quiz mode, Ice Dance, localisation, program replay with running score.
+- Deferred by the maintainer: quiz mode, Ice Dance, localisation, program replay with running score.
 
 ## 10. The overhaul (15 Oct 2026, written at 01:20 IST before a scheduled shutdown)
 
-The user approved `docs/OVERHAUL-PLAN.md` (simpler UI, a freeplay rink, a free camera, a skater
+The maintainer approved `docs/OVERHAUL-PLAN.md` (simpler UI, a freeplay rink, a free camera, a skater
 appearance editor). The usage-hook snapshot went stale during the night, so after Wave 0 the
 orchestrator did the next chunks inline instead of with agents. State of each plan item:
 
@@ -316,7 +310,7 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
 - **Ground clamp (0c13913):** `SkaterRig.applyPose(pose, ground)` pins the lowest blade point to
   the ice (`bladePoints`, `lowestBladeY`, `groundShift`), fading in flight (Actor passes
   `1 − root.y/0.25`) and for lifted hips (`LIFT_FADE_*`); the landing dip no longer moves the
-  root. The user had reported blades sinking; the old poses sank 2–9 cm.
+  root. The maintainer had reported blades sinking; the old poses sank 2–9 cm.
 - **Wave 3 review (e2b40dc):** `docs/wave3-review-result.json` holds the 12 findings, 7
   confirmed; six fixed (blended twists in `lerpPose`, booted ankle cone 110 + standing feet aimed
   flat, flying camel on the right foot, stale difficult-entrance guard + explorer resets,
@@ -335,7 +329,7 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
   skin, hair style/length/colour, sleeves, skirt, gloves and a colour row per piece; no live
   preview stage yet. Verified with nine looks in the pose lab (`scratchpad/looks`) and the e2e
   drawer test (ponytail long + no skirt survive a reload).
-- **Morning round (05:10–06:00 IST, commits 8c0451c and a619c8c, user feedback inline):**
+- **Morning round (05:10–06:00 IST, commits 8c0451c and a619c8c, maintainer feedback inline):**
   blades are satin steel with a "Blades" finish choice (`BLADE_COLOURS`; plates a darker shade
   via `darken()`), the sole and heel block are a "Soles" piece that follows the boot colour (the
   Boots swatch sets both); the environment has a soft sky panel so metal reflects light; the rink
@@ -346,7 +340,7 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
   rooted inside the cap and the high bun sits on the crown; the backflip somersaults about the
   centre of mass (`CM_HEIGHT` in `special.ts`) with two-footed poses `flipLoad`, `flipLaunch`,
   `flipLand`. 283 unit tests, 21 e2e.
-- **Men's hair rebuilt (15 Oct 06:15 IST, user feedback "they look like a turban or a lump"):**
+- **Men's hair rebuilt (15 Oct 06:15 IST, maintainer feedback "they look like a turban or a lump"):**
   the four men's styles are no longer ellipsoid shells (the old cap stood 1.5–2 cm off the skull
   with the quiff, fringe and sweep as detached blobs). `skull_hair` in `build_skater.py` casts rays
   from an icosphere onto the body, trims that skull surface to `men_hairline`/`keep_men` (temple
@@ -357,7 +351,7 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
   are tuned with `scratchpad/hair/render_heads.py`-style Blender close-ups and `/dev/pose?cam=head`
   screenshots. The woman's cap (`hair_cap`) is untouched and still the ellipsoid: give it the same
   treatment if she gets the same complaint.
-- **Stroking rebuilt (18 Oct 2026, user feedback: "make it realistic", "no option for back
+- **Stroking rebuilt (18 Oct 2026, maintainer feedback: "make it realistic", "no option for back
   skating", "no option for sprint and run", "only the right leg is used when I hold an arrow key",
   "see the movements are correct biomechanically"):**
   - `three/rig/poses-stroking.ts` generates every stroking pose from a shape (`strokePose`:
@@ -394,7 +388,7 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
     touch) sits bottom-right of the rink; keys: ← → hold to turn, ↑ ↓ change gear, B toggles
     backward; the HUD names the gear ("Sprinting backward"). The old hold-↑-for-fast semantics are
     gone (`SPEED_FAST`/`SPEED_SLOW` removed).
-  - **The boards (user screenshot of a sprinting U-turn: "does skaters take such sharp turn",
+  - **The boards (maintainer screenshot of a sprinting U-turn: "does skaters take such sharp turn",
     "not going till the edge"):** a steered segment is accepted only if its trace is on the ice
     and it ends in a state from which a full-lean arc still fits (`canTurnAway`: the circle of
     radius `minRadius(v)` = v / `maxTurnRate(v)` tangent to the heading lies inside the boards;
@@ -407,7 +401,7 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
     segment). The old "turn 10 m early with a 0.6 s U-turn" reserve is gone. Tests pin: no lean
     past 35°, no segment turning more than 0.6π, the straight sprint braking to under 1.5 m/s
     within 1.5 m of the boards with the heading held until the last 2 m.
-  - **Push stage (user: "a human will push their leg straight behind, not at an angle?"):** the
+  - **Push stage (maintainer: "a human will push their leg straight behind, not at an angle?"):** the
     push is diagonal by physics (a blade grips sideways), `PUSH_ANGLE` 40° off the line of travel,
     and `strokePose({ stage: "push" })` (`pushLeg`) is the moment the straightened push leg leaves
     the ice: sole flat on the ice, reaching exactly as far from vertical as the bent skating leg
@@ -415,7 +409,7 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
     recover → push (0.3 P) → glide (0.45 P, free leg lifted behind with a modest turnout, `push`
     22–28°, `reach` 40–52°, toe pointed) → hold (0.7 P) → recover. Before this the cycle blended
     straight from feet-together to the lifted glide, so mid-push the straight free leg swept out
-    wide and the ground clamp lifted the body (two splayed straight legs at one height, the user's
+    wide and the ground clamp lifted the body (two splayed straight legs at one height, the maintainer's
     screenshot). Knees deepened (stroke 36, run 50, sprint 64). `tests/stroking.test.ts` pins both
     feet level at the push, the push leg straight, 30–50° off the line, behind when forward and
     ahead when backward, and the reach following the knee.
@@ -423,7 +417,7 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
     `/dev/pose?pose=strokeGlide|crossGlide|sprintGlide|backGlide|sprintRecover|crossRecover`).
     Known gaps: no toe-pick starts, no hockey stop, the backward crossover is the same construction
     mirrored (not separately tuned), hands are not posed in the arm swing.
-- **Colours changing a few seconds after load (18 Oct 2026, user screenshots; the earlier
+- **Colours changing a few seconds after load (18 Oct 2026, maintainer screenshots; the earlier
   "colours dull out" report had the same cause):** `three/Stage.tsx` builds the lighting
   environment once as a module-level element (`ENVIRONMENT`). drei's `Environment` with
   `frames={1}` renders its cube map inside a layout effect keyed on `children`, so the fresh JSX
@@ -437,11 +431,11 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
   direction (`data-camera` now ends with `az N el N`, degrees) and the environment's
   `pmremVersion` per frame; the glass (3 % opacity), the shadow map and the camera were ruled out.
 - **UI/UX redesign, the rink as the hub (19 Oct 2026, inline, commits fd8c798 … see `git log`;
-  plan in `<plan file>`):** the user asked for a UI/UX audit
+  plan agreed in the session):** the maintainer asked for a UI/UX audit
   and a redo so that visitors "go through the rink, then see the elements and the scoring".
   Decisions taken with them: home keeps a short landing whose hero is a **teaser** rink (a
   looping mini program with captions, values and a protocol ticker, no controls, one "Enter the
-  rink" button; the user rejected a second interactive rink on the home page), everything in
+  rink" button; the maintainer rejected a second interactive rink on the home page), everything in
   scope, all inline.
   - Shell: `components/ui/{Sheet,Disclosure}.tsx`, `lib/{useInView,useMediaQuery,useLocalFlag}.ts`,
     `components/{ValueCard,ElementCard,LessonLayout,LessonTabs,SignNotes,ShortcutsDialog}.tsx`,
@@ -458,7 +452,7 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
     shown in the Score dock for the selected or last element and as a toast when the dock is
     closed; `Protocol` has the total explained, "Open in the calculator" (`/calculator?codes=`),
     clickable rows; `Palette` on `Tabs` (wrapping) with `Segmented` rows, values on every item,
-    the chosen call/edge sign explained in the ISU's words (`SignNotes`, after the user asked
+    the chosen call/edge sign explained in the ISU's words (`SignNotes`, after the maintainer asked
     "what are < << ! e"), a Programs tab (`programs.ts`: three mini programs); `Intro.tsx` first-visit
     card (`localStorage fse-rink-intro`, reopenable from the shortcuts panel). Tests:
     `tests/learn.test.ts`.
@@ -487,10 +481,10 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
      hair physics is a later item.
   4. Rink: combination jumps and a step sequence as performable elements; a program timer with
      SP/FS limits; shareable protocol URLs.
-- **User feedback during the night, verbatim themes:** "blades sink in the ice" (fixed),
+- **Maintainer feedback during the night, verbatim themes:** "blades sink in the ice" (fixed),
   "horrible ui" on the rink (panels/fullscreen/phone rebuilt), "give arrow keys for direction"
   (done), colours "dull out" sometimes (the arena glass was tinted and the follow camera often
-  sits outside the boards; glass now 3 % opacity, to be confirmed by the user), "no different
+  sits outside the boards; glass now 3 % opacity, to be confirmed by the maintainer), "no different
   cloth styles and hair styles" (pending item 1).
-- Agents: the hook needs a fresh `usage.json` (user runs `fetch-usage.sh`) before any Agent or
-  Workflow call; two at a time, 75 % cap.
+- Agents: the maintainer's usage hook needs a fresh snapshot (only they can refresh it) before
+  any Agent or Workflow call; two at a time, 75 % cap.

@@ -1,4 +1,10 @@
-# ISU reference documents (local copies)
+# ISU reference documents (local copies, not committed)
+
+`scripts/fetch-isu.sh` downloads these from the URLs in `../../links.md` into `pdf/` (the
+originals) and `text/` (the `pdftotext -layout` extraction, blank lines stripped). Both folders
+are gitignored: the documents are ISU copyright and are kept for reference only. The site
+paraphrases them and stores numeric facts as data; `pnpm data:sov` reads the Scale of Values text.
+Do not serve or commit this folder.
 
 Downloaded 14 Oct 2026 from the URLs in `../../links.md`. `pdf/` holds the originals, `text/` the
 `pdftotext -layout` extraction (blank lines stripped). These are ISU copyrighted documents kept for

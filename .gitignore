@@ -52,3 +52,10 @@ videos/
 
 # agent worktrees created by Claude Code
 .claude/worktrees/
+
+# ISU documents (ISU copyright, not redistributed; scripts/fetch-isu.sh downloads them)
+docs/isu/pdf/
+docs/isu/text/
+
+# local Claude Code settings
+.claude/settings.local.json

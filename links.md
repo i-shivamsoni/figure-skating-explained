@@ -1,7 +1,7 @@
 # Official ISU sources (Single & Pair Skating, season 2026-27)
 
-Local copies: `docs/isu/pdf/` (original PDFs) and `docs/isu/text/` (text extracted with `pdftotext -layout`).
-See `docs/isu/README.md` for what each document contains.
+Local copies (gitignored, downloaded by `scripts/fetch-isu.sh`): `docs/isu/pdf/` (original PDFs) and
+`docs/isu/text/` (text extracted with `pdftotext -layout`). See `docs/isu/README.md` for what each document contains.
 
 ## Rules and handbooks
 

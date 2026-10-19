@@ -9,7 +9,7 @@ Decisions already made with you:
 - **Scope v1:** Single Skating only. Pair Skating (lifts, twists, throws, death spirals) is phase 2; the data model is designed so pairs slot in later.
 - **Extras:** program score calculator, side-by-side compare mode, protocol abbreviation decoder. (Quiz deferred.)
 
-Environment facts checked: Node 22.23, pnpm 11.18, Vercel CLI 54.14 logged in as `<vercel user>` (CLI is outdated, upgrade to 64 recommended), git 2.43, project dir is not a git repo yet. Blender 5.1.2 exists at `<blender>` (usable headless; the Blender MCP server is not currently running). The Agent tool is blocked by your usage-cap hook, so this plan was written without sub-agents.
+Environment facts checked: Node 22.23, pnpm 11.18, Vercel CLI 54.14 logged in (outdated, upgrade recommended), git 2.43, project dir is not a git repo yet. Blender 5.1.2 is installed locally (usable headless; the Blender MCP server is not currently running). The Agent tool is blocked by your usage-cap hook, so this plan was written without sub-agents.
 
 ## Source material (saved in the repo)
 

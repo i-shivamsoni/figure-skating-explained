@@ -4,7 +4,8 @@
  *
  *   pnpm data:sov            (node --experimental-strip-types scripts/parse-sov.ts)
  *
- * Input: docs/isu/text/ISU-Comm-2786-Scale-of-Values-2026-27.txt (pdftotext -layout).
+ * Input: docs/isu/text/ISU-Comm-2786-Scale-of-Values-2026-27.txt (pdftotext -layout; run
+ * scripts/fetch-isu.sh first, the ISU documents are not committed).
  * Each element row is "<code> <-5> <-4> <-3> <-2> <-1> <BASE> <+1> ... <+5>" with comma
  * decimals. Two rows lost their label in extraction (3A / 3Ab before the quads, and
  * 3Aq / 3Aqb before the quad q-rows); they are re-labelled by position.
