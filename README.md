@@ -21,7 +21,7 @@ scores them, built from the International Skating Union documents for the 2026-2
 - **Compare** (`/compare`): two elements side by side.
 - **Sources** (`/sources`): every ISU document used, what changed for 2026-27, and a glossary.
 
-The site is static: no accounts, no backend, no analytics. The skater is a 25-bone rig driven by
+The site is static: no accounts, no backend. Vercel Web Analytics counts page views without cookies. The skater is a 25-bone rig driven by
 named poses and pure timeline code, so every jump can be generated at any rotation count with
 any call, and the physics model behind the jumps is tested on its own.
 
