@@ -66,6 +66,17 @@ Where AI helps here, and where it does not:
   Everything numeric comes from `data/sov-2026-27.json` or from the fetched ISU text, never
   from recall.
 
+# What a change is judged by
+
+- The skater looks human and elegant, the elements are distinguishable (a Lutz reads as a Lutz
+  from the side camera, not as a Flip) and anatomically right (feet stay in the boots, joints
+  inside their limits).
+- The UI stays simple and leads somewhere: rink first, then the elements, then the score.
+- The work is verified, not claimed: tests, screenshots at 1280 and 390, and a pull request
+  that says what was checked and how.
+- It can be maintained next season: the ISU publishes new numbers every year, so content must
+  come from the data pipeline and rules from one place.
+
 # Pull requests (for contributors)
 
 ### Before you start
@@ -82,6 +93,12 @@ Where AI helps here, and where it does not:
 - New dependencies, new routes and changes to the rig or pose format carry a higher bar than
   internal changes. Say why the existing mechanism does not do the job.
 - First pull request: one at a time, and no typo-only or formatting-only changes.
+- Deferred on purpose, open an issue before starting any of these: quiz mode, Ice Dance,
+  localisation, program replay with a running score. The open work the maintainers already
+  plan is listed at the end of `docs/HANDOFF.md`.
+- Traps that have already cost time are listed in [AGENTS.md](AGENTS.md) under "Traps that
+  cost time before" and in `docs/HANDOFF.md` §5. Read them before debugging the dev server,
+  the Blender build or the typecheck.
 
 ### Preparing your PR
 

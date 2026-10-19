@@ -69,6 +69,60 @@ is to make their verification easy and your claims checkable.
   that action, and never without them reading what goes out.
 - The pull request template has a one-line slot for AI disclosure; fill it in truthfully.
 
+## What the maintainer judges by
+
+- Whether the skater looks human and elegant, and whether the elements are distinguishable
+  and anatomically right. "Flip and Lutz look the same" and "legs going outside the shoes"
+  were real complaints; a Lutz must read as a Lutz from the side camera, feet stay in the boots.
+- Whether the UI is simple and leads somewhere: rink first, then the elements, then the score.
+- Whether the work is verified, not claimed: screenshots at 1280 and 390, tests green, small
+  commits that each leave the site working.
+
+## Traps that cost time before
+
+- `pnpm typecheck` runs `next typegen` first because the route types (`LayoutProps`,
+  `PageProps`) are generated; plain `tsc` on a fresh checkout fails on them.
+- The dev server only trusts `localhost` and the origins in `allowedDevOrigins`
+  (`next.config.ts`). At another host the page renders but every 3D viewer stays at
+  "Loading 3D viewer" because the HMR socket and chunks are refused.
+- Blender 5: `transform_apply(scale=True)` bakes the object location into the mesh and zeroes
+  it, so a later rotation turns the part about the world origin. Build parts in their local
+  frame and rotate with `rotate_about()`; see the docstring of `tools/blender/build_skater.py`.
+  This cost three rebuild rounds (floating hair, laces).
+- The GLB is served at the same URL across builds, so a returning browser may show the previous
+  model until it refetches. Hard refresh before judging a rebuild.
+- The base mesh's limbs sit off the bone axes (hands about 7 cm ahead of the hand bones, the
+  man's shins about 6 cm outside the leg bones); the skates and hands compensate, nothing else.
+- Poses are validated against the joint limits in `three/rig/limits.ts` by
+  `tests/poses.test.ts`. A pose that looks right but fails a limit is wrong in the pose, not
+  in the limit; the limits are checked against anatomy and the ISU handbook.
+- `scripts/parse-sov.mts` relabels two rows that lose their label in the text extraction
+  (3A/3Ab, 3Aq/3Aqb) by position and then asserts a dozen known values. After regenerating,
+  read its output and diff `data/sov-2026-27.json`.
+- `scripts/shot.mts` waits for `body[data-skater-ready="1"]`; without a running dev server it
+  hangs, and the first screenshot after a start can take a minute while chunks compile.
+- Vitest swallows `console.log` in some reporters; write diagnostics to a file.
+- A dirty working tree may belong to someone else: another session, an agent in a worktree, a
+  person. Never commit, stash, revert or rebuild changes you did not make. Ask.
+- ESLint ignores `.claude/**` (agent worktrees). Remove a worktree with
+  `git worktree remove --force` after merging it.
+
+## Working with sub-agents
+
+When a job is split across agents, this is the shape that worked:
+
+- Start from a clean, committed base. Split the seams two agents would both touch (a shared
+  pose barrel, catalog spec types, a test file) before the wave, not after.
+- Every agent gets its own worktree, its own dev server port (`pnpm dev --port 3001`, `3002`),
+  builds GLBs in its worktree (symlink `tools/blender/assets/` from the main checkout) and
+  commits on its branch. At most two agents at once.
+- A brief states: the goal, the files the agent owns, the files it must not touch, the contract
+  it codes against, how to verify (which `/dev/` labs and element screenshots), and that the
+  report must split what was verified from what is only believed.
+- The orchestrator verifies every claim with its own screenshots and `pnpm test` before merging
+  (`git merge --no-ff`), then removes the worktree. Reports between waves say what each agent
+  verified, what was redone, and show the screenshots.
+
 ## Do not
 
 - Commit `docs/isu/pdf/`, `docs/isu/text/`, `videos/`, `tools/blender/assets/` or anything

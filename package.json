@@ -15,7 +15,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "data:sov": "node --experimental-strip-types scripts/parse-sov.mts",
     "test:e2e": "playwright test"
   },

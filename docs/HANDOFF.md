@@ -193,9 +193,9 @@ tests, typecheck and lint clean, production redeployed after the redesign.
 
 ```bash
 pnpm dev            # dev server on :3000 (usually already running; config changes restart it)
-pnpm test           # vitest: 234 tests
-pnpm typecheck && pnpm lint
-pnpm build          # 60 static pages
+pnpm test           # vitest: 367 tests
+pnpm typecheck && pnpm lint   # typecheck runs `next typegen` first (generated route types)
+pnpm build          # 61 static pages
 pnpm test:e2e       # Playwright smoke suite against the running dev server
 node --experimental-strip-types scripts/shot.mts <url> <out.png> ['body[data-skater-ready="1"]'] [w] [h]
 SKATER=male node ... scripts/shot.mts ...   # the man
@@ -213,6 +213,14 @@ CLIP="#id" node ... scripts/shot.mts ...    # screenshot one element only
 - `.claude/worktrees/` (agent worktrees) is gitignored and ignored by ESLint
   (`eslint.config.mjs`); remove worktrees with `git worktree remove --force` after merging.
 - Vitest swallows `console.log` in some reporters; write diagnostics to a scratch file instead.
+- **Blender 5:** `transform_apply(scale=True)` bakes the object location into the mesh and
+  zeroes it, so a later `transform_apply(rotation=True)` turns the part about the world origin
+  (floating hair and laces, three rebuild rounds). `build_skater.py` builds parts in their local
+  frame and rotates with `rotate_about()`; keep it that way.
+- **Someone else's changes:** more than one session or agent may work in this checkout. A dirty
+  tree is not evidence of this session's unfinished work; never commit, stash, revert or
+  rebuild changes you did not make, ask which files are yours.
+- `AGENTS.md` carries the short list of these traps for agents; keep the two in step.
 - The GLB is served from `public/models` with the same URL across builds: a returning browser
   may show the previous model until it refetches; the rig works with either.
 
@@ -296,7 +304,8 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
   `SkaterModel`), `three/animation/place.ts` + `rinkSize.ts`, camera presets with `track`,
   `components/ui/*`, tokens + forced theme, grouped nav + phone sheet, `SkaterDrawer` (first
   version: body, looks, skin, hair and dress colours), theme toggle, `tests/{place,appearance,
-  glb}.test.ts`. **`tests/glb.test.ts` fails by design** until the GLBs carry the variant nodes.
+  glb}.test.ts`. **`tests/glb.test.ts` fails by design** until the GLBs carry the variant nodes (resolved by
+  584218b; the suite is green since).
 - **1B player (658ec77, done inline):** orbit always on with tracking, presets as starting
   points (`CameraRig` in `three/ElementPlayer.tsx`), one-row toolbar with the camera menu,
   compact HUD, full screen, keyboard F/C/T, `Actor/Trace/IceArrows/CameraRig/Hud/PlayerControls`
@@ -431,7 +440,7 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
   direction (`data-camera` now ends with `az N el N`, degrees) and the environment's
   `pmremVersion` per frame; the glass (3 % opacity), the shadow map and the camera were ruled out.
 - **UI/UX redesign, the rink as the hub (19 Oct 2026, inline, commits fd8c798 … see `git log`;
-  plan agreed in the session):** the maintainer asked for a UI/UX audit
+  plan in `docs/REDESIGN-PLAN.md`):** the maintainer asked for a UI/UX audit
   and a redo so that visitors "go through the rink, then see the elements and the scoring".
   Decisions taken with them: home keeps a short landing whose hero is a **teaser** rink (a
   looping mini program with captions, values and a protocol ticker, no controls, one "Enter the
@@ -496,4 +505,9 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
   working copy still contains those files and the docs before their scrub, so the public
   repository must be pushed from a clone rewritten with `git filter-repo` (drop `videos/`,
   `docs/isu/pdf/`, `docs/isu/text/`; replace the local strings), and the working copy should be
-  pointed at that rewritten history before anything else is pushed.
+  pointed at that rewritten history before anything else is pushed. Lessons from doing it:
+  `git filter-repo` refuses a hardlinked local clone, clone with `--no-local` first; until the
+  working copy is repointed, carry later commits over with `git format-patch` and `git am`,
+  never with a fetch (a fetch drags the old history back in); CI now fails if the ISU
+  documents or the clips are ever tracked again; `pnpm typecheck` runs `next typegen` so a
+  fresh checkout can typecheck without a build.

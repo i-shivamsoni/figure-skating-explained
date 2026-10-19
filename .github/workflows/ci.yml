@@ -21,11 +21,16 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # next build generates the route types that `tsc` needs, so it runs first
-      - run: pnpm build
-      - run: pnpm typecheck
+      - name: No copyrighted material tracked
+        run: |
+          if git ls-files | grep -E '^(videos/|docs/isu/(pdf|text)/)'; then
+            echo "The ISU documents and the reference clips must not be committed; see CONTRIBUTING.md" >&2
+            exit 1
+          fi
+      - run: pnpm typecheck   # runs next typegen first, so no build is needed
       - run: pnpm lint
       - run: pnpm test
+      - run: pnpm build
 
   e2e:
     name: End-to-end tests
