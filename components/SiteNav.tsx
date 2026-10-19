@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ChevronDown, Menu, UserRound, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useUiStore } from "@/lib/uiStore";
+import { GitHubIconLink, GitHubTextLink } from "./GitHubLink";
 import { ThemeToggle } from "./ThemeToggle";
 import { IconButton } from "./ui/IconButton";
 import { cn } from "./ui/cn";
@@ -73,6 +74,7 @@ export function SiteNav() {
           <IconButton label="Your skater" onClick={openSkater} className="sm:hidden">
             <UserRound className="h-5 w-5" />
           </IconButton>
+          <GitHubIconLink className="hidden sm:inline-flex" />
           <ThemeToggle />
           <IconButton label={menu ? "Close menu" : "Open menu"} onClick={() => setMenu(!menu)} className="md:hidden" aria-expanded={menu} aria-controls="mobile-nav">
             {menu ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -100,6 +102,7 @@ export function SiteNav() {
           <Link href="/sources" className="mt-2 block rounded-md px-2 py-2 text-sm text-muted hover:bg-surface-2">
             Sources
           </Link>
+          <GitHubTextLink className="mt-1 px-2 py-2 text-sm" />
         </nav>
       )}
     </header>

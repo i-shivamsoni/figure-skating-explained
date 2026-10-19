@@ -156,3 +156,11 @@ test("compare has one camera control and the lessons preselect from the rink's l
   await page.getByRole("button", { name: "Elements" }).click();
   await expect(page.getByRole("menuitem", { name: /Compare/ })).toBeVisible();
 });
+
+test("the nav, the footer and the sources page link to the GitHub repository", async ({ page }) => {
+  const repo = "https://github.com/i-shivamsoni/figure-skating-explained";
+  await page.goto("/sources");
+  await expect(page.locator("header").getByRole("link", { name: "Source code on GitHub" })).toHaveAttribute("href", repo);
+  await expect(page.locator("footer").getByRole("link", { name: "Source on GitHub" })).toHaveAttribute("href", repo);
+  await expect(page.locator("main").getByRole("link", { name: "on GitHub" })).toHaveAttribute("href", repo);
+});

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUiStore } from "@/lib/uiStore";
+import { GitHubTextLink } from "./GitHubLink";
 
 const LINKS = [
   { href: "/sources", label: "Sources" },
@@ -26,11 +27,12 @@ export function SiteFooter() {
           <button type="button" onClick={openShortcuts} className="focus-ring rounded-md font-medium text-foreground hover:text-accent">
             Keyboard shortcuts
           </button>
+          <GitHubTextLink />
         </nav>
         <p>
           Rules, base values and definitions are paraphrased from the International Skating Union documents for the
           2026-27 season. See <Link href="/sources" className="text-accent underline-offset-2 hover:underline">Sources</Link> for the
-          originals. This site is independent and not affiliated with the ISU.
+          originals. This site is independent and not affiliated with the ISU; its code and content are open source.
         </p>
         <p className="mt-2">Jump feet are described for a counter-clockwise skater; clockwise skaters mirror everything.</p>
       </div>

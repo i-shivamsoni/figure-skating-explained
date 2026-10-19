@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Card, PageHeader, Section } from "@/components/Page";
 import { CHANGES_2026_27, SOURCES } from "@/data/sources";
 import { GLOSSARY } from "@/data/glossary";
+import { REPO_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Sources and glossary",
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 export default function SourcesPage() {
   return (
     <>
-      <PageHeader eyebrow="References" title="Sources, changes and glossary" intro={<p>Everything here is paraphrased from the official International Skating Union documents for the 2026-27 season. Numbers (base values, factors, deductions) are copied exactly; rule text is reworded. When in doubt, the ISU document wins.</p>} />
+      <PageHeader eyebrow="References" title="Sources, changes and glossary" intro={<p>Everything here is paraphrased from the official International Skating Union documents for the 2026-27 season. Numbers (base values, factors, deductions) are copied exactly; rule text is reworded. When in doubt, the ISU document wins. The site itself is open source: its code, content and tests are{" "}<a href={REPO_URL} target="_blank" rel="noreferrer" className="text-accent-strong hover:underline">on GitHub</a>.</p>} />
       <Section title="ISU documents">
         <div className="grid gap-3 md:grid-cols-2">
           {SOURCES.map((s) => (
