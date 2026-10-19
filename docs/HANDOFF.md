@@ -501,13 +501,16 @@ orchestrator did the next chunks inline instead of with agents. State of each pl
   author's name; confirm before publishing), public README, CONTRIBUTING, CODE_OF_CONDUCT,
   SECURITY, a GitHub Actions workflow (build → typecheck → lint → unit tests, then Playwright),
   Dependabot, issue and pull request templates, and `scripts/fetch-isu.sh`. The ISU copies under
-  `docs/isu/` and the clips under `videos/` are untracked and gitignored. The history of the
-  working copy still contains those files and the docs before their scrub, so the public
-  repository must be pushed from a clone rewritten with `git filter-repo` (drop `videos/`,
-  `docs/isu/pdf/`, `docs/isu/text/`; replace the local strings), and the working copy should be
-  pointed at that rewritten history before anything else is pushed. Lessons from doing it:
-  `git filter-repo` refuses a hardlinked local clone, clone with `--no-local` first; until the
-  working copy is repointed, carry later commits over with `git format-patch` and `git am`,
-  never with a fetch (a fetch drags the old history back in); CI now fails if the ISU
-  documents or the clips are ever tracked again; `pnpm typecheck` runs `next typegen` so a
+  `docs/isu/` and the clips under `videos/` are untracked and gitignored. The history was
+  rewritten with `git filter-repo` (drop `videos/`, `docs/isu/pdf/`, `docs/isu/text/`; replace
+  the local strings) into the **`published`** branch, the only one that is ever pushed (as
+  `main` on the remote). The maintainer works on a local **`private`** branch: `published` plus
+  one commit that adds the private material (`private/` with the agent memories, the plan
+  files, the pre-publication history bundle and the Vercel link; the clips in `videos/`; the ISU
+  documents in `docs/isu/`). Public commits are made on `private` and ported with
+  `private/publish.sh`, which cherry-picks them into a `published` worktree and skips any commit
+  that touches a private path, so one commit must never mix public and private files. Lessons:
+  `git filter-repo` refuses a hardlinked local clone (`git clone --no-local` first); never fetch
+  the pre-publication history into a public checkout; CI fails if the ISU documents, the clips
+  or `private/` are ever tracked on `published`; `pnpm typecheck` runs `next typegen` so a
   fresh checkout can typecheck without a build.

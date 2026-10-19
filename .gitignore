@@ -59,3 +59,6 @@ docs/isu/text/
 
 # local Claude Code settings
 .claude/settings.local.json
+
+# the maintainer's private branch keeps its material here; never on the published branch
+private/

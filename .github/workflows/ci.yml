@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, published]
   pull_request:
 
 concurrency:
@@ -23,8 +23,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: No copyrighted material tracked
         run: |
-          if git ls-files | grep -E '^(videos/|docs/isu/(pdf|text)/)'; then
-            echo "The ISU documents and the reference clips must not be committed; see CONTRIBUTING.md" >&2
+          if git ls-files | grep -E '^(private/|videos/|docs/isu/(pdf|text)/)'; then
+            echo "The ISU documents, the reference clips and private/ must not be committed; see CONTRIBUTING.md" >&2
             exit 1
           fi
       - run: pnpm typecheck   # runs next typegen first, so no build is needed
